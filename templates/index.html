@@ -1147,18 +1147,23 @@
                     return;
                 }
 
-                const traces = [
-                    {
-                        x: chartData.labels,
-                        y: chartData.energy_kwh,
-                        type: 'bar',
-                        name: 'Energy (kWh)',
-                        marker: { 
-                            color: '#34a853',
-                            line: { color: '#34a853', width: 1 }
-                        }
-                    }
-                ];
+                                 const traces = [
+                     {
+                         x: chartData.labels,
+                         y: chartData.energy_kwh,
+                         type: 'bar',
+                         name: 'Energy (kWh)',
+                         marker: { 
+                             color: '#34a853',
+                             line: { color: '#34a853', width: 1 }
+                         },
+                         // Offset bars to position them between hour markers
+                         ...(this.currentEnergyPeriod === 'day' && {
+                             offset: -0.5,
+                             width: 0.8
+                         })
+                     }
+                 ];
 
                 const layout = {
                     title: {
@@ -1174,9 +1179,7 @@
                              tickmode: 'array',
                              tickvals: chartData.labels,
                              ticktext: chartData.labels.map(hour => `${hour}:00`),
-                             tickangle: 0,
-                             // Position bars between hour markers by offsetting them
-                             range: [-0.5, 23.5]
+                             tickangle: 0
                          })
                      },
                     yaxis: {
