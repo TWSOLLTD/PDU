@@ -475,9 +475,8 @@ def get_energy_data():
             # Create all 24 hours for today
             for i in range(24):
                 target_hour = today_start + timedelta(hours=i)
-                # Show time period (e.g., "9-10" instead of "09:00")
-                next_hour = target_hour + timedelta(hours=1)
-                chart_data['labels'].append(f"{target_hour.strftime('%H')}-{next_hour.strftime('%H')}")
+                # Show hour labels (e.g., "9", "10", "11") for the x-axis
+                chart_data['labels'].append(target_hour.strftime('%H'))
                 
                 if target_hour in hourly_data:
                     # Sum power readings and convert to kWh (assuming 1-minute intervals)
