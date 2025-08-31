@@ -1165,18 +1165,20 @@
                         text: `Energy Consumption - ${this.currentEnergyPeriod.charAt(0).toUpperCase() + this.currentEnergyPeriod.slice(1)} View`,
                         font: { size: 18, color: '#202124' }
                     },
-                    xaxis: {
-                        title: this.currentEnergyPeriod === 'day' ? 'Hour' : 'Time Period',
-                        gridcolor: '#e8eaed',
-                        zeroline: false,
-                        // For day view, position bars between hour markers
-                        ...(this.currentEnergyPeriod === 'day' && {
-                            tickmode: 'array',
-                            tickvals: chartData.labels,
-                            ticktext: chartData.labels.map(hour => `${hour}:00`),
-                            tickangle: 0
-                        })
-                    },
+                                         xaxis: {
+                         title: this.currentEnergyPeriod === 'day' ? 'Hour' : 'Time Period',
+                         gridcolor: '#e8eaed',
+                         zeroline: false,
+                         // For day view, position bars between hour markers
+                         ...(this.currentEnergyPeriod === 'day' && {
+                             tickmode: 'array',
+                             tickvals: chartData.labels,
+                             ticktext: chartData.labels.map(hour => `${hour}:00`),
+                             tickangle: 0,
+                             // Position bars between hour markers by offsetting them
+                             range: [-0.5, 23.5]
+                         })
+                     },
                     yaxis: {
                         title: 'Energy (kWh)',
                         gridcolor: '#e8eaed',
