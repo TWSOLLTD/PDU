@@ -8,6 +8,7 @@ import time
 import logging
 import signal
 import sys
+import shutil
 from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -44,6 +45,26 @@ class PDUScheduler:
         self.running = False
         self.scheduler.shutdown()
         sys.exit(0)
+    
+    def backup_database(self):
+        """Create a backup of the database"""
+        try:
+            import os
+            db_path = 'pdu_monitor.db'
+            if os.path.exists(db_path):
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                backup_path = f'pdu_monitor_backup_{timestamp}.db'
+                shutil.copy2(db_path, backup_path)
+                logger.info(f"Database backup created: {backup_path}")
+                
+                # Keep only the last 5 backups
+                backup_files = [f for f in os.listdir('.') if f.startswith('pdu_monitor_backup_') and f.endswith('.db')]
+                backup_files.sort(reverse=True)
+                for old_backup in backup_files[5:]:
+                    os.remove(old_backup)
+                    logger.info(f"Removed old backup: {old_backup}")
+        except Exception as e:
+            logger.error(f"Error creating database backup: {str(e)}")
     
     def collect_data(self):
         """Collect data from all PDUs"""
@@ -110,6 +131,9 @@ class PDUScheduler:
     def start(self):
         """Start the scheduler"""
         try:
+            # Create database backup before starting
+            self.backup_database()
+            
             # Initialize database
             with app.app_context():
                 init_db()
@@ -121,6 +145,16 @@ class PDUScheduler:
                 trigger=IntervalTrigger(seconds=COLLECTION_INTERVAL),
                 id='pdu_data_collection',
                 name='PDU Data Collection',
+                max_instances=1,
+                replace_existing=True
+            )
+            
+            # Add job to backup database daily
+            self.scheduler.add_job(
+                func=self.backup_database,
+                trigger=IntervalTrigger(hours=24),
+                id='database_backup',
+                name='Database Backup',
                 max_instances=1,
                 replace_existing=True
             )

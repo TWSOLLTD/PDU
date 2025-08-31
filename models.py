@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import sqlite3
+import os
 
 db = SQLAlchemy()
 
@@ -46,8 +47,56 @@ class PowerAggregation(db.Model):
     def __repr__(self):
         return f'<PowerAggregation {self.period_type} {self.total_kwh}kWh>'
 
+def check_database_integrity():
+    """Check if database has existing data before initializing"""
+    try:
+        # Check if database file exists and has data
+        db_path = 'pdu_monitor.db'
+        if os.path.exists(db_path):
+            # Check file size (if it's very small, it might be empty)
+            file_size = os.path.getsize(db_path)
+            if file_size < 1024:  # Less than 1KB
+                print(f"Warning: Database file is very small ({file_size} bytes). It might be empty or corrupted.")
+                return False
+            
+            # Try to connect and check for existing data
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # Check if tables exist
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = cursor.fetchall()
+            
+            if not tables:
+                print("Warning: Database file exists but contains no tables.")
+                return False
+            
+            # Check if we have any power readings
+            cursor.execute("SELECT COUNT(*) FROM power_readings;")
+            reading_count = cursor.fetchone()[0]
+            
+            if reading_count == 0:
+                print("Warning: Database exists but contains no power readings.")
+                return False
+            
+            print(f"Database integrity check passed. Found {reading_count} power readings.")
+            conn.close()
+            return True
+            
+    except Exception as e:
+        print(f"Database integrity check failed: {str(e)}")
+        return False
+    
+    return False
+
 def init_db():
     """Initialize the database and create tables"""
+    # Check database integrity before initializing
+    if check_database_integrity():
+        print("Database already exists with data. Skipping initialization.")
+        return
+    
+    print("Initializing new database...")
     db.create_all()
     
     # Create PDU records if they don't exist
@@ -62,4 +111,5 @@ def init_db():
             db.session.add(pdu)
     
     db.session.commit()
+    print("Database initialization completed.")
 

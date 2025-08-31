@@ -749,6 +749,68 @@ def get_power_summary():
             'error': str(e)
         }), 500
 
+@app.route('/api/debug-database')
+def debug_database():
+    """Debug endpoint to check database status"""
+    try:
+        # Get basic database info
+        pdus = PDU.query.all()
+        total_readings = PowerReading.query.count()
+        
+        # Get latest readings
+        latest_readings = []
+        for pdu in pdus:
+            latest = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).first()
+            if latest:
+                latest_readings.append({
+                    'pdu_name': pdu.name,
+                    'pdu_ip': pdu.ip_address,
+                    'latest_timestamp': latest.timestamp.isoformat(),
+                    'latest_power_watts': latest.power_watts,
+                    'time_diff_minutes': (datetime.utcnow() - latest.timestamp).total_seconds() / 60
+                })
+            else:
+                latest_readings.append({
+                    'pdu_name': pdu.name,
+                    'pdu_ip': pdu.ip_address,
+                    'latest_timestamp': None,
+                    'latest_power_watts': None,
+                    'time_diff_minutes': None
+                })
+        
+        # Get reading count by time periods
+        now = datetime.utcnow()
+        last_hour = PowerReading.query.filter(PowerReading.timestamp >= now - timedelta(hours=1)).count()
+        last_24h = PowerReading.query.filter(PowerReading.timestamp >= now - timedelta(hours=24)).count()
+        last_7d = PowerReading.query.filter(PowerReading.timestamp >= now - timedelta(days=7)).count()
+        
+        # Get oldest and newest readings
+        oldest = PowerReading.query.order_by(PowerReading.timestamp.asc()).first()
+        newest = PowerReading.query.order_by(PowerReading.timestamp.desc()).first()
+        
+        debug_info = {
+            'total_pdus': len(pdus),
+            'total_readings': total_readings,
+            'readings_last_hour': last_hour,
+            'readings_last_24h': last_24h,
+            'readings_last_7d': last_7d,
+            'oldest_reading': oldest.timestamp.isoformat() if oldest else None,
+            'newest_reading': newest.timestamp.isoformat() if newest else None,
+            'pdu_status': latest_readings
+        }
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in debug endpoint: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.errorhandler(404)
 def not_found(error):
     return "Page not found", 404
