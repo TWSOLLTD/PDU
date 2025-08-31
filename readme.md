@@ -28,16 +28,16 @@ A comprehensive system for monitoring APC PDU power consumption via SNMP with a 
 For `/opt/PDU-NEW/` installation:
 
 ```bash
-# 1. Create directory and set permissions
+# 1. Create directory
 mkdir -p /opt/PDU-NEW
 cd /opt/PDU-NEW
 
-# 2. Clone the repository
-git clone https://github.com/TWSOLLTD/PDU .
-
-# 3. Install dependencies
+# 2. Install dependencies
 apt update
-apt install -y python3 python3-pip python3-venv snmp snmp-mibs-downloader
+apt install -y git python3 python3-pip python3-venv snmp snmp-mibs-downloader build-essential python3-dev libssl-dev
+
+# 3. Clone the repository
+git clone https://github.com/TWSOLLTD/PDU .
 
 # 4. Set up Python environment
 python3 -m venv pdu_env
@@ -63,9 +63,6 @@ chmod +x start.sh
 # Create the project directory
 mkdir -p /opt/PDU-NEW
 cd /opt/PDU-NEW
-
-# Clone the repository
-git clone https://github.com/TWSOLLTD/PDU .
 ```
 
 ### 2. Install System Dependencies
@@ -74,14 +71,21 @@ git clone https://github.com/TWSOLLTD/PDU .
 # Update package list
 apt update
 
-# Install Python 3 and pip
-apt install -y python3 python3-pip python3-venv
+# Install Git and Python 3
+apt install -y git python3 python3-pip python3-venv
 
-# Install system dependencies for SNMP
-apt install -y snmp snmp-mibs-downloader
+# Install system dependencies for SNMP and development
+apt install -y snmp snmp-mibs-downloader build-essential python3-dev libssl-dev
 ```
 
-### 3. Install Python Dependencies
+### 3. Clone the Repository
+
+```bash
+# Clone the repository
+git clone https://github.com/TWSOLLTD/PDU .
+```
+
+### 4. Install Python Dependencies
 
 ```bash
 # Create virtual environment (recommended)
@@ -94,7 +98,7 @@ pip install -r requirements.txt
 # Note: Keep the virtual environment activated for the next steps
 ```
 
-### 4. Configure PDU Settings
+### 5. Configure PDU Settings
 
 Edit `config.py` to match your PDU configuration:
 
@@ -121,7 +125,7 @@ PDUS = {
 }
 ```
 
-### 5. Initialize Database
+### 6. Initialize Database
 
 ```bash
 python3 -c "from app import create_app; app = create_app()"
