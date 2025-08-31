@@ -158,25 +158,7 @@ def get_power_data():
         if period == 'hour':
             # Get last 24 hours of data, grouped by 15-minute intervals
             start_time = datetime.utcnow() - timedelta(hours=24)
-            logger.info(f"Looking for readings from {start_time} to {datetime.utcnow()}")
             readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
-            
-            # Debug: Log the number of readings found
-            logger.info(f"Found {len(readings)} readings in the last 24 hours")
-            
-            if not readings:
-                logger.warning("No power readings found in the last 24 hours")
-                # Return empty chart data instead of error
-                chart_data = {
-                    'labels': [],
-                    'power_watts': []
-                }
-                return jsonify({
-                    'success': True,
-                    'data': chart_data,
-                    'period': period,
-                    'message': 'No data available for the selected period'
-                })
             
             # Group by 15-minute intervals
             interval_data = {}
@@ -190,23 +172,12 @@ def get_power_data():
                     interval_data[interval] = []
                 interval_data[interval].append(reading.power_watts)
             
-            # Debug: Log the intervals found
-            logger.info(f"Found {len(interval_data)} time intervals with data")
-            if interval_data:
-                logger.info(f"Time range: {min(interval_data.keys())} to {max(interval_data.keys())}")
-                # Log a few sample intervals
-                sample_intervals = list(interval_data.keys())[:5]
-                logger.info(f"Sample intervals: {sample_intervals}")
-            else:
-                logger.warning("No intervals found with data")
-            
             chart_data = {
                 'labels': [],
                 'power_watts': []
             }
             
-            # Create all 15-minute intervals for the last 24 hours, but fill with actual data when available
-            logger.info(f"Creating {96} target intervals from {start_time}")
+            # Create all 15-minute intervals for the last 24 hours
             for i in range(96):  # 24 hours * 4 intervals per hour
                 target_interval = start_time + timedelta(minutes=15*i)
                 chart_data['labels'].append(target_interval.strftime('%H:%M'))
@@ -214,19 +185,8 @@ def get_power_data():
                 if target_interval in interval_data:
                     avg_power = sum(interval_data[target_interval]) / len(interval_data[target_interval])
                     chart_data['power_watts'].append(round(avg_power, 1))
-                    if i < 5:  # Log first few matches
-                        logger.info(f"Found data for {target_interval}: {avg_power}W")
                 else:
-                    chart_data['power_watts'].append(None)  # Use None instead of 0 to show gaps
-            
-            # Debug: Log the final chart data
-            logger.info(f"Returning chart data with {len(chart_data['labels'])} data points")
-            # Filter out None values for min/max calculation
-            valid_power_values = [v for v in chart_data['power_watts'] if v is not None]
-            if valid_power_values:
-                logger.info(f"Power range: {min(valid_power_values)} - {max(valid_power_values)} watts")
-            else:
-                logger.info("No valid power values found")
+                    chart_data['power_watts'].append(0)  # Use 0 for missing data
         
         elif period == 'day':
             # Get last 7 days of data, grouped by day
@@ -246,10 +206,17 @@ def get_power_data():
                 'power_watts': []
             }
             
-            for day in sorted(daily_data.keys()):
-                chart_data['labels'].append(day.strftime('%Y-%m-%d'))
-                avg_power = sum(daily_data[day]) / len(daily_data[day])
-                chart_data['power_watts'].append(round(avg_power, 1))
+            # Create all 7 days
+            for i in range(7):
+                target_date = datetime.utcnow() - timedelta(days=6-i)
+                target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+                
+                if target_date in daily_data:
+                    avg_power = sum(daily_data[target_date]) / len(daily_data[target_date])
+                    chart_data['power_watts'].append(round(avg_power, 1))
+                else:
+                    chart_data['power_watts'].append(0)
         
         elif period == 'week':
             # Get last 4 weeks of data, grouped by week
@@ -271,10 +238,18 @@ def get_power_data():
                 'power_watts': []
             }
             
-            for week in sorted(weekly_data.keys()):
-                chart_data['labels'].append(week.strftime('%Y-%m-%d'))
-                avg_power = sum(weekly_data[week]) / len(weekly_data[week])
-                chart_data['power_watts'].append(round(avg_power, 1))
+            # Create all 4 weeks
+            for i in range(4):
+                target_week = datetime.utcnow() - timedelta(weeks=3-i)
+                target_week = target_week - timedelta(days=target_week.weekday())
+                target_week = target_week.replace(hour=0, minute=0, second=0, microsecond=0)
+                chart_data['labels'].append(target_week.strftime('%Y-%m-%d'))
+                
+                if target_week in weekly_data:
+                    avg_power = sum(weekly_data[target_week]) / len(weekly_data[target_week])
+                    chart_data['power_watts'].append(round(avg_power, 1))
+                else:
+                    chart_data['power_watts'].append(0)
         
         elif period == 'month':
             # Get last 12 months of data, grouped by month
@@ -294,10 +269,17 @@ def get_power_data():
                 'power_watts': []
             }
             
-            for month in sorted(monthly_data.keys()):
-                chart_data['labels'].append(month.strftime('%Y-%m'))
-                avg_power = sum(monthly_data[month]) / len(monthly_data[month])
-                chart_data['power_watts'].append(round(avg_power, 1))
+            # Create all 12 months
+            for i in range(12):
+                target_month = datetime.utcnow() - timedelta(days=30*i)
+                target_month = target_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                chart_data['labels'].append(target_month.strftime('%Y-%m'))
+                
+                if target_month in monthly_data:
+                    avg_power = sum(monthly_data[target_month]) / len(monthly_data[target_month])
+                    chart_data['power_watts'].append(round(avg_power, 1))
+                else:
+                    chart_data['power_watts'].append(0)
         
         return jsonify({
             'success': True,
@@ -484,7 +466,7 @@ def get_energy_data():
                 'energy_kwh': []
             }
             
-            # Create all 24 hours for today, but fill with actual data when available
+            # Create all 24 hours for today
             for i in range(24):
                 target_hour = today_start + timedelta(hours=i)
                 chart_data['labels'].append(target_hour.strftime('%H:00'))
@@ -494,7 +476,7 @@ def get_energy_data():
                     energy_kwh = sum(hourly_data[target_hour]) / 60
                     chart_data['energy_kwh'].append(round(energy_kwh, 3))
                 else:
-                    chart_data['energy_kwh'].append(None)  # Use None instead of 0 to show gaps
+                    chart_data['energy_kwh'].append(0)
         
         elif period == 'week':
             # Get daily energy consumption for the last 7 days
@@ -514,7 +496,7 @@ def get_energy_data():
                 'energy_kwh': []
             }
             
-            # Create all 7 days, but fill with actual data when available
+            # Create all 7 days
             for i in range(7):
                 target_date = datetime.utcnow() - timedelta(days=6-i)
                 target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -524,7 +506,7 @@ def get_energy_data():
                     energy_kwh = sum(daily_data[target_date]) / 60
                     chart_data['energy_kwh'].append(round(energy_kwh, 3))
                 else:
-                    chart_data['energy_kwh'].append(None)  # Use None instead of 0 to show gaps
+                    chart_data['energy_kwh'].append(0)
         
         elif period == 'month':
             # Get daily energy consumption for the last 30 days
@@ -544,7 +526,7 @@ def get_energy_data():
                 'energy_kwh': []
             }
             
-            # Create all 30 days, but fill with actual data when available
+            # Create all 30 days
             for i in range(30):
                 target_date = datetime.utcnow() - timedelta(days=29-i)
                 target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -554,7 +536,7 @@ def get_energy_data():
                     energy_kwh = sum(daily_data[target_date]) / 60
                     chart_data['energy_kwh'].append(round(energy_kwh, 3))
                 else:
-                    chart_data['energy_kwh'].append(None)  # Use None instead of 0 to show gaps
+                    chart_data['energy_kwh'].append(0)
         
         return jsonify({
             'success': True,
