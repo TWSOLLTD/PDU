@@ -11,7 +11,7 @@ import json
 import logging
 import requests
 
-from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG
+from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG, ALERT_CONFIG
 
 # Discord webhook configuration
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1411794302513975499/fSvpOKKmWExxqOpSf7vDg5fJhkUMnlgQkeuaF3qpQwnI6vVC1POk3xw3yS175Ss3m0XB"
@@ -35,6 +35,49 @@ data_processor = PowerDataProcessor()
 
 # Alert state tracking to prevent duplicate alerts
 alert_states = {}  # Track which alerts are currently active
+sustained_power_tracking = {}  # Track sustained high power periods
+
+def check_sustained_high_power(pdu_id, pdu_name, current_power, threshold_watts=None, duration_minutes=None):
+    """Check if power has been high for a sustained period"""
+    if threshold_watts is None:
+        threshold_watts = ALERT_CONFIG['high_power_threshold_watts']
+    if duration_minutes is None:
+        duration_minutes = ALERT_CONFIG['high_power_duration_minutes']
+    
+    current_time = datetime.utcnow()
+    
+    # Initialize tracking for this PDU if not exists
+    if pdu_id not in sustained_power_tracking:
+        sustained_power_tracking[pdu_id] = {
+            'start_time': None,
+            'threshold_exceeded': False,
+            'last_check': current_time
+        }
+    
+    tracking = sustained_power_tracking[pdu_id]
+    
+    # Check if current power exceeds threshold
+    if current_power > threshold_watts:
+        if not tracking['threshold_exceeded']:
+            # Just started exceeding threshold
+            tracking['start_time'] = current_time
+            tracking['threshold_exceeded'] = True
+            logger.info(f"🔍 {pdu_name} power threshold exceeded: {current_power:.1f}W > {threshold_watts}W")
+        
+        # Check if we've been over threshold for the required duration
+        if tracking['start_time']:
+            duration_exceeded = (current_time - tracking['start_time']).total_seconds() / 60
+            if duration_exceeded >= duration_minutes:
+                logger.warning(f"🚨 {pdu_name} sustained high power for {duration_exceeded:.1f} minutes: {current_power:.1f}W")
+                return True, duration_exceeded
+    else:
+        # Power is back below threshold, reset tracking
+        if tracking['threshold_exceeded']:
+            logger.info(f"✅ {pdu_name} power back to normal: {current_power:.1f}W")
+        tracking['threshold_exceeded'] = False
+        tracking['start_time'] = None
+    
+    return False, 0
 
 def send_discord_alert(alert):
     """Send alert to Discord webhook"""
@@ -548,8 +591,8 @@ def get_alerts():
                 # Check for various alert conditions
                 time_diff = datetime.utcnow() - latest.timestamp
                 
-                # Offline alert (no reading in last 5 minutes)
-                if time_diff.total_seconds() > 300:
+                # Offline alert (no reading in last X minutes)
+                if time_diff.total_seconds() > ALERT_CONFIG['offline_timeout_minutes'] * 60:
                     alerts.append({
                         'type': 'offline',
                         'severity': 'high',
@@ -558,56 +601,76 @@ def get_alerts():
                         'timestamp': latest.timestamp.isoformat()
                     })
                 
-                # High power alert (over 800W)
-                if latest.power_watts > 800:
+                # Sustained high power alert (over threshold for sustained period)
+                sustained_high, duration = check_sustained_high_power(
+                    pdu.id, 
+                    pdu.name, 
+                    latest.power_watts
+                )
+                
+                if sustained_high:
                     alerts.append({
-                        'type': 'high_power',
+                        'type': 'sustained_high_power',
                         'severity': 'medium',
-                        'message': f'{pdu.name} has high power consumption: {latest.power_watts:.1f}W',
+                        'message': f'{pdu.name} sustained high power: {latest.power_watts:.1f}W for {duration:.1f} minutes',
                         'pdu_id': pdu.id,
-                        'timestamp': latest.timestamp.isoformat()
+                        'timestamp': latest.timestamp.isoformat(),
+                        'duration_minutes': duration
                     })
                 
-                # Zero power alert (for any PDU showing 0W)
+                # Zero power alert (for any PDU showing 0W for sustained period)
                 if latest.power_watts == 0:
-                    alerts.append({
-                        'type': 'zero_power',
-                        'severity': 'medium',
-                        'message': f'{pdu.name} shows zero power consumption',
-                        'pdu_id': pdu.id,
-                        'timestamp': latest.timestamp.isoformat()
-                    })
-                
-                # Power spike alert (check last 5 readings for >50% increase)
-                recent_readings = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).limit(5).all()
-                if len(recent_readings) >= 2:
-                    current_power = recent_readings[0].power_watts
-                    previous_power = recent_readings[1].power_watts
-                    if previous_power > 0:
-                        power_increase = ((current_power - previous_power) / previous_power) * 100
-                        if power_increase > 50:
+                    # Check if this is a sustained zero reading
+                    recent_readings = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).limit(ALERT_CONFIG['zero_power_sustained_readings'] + 1).all()
+                    if len(recent_readings) >= ALERT_CONFIG['zero_power_sustained_readings']:
+                        # Check if last few readings are also zero
+                        if all(r.power_watts == 0 for r in recent_readings[:ALERT_CONFIG['zero_power_sustained_readings']]):
                             alerts.append({
-                                'type': 'power_spike',
+                                'type': 'sustained_zero_power',
                                 'severity': 'medium',
-                                'message': f'{pdu.name} power spike: {power_increase:.1f}% increase ({previous_power:.1f}W → {current_power:.1f}W)',
+                                'message': f'{pdu.name} shows sustained zero power consumption',
                                 'pdu_id': pdu.id,
                                 'timestamp': latest.timestamp.isoformat()
                             })
                 
-                # Efficiency alert (low power factor - assuming 0.95 is good, alert if <0.8)
-                # Since we're using current to power conversion, we'll estimate efficiency
-                # For IT equipment, power factor should be >0.8
+                # Power spike alert (check for sustained increase)
+                recent_readings = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).limit(5).all()
+                if len(recent_readings) >= 3:
+                    current_power = recent_readings[0].power_watts
+                    previous_power = recent_readings[1].power_watts
+                    if previous_power > 0:
+                        power_increase = ((current_power - previous_power) / previous_power) * 100
+                        if power_increase > ALERT_CONFIG['power_spike_threshold_percent']:
+                            # Check if this spike is sustained (not just a momentary blip)
+                            sustained_spike = True
+                            for i in range(1, min(3, len(recent_readings))):
+                                if recent_readings[i].power_watts > 0:
+                                    spike_increase = ((recent_readings[i-1].power_watts - recent_readings[i].power_watts) / recent_readings[i].power_watts) * 100
+                                    if spike_increase < ALERT_CONFIG['power_spike_sustained_threshold']:
+                                        sustained_spike = False
+                                        break
+                            
+                            if sustained_spike:
+                                alerts.append({
+                                    'type': 'sustained_power_spike',
+                                    'severity': 'medium',
+                                    'message': f'{pdu.name} sustained power spike: {power_increase:.1f}% increase ({previous_power:.1f}W → {current_power:.1f}W)',
+                                    'pdu_id': pdu.id,
+                                    'timestamp': latest.timestamp.isoformat()
+                                })
+                
+                # Efficiency alert (low power factor)
                 estimated_power_factor = 0.95  # Default assumption
                 if latest.power_watts > 0:
                     # Calculate apparent power (V * I)
                     apparent_power = 240 * (latest.power_watts / 240 / 0.95)  # Reverse calculate current
                     if apparent_power > 0:
                         estimated_power_factor = latest.power_watts / apparent_power
-                        if estimated_power_factor < 0.8:
+                        if estimated_power_factor < ALERT_CONFIG['low_efficiency_threshold']:
                             alerts.append({
                                 'type': 'low_efficiency',
                                 'severity': 'low',
-                                'message': f'{pdu.name} low power factor: {estimated_power_factor:.2f} (should be >0.8)',
+                                'message': f'{pdu.name} low power factor: {estimated_power_factor:.2f} (should be >{ALERT_CONFIG["low_efficiency_threshold"]})',
                                 'pdu_id': pdu.id,
                                 'timestamp': latest.timestamp.isoformat()
                             })

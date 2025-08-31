@@ -32,6 +32,17 @@ SNMP_RETRIES = 5   # Increased from 3 to 5 retries
 COLLECTION_INTERVAL = 60  # seconds
 POWER_OID = '1.3.6.1.4.1.318.1.1.12.3.3.1.1.2.1'  # APC PDU power OID
 
+# Alert Configuration
+ALERT_CONFIG = {
+    'high_power_threshold_watts': 800,  # Alert if power exceeds this for sustained period
+    'high_power_duration_minutes': 5,  # How long power must be high before alerting
+    'zero_power_sustained_readings': 2,  # How many consecutive zero readings before alerting
+    'power_spike_threshold_percent': 50,  # Alert if power increases by this percentage
+    'power_spike_sustained_threshold': 30,  # Minimum sustained increase percentage
+    'low_efficiency_threshold': 0.8,  # Power factor threshold for efficiency alerts
+    'offline_timeout_minutes': 5,  # How long before PDU is considered offline
+}
+
 # Database Configuration
 DATABASE_URI = 'sqlite:///pdu_monitor.db'
 
