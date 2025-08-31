@@ -622,9 +622,9 @@ def get_alerts():
                 
                 if len(hourly_readings) >= 10:  # At least 10 readings in the hour
                     avg_power = sum(r.power_watts for r in hourly_readings) / len(hourly_readings)
-                    # Assume typical usage is around 500W (adjust as needed)
-                    typical_usage = 500
-                    if avg_power > typical_usage * 0.9:  # Changed from 0.8 to 0.9 (450W instead of 400W)
+                    # Assume typical usage is around 1000W (adjust as needed)
+                    typical_usage = 1000
+                    if avg_power > typical_usage * 0.8:  # 80% of 1000W = 800W threshold
                         alerts.append({
                             'type': 'sustained_high',
                             'severity': 'medium',
