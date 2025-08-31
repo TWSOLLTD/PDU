@@ -25,8 +25,8 @@ PDUS = {
 
 # SNMP Configuration
 SNMP_PORT = 161
-SNMP_TIMEOUT = 3
-SNMP_RETRIES = 3
+SNMP_TIMEOUT = 10  # Increased from 3 to 10 seconds
+SNMP_RETRIES = 5   # Increased from 3 to 5 retries
 
 # Data Collection Settings
 COLLECTION_INTERVAL = 60  # seconds
