@@ -158,6 +158,7 @@ def get_power_data():
         if period == 'hour':
             # Get last 24 hours of data, grouped by 15-minute intervals
             start_time = datetime.utcnow() - timedelta(hours=24)
+            logger.info(f"Looking for readings from {start_time} to {datetime.utcnow()}")
             readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
             
             # Debug: Log the number of readings found
@@ -165,12 +166,14 @@ def get_power_data():
             
             if not readings:
                 logger.warning("No power readings found in the last 24 hours")
+                # Return empty chart data instead of error
+                chart_data = {
+                    'labels': [],
+                    'power_watts': []
+                }
                 return jsonify({
                     'success': True,
-                    'data': {
-                        'labels': [],
-                        'power_watts': []
-                    },
+                    'data': chart_data,
                     'period': period,
                     'message': 'No data available for the selected period'
                 })
@@ -191,6 +194,11 @@ def get_power_data():
             logger.info(f"Found {len(interval_data)} time intervals with data")
             if interval_data:
                 logger.info(f"Time range: {min(interval_data.keys())} to {max(interval_data.keys())}")
+                # Log a few sample intervals
+                sample_intervals = list(interval_data.keys())[:5]
+                logger.info(f"Sample intervals: {sample_intervals}")
+            else:
+                logger.warning("No intervals found with data")
             
             chart_data = {
                 'labels': [],
@@ -198,6 +206,7 @@ def get_power_data():
             }
             
             # Create all 15-minute intervals for the last 24 hours, but fill with actual data when available
+            logger.info(f"Creating {96} target intervals from {start_time}")
             for i in range(96):  # 24 hours * 4 intervals per hour
                 target_interval = start_time + timedelta(minutes=15*i)
                 chart_data['labels'].append(target_interval.strftime('%H:%M'))
@@ -205,13 +214,19 @@ def get_power_data():
                 if target_interval in interval_data:
                     avg_power = sum(interval_data[target_interval]) / len(interval_data[target_interval])
                     chart_data['power_watts'].append(round(avg_power, 1))
+                    if i < 5:  # Log first few matches
+                        logger.info(f"Found data for {target_interval}: {avg_power}W")
                 else:
                     chart_data['power_watts'].append(None)  # Use None instead of 0 to show gaps
             
             # Debug: Log the final chart data
             logger.info(f"Returning chart data with {len(chart_data['labels'])} data points")
-            if chart_data['power_watts']:
-                logger.info(f"Power range: {min(chart_data['power_watts'])} - {max(chart_data['power_watts'])} watts")
+            # Filter out None values for min/max calculation
+            valid_power_values = [v for v in chart_data['power_watts'] if v is not None]
+            if valid_power_values:
+                logger.info(f"Power range: {min(valid_power_values)} - {max(valid_power_values)} watts")
+            else:
+                logger.info("No valid power values found")
         
         elif period == 'day':
             # Get last 7 days of data, grouped by day
@@ -876,6 +891,16 @@ def debug_database():
         oldest = PowerReading.query.order_by(PowerReading.timestamp.asc()).first()
         newest = PowerReading.query.order_by(PowerReading.timestamp.desc()).first()
         
+        # Get recent readings for debugging
+        recent_readings = []
+        if newest:
+            recent_readings = PowerReading.query.order_by(PowerReading.timestamp.desc()).limit(10).all()
+            recent_readings = [{
+                'timestamp': r.timestamp.isoformat(),
+                'pdu_id': r.pdu_id,
+                'power_watts': r.power_watts
+            } for r in recent_readings]
+        
         debug_info = {
             'total_pdus': len(pdus),
             'total_readings': total_readings,
@@ -884,7 +909,9 @@ def debug_database():
             'readings_last_7d': last_7d,
             'oldest_reading': oldest.timestamp.isoformat() if oldest else None,
             'newest_reading': newest.timestamp.isoformat() if newest else None,
-            'pdu_status': latest_readings
+            'pdu_status': latest_readings,
+            'recent_readings': recent_readings,
+            'current_time_utc': datetime.utcnow().isoformat()
         }
         
         return jsonify({

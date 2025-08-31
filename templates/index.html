@@ -1071,6 +1071,13 @@
                     this.showChartError('power-chart', 'No data available for the selected period');
                     return;
                 }
+                
+                // Check if we have any valid data points
+                const validDataPoints = chartData.power_watts.filter(value => value !== null && value !== undefined);
+                if (validDataPoints.length === 0) {
+                    this.showChartError('power-chart', 'No valid data points available for the selected period');
+                    return;
+                }
 
                 const traces = [
                     {
