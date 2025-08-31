@@ -63,44 +63,46 @@ class PDUScheduler:
         try:
             logger.info("Processing data aggregations...")
             
-            # Get all PDU IDs
-            from models import PDU
-            pdus = PDU.query.all()
-            pdu_ids = [pdu.id for pdu in pdus]
-            
-            # Process different time periods
-            periods = ['hourly', 'daily', 'monthly']
-            
-            for period in periods:
-                try:
-                    if period == 'hourly':
-                        # Process last 24 hours
-                        end_time = datetime.utcnow()
-                        start_time = end_time.replace(hour=0, minute=0, second=0, microsecond=0)
-                        data = self.data_processor.aggregate_hourly(start_time, end_time)
-                    elif period == 'daily':
-                        # Process last 30 days
-                        end_time = datetime.utcnow()
-                        start_time = end_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                        data = self.data_processor.aggregate_daily(start_time, end_time)
-                    elif period == 'monthly':
-                        # Process last 12 months
-                        end_time = datetime.utcnow()
-                        start_time = end_time.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-                        data = self.data_processor.aggregate_monthly(start_time, end_time)
-                    
-                    # Store aggregations for each PDU and combined
-                    for pdu_id in pdu_ids:
-                        self.data_processor.store_aggregations(period, data, pdu_id)
-                    
-                    # Store combined aggregations
-                    self.data_processor.store_aggregations(period, data, None)
-                    
-                    logger.info(f"Processed {period} aggregations")
-                    
-                except Exception as e:
-                    logger.error(f"Error processing {period} aggregations: {str(e)}")
-                    continue
+            # Use Flask app context for database operations
+            with app.app_context():
+                # Get all PDU IDs
+                from models import PDU
+                pdus = PDU.query.all()
+                pdu_ids = [pdu.id for pdu in pdus]
+                
+                # Process different time periods
+                periods = ['hourly', 'daily', 'monthly']
+                
+                for period in periods:
+                    try:
+                        if period == 'hourly':
+                            # Process last 24 hours
+                            end_time = datetime.utcnow()
+                            start_time = end_time.replace(hour=0, minute=0, second=0, microsecond=0)
+                            data = self.data_processor.aggregate_hourly(start_time, end_time)
+                        elif period == 'daily':
+                            # Process last 30 days
+                            end_time = datetime.utcnow()
+                            start_time = end_time.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                            data = self.data_processor.aggregate_daily(start_time, end_time)
+                        elif period == 'monthly':
+                            # Process last 12 months
+                            end_time = datetime.utcnow()
+                            start_time = end_time.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                            data = self.data_processor.aggregate_monthly(start_time, end_time)
+                        
+                        # Store aggregations for each PDU and combined
+                        for pdu_id in pdu_ids:
+                            self.data_processor.store_aggregations(period, data, pdu_id)
+                        
+                        # Store combined aggregations
+                        self.data_processor.store_aggregations(period, data, None)
+                        
+                        logger.info(f"Processed {period} aggregations")
+                        
+                    except Exception as e:
+                        logger.error(f"Error processing {period} aggregations: {str(e)}")
+                        continue
             
         except Exception as e:
             logger.error(f"Error processing aggregations: {str(e)}")

@@ -262,6 +262,27 @@
             margin-top: 0.5rem;
         }
         
+        .stat-hint {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            opacity: 0.7;
+        }
+        
+        .clickable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .clickable:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .clickable:active {
+            transform: translateY(-4px);
+        }
+        
         .status-indicator {
             width: 8px;
             height: 8px;
@@ -557,7 +578,7 @@
 
             <!-- Statistics Cards -->
             <div class="stats-grid">
-                <div class="stat-card">
+                <div class="stat-card clickable" onclick="dashboard.showPowerDetails()">
                     <div class="stat-header">
                         <div class="stat-icon power">
                             <i class="fas fa-bolt"></i>
@@ -568,9 +589,10 @@
                         </div>
                     </div>
                     <div class="stat-label">Total Current Power</div>
+                    <div class="stat-hint">Click for details</div>
                 </div>
                 
-                <div class="stat-card">
+                <div class="stat-card clickable" onclick="dashboard.showEnergyDetails()">
                     <div class="stat-header">
                         <div class="stat-icon energy">
                             <i class="fas fa-chart-line"></i>
@@ -581,9 +603,10 @@
                         </div>
                     </div>
                     <div class="stat-label">Total Energy Today</div>
+                    <div class="stat-hint">Click for details</div>
                 </div>
                 
-                <div class="stat-card">
+                <div class="stat-card clickable" onclick="dashboard.showPeakDetails()">
                     <div class="stat-header">
                         <div class="stat-icon efficiency">
                             <i class="fas fa-tachometer-alt"></i>
@@ -594,9 +617,10 @@
                         </div>
                     </div>
                     <div class="stat-label">Peak Power Today</div>
+                    <div class="stat-hint">Click for details</div>
                 </div>
                 
-                <div class="stat-card">
+                <div class="stat-card clickable" onclick="dashboard.showStatusDetails()">
                     <div class="stat-header">
                         <div class="stat-icon status">
                             <i class="fas fa-server"></i>
@@ -607,6 +631,7 @@
                         </div>
                     </div>
                     <div class="stat-label">PDUs Online</div>
+                    <div class="stat-hint">Click for details</div>
                 </div>
             </div>
 
@@ -700,9 +725,9 @@
             }
             
             setupAutoRefresh() {
-                // Check if auto-refresh was previously enabled
+                // Auto-refresh is enabled by default
                 const saved = localStorage.getItem('autoRefreshEnabled');
-                if (saved === 'true') {
+                if (saved !== 'false') {  // Enable unless explicitly disabled
                     this.enableAutoRefresh();
                 }
             }
@@ -1064,6 +1089,25 @@
                     console.error('Error exporting data:', error);
                     alert('Error exporting data. Please try again.');
                 }
+            }
+            
+            showPowerDetails() {
+                this.setPeriod('hour');
+                document.querySelector('.chart-card').scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            showEnergyDetails() {
+                this.setEnergyPeriod('day');
+                document.querySelectorAll('.chart-card')[1].scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            showPeakDetails() {
+                this.setPeriod('day');
+                document.querySelector('.chart-card').scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            showStatusDetails() {
+                document.getElementById('pdu-grid').scrollIntoView({ behavior: 'smooth' });
             }
         }
 

@@ -57,36 +57,102 @@ def index():
 def get_power_data():
     """API endpoint to get power consumption data"""
     try:
-        period = request.args.get('period', 'day')
-        pdu_ids = request.args.getlist('pdu_ids[]')
+        period = request.args.get('period', 'hour')
         
-        # Convert pdu_ids to integers if provided
-        if pdu_ids:
-            pdu_ids = [int(pid) for pid in pdu_ids if pid.isdigit()]
-        
-        # Get power summary data
-        data = data_processor.get_power_summary(period, pdu_ids)
-        
-        # Format data for charts
-        chart_data = {
-            'labels': [],
-            'power_watts': []
-        }
-        
-        for item in data:
-            if period == 'hour':
-                label = item['period_start'].strftime('%H:%M')
-            elif period == 'day':
-                label = item['period_start'].strftime('%H:%M')
-            elif period == 'week':
-                label = item['period_start'].strftime('%Y-%m-%d')
-            elif period == 'month':
-                label = item['period_start'].strftime('%Y-%m-%d')
-            else:
-                label = item['period_start'].strftime('%Y-%m-%d')
+        # Get power data directly from database
+        if period == 'hour':
+            # Get last 24 hours of data, grouped by hour
+            start_time = datetime.utcnow() - timedelta(hours=24)
+            readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
             
-            chart_data['labels'].append(label)
-            chart_data['power_watts'].append(round(item['avg_power_watts'], 1))
+            # Group by hour
+            hourly_data = {}
+            for reading in readings:
+                hour = reading.timestamp.replace(minute=0, second=0, microsecond=0)
+                if hour not in hourly_data:
+                    hourly_data[hour] = []
+                hourly_data[hour].append(reading.power_watts)
+            
+            chart_data = {
+                'labels': [],
+                'power_watts': []
+            }
+            
+            for hour in sorted(hourly_data.keys()):
+                chart_data['labels'].append(hour.strftime('%H:%M'))
+                avg_power = sum(hourly_data[hour]) / len(hourly_data[hour])
+                chart_data['power_watts'].append(round(avg_power, 1))
+        
+        elif period == 'day':
+            # Get last 7 days of data, grouped by day
+            start_time = datetime.utcnow() - timedelta(days=7)
+            readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
+            
+            # Group by day
+            daily_data = {}
+            for reading in readings:
+                day = reading.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+                if day not in daily_data:
+                    daily_data[day] = []
+                daily_data[day].append(reading.power_watts)
+            
+            chart_data = {
+                'labels': [],
+                'power_watts': []
+            }
+            
+            for day in sorted(daily_data.keys()):
+                chart_data['labels'].append(day.strftime('%Y-%m-%d'))
+                avg_power = sum(daily_data[day]) / len(daily_data[day])
+                chart_data['power_watts'].append(round(avg_power, 1))
+        
+        elif period == 'week':
+            # Get last 4 weeks of data, grouped by week
+            start_time = datetime.utcnow() - timedelta(weeks=4)
+            readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
+            
+            # Group by week
+            weekly_data = {}
+            for reading in readings:
+                # Get the start of the week (Monday)
+                week_start = reading.timestamp - timedelta(days=reading.timestamp.weekday())
+                week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+                if week_start not in weekly_data:
+                    weekly_data[week_start] = []
+                weekly_data[week_start].append(reading.power_watts)
+            
+            chart_data = {
+                'labels': [],
+                'power_watts': []
+            }
+            
+            for week in sorted(weekly_data.keys()):
+                chart_data['labels'].append(week.strftime('%Y-%m-%d'))
+                avg_power = sum(weekly_data[week]) / len(weekly_data[week])
+                chart_data['power_watts'].append(round(avg_power, 1))
+        
+        elif period == 'month':
+            # Get last 12 months of data, grouped by month
+            start_time = datetime.utcnow() - timedelta(days=365)
+            readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
+            
+            # Group by month
+            monthly_data = {}
+            for reading in readings:
+                month_start = reading.timestamp.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                if month_start not in monthly_data:
+                    monthly_data[month_start] = []
+                monthly_data[month_start].append(reading.power_watts)
+            
+            chart_data = {
+                'labels': [],
+                'power_watts': []
+            }
+            
+            for month in sorted(monthly_data.keys()):
+                chart_data['labels'].append(month.strftime('%Y-%m'))
+                avg_power = sum(monthly_data[month]) / len(monthly_data[month])
+                chart_data['power_watts'].append(round(avg_power, 1))
         
         return jsonify({
             'success': True,
@@ -298,10 +364,17 @@ def get_energy_data():
                 'energy_kwh': []
             }
             
-            for day in sorted(daily_data.keys()):
-                chart_data['labels'].append(day.strftime('%Y-%m-%d'))
-                energy_kwh = sum(daily_data[day]) / 60
-                chart_data['energy_kwh'].append(round(energy_kwh, 3))
+            # Ensure we have exactly 7 days of data
+            for i in range(7):
+                target_date = datetime.utcnow() - timedelta(days=6-i)
+                target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+                
+                if target_date in daily_data:
+                    energy_kwh = sum(daily_data[target_date]) / 60
+                    chart_data['energy_kwh'].append(round(energy_kwh, 3))
+                else:
+                    chart_data['energy_kwh'].append(0)
         
         elif period == 'month':
             # Get daily energy consumption for the last 30 days
@@ -321,10 +394,17 @@ def get_energy_data():
                 'energy_kwh': []
             }
             
-            for day in sorted(daily_data.keys()):
-                chart_data['labels'].append(day.strftime('%Y-%m-%d'))
-                energy_kwh = sum(daily_data[day]) / 60
-                chart_data['energy_kwh'].append(round(energy_kwh, 3))
+            # Ensure we have exactly 30 days of data
+            for i in range(30):
+                target_date = datetime.utcnow() - timedelta(days=29-i)
+                target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+                
+                if target_date in daily_data:
+                    energy_kwh = sum(daily_data[target_date]) / 60
+                    chart_data['energy_kwh'].append(round(energy_kwh, 3))
+                else:
+                    chart_data['energy_kwh'].append(0)
         
         return jsonify({
             'success': True,
