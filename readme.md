@@ -34,7 +34,7 @@ cd /opt/PDU-NEW
 
 # 2. Install dependencies
 apt update
-apt install -y git python3 python3-pip python3-venv snmp snmp-mibs-downloader build-essential python3-dev libssl-dev
+apt install -y git python3 python3-pip python3-venv snmp build-essential python3-dev libssl-dev
 
 # 3. Clone the repository
 git clone https://github.com/TWSOLLTD/PDU .
@@ -75,7 +75,7 @@ apt update
 apt install -y git python3 python3-pip python3-venv
 
 # Install system dependencies for SNMP and development
-apt install -y snmp snmp-mibs-downloader build-essential python3-dev libssl-dev
+apt install -y snmp build-essential python3-dev libssl-dev
 ```
 
 ### 3. Clone the Repository
