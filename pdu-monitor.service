@@ -1,0 +1,26 @@
+[Unit]
+Description=PDU Power Monitoring Web Application
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/PDU-NEW
+Environment=PATH=/opt/PDU-NEW/pdu_env/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONPATH=/opt/PDU-NEW
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/bin/bash /opt/PDU-NEW/start.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/PDU-NEW
+
+[Install]
+WantedBy=multi-user.target
