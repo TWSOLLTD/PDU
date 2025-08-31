@@ -9,8 +9,12 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 import json
 import logging
+import requests
 
 from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG
+
+# Discord webhook configuration
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1411794302513975499/fSvpOKKmWExxqOpSf7vDg5fJhkUMnlgQkeuaF3qpQwnI6vVC1POk3xw3yS175Ss3m0XB"
 from models import db, PDU, PowerReading, PowerAggregation, init_db
 from data_processor import PowerDataProcessor
 
@@ -28,6 +32,51 @@ db.init_app(app)
 
 # Initialize data processor
 data_processor = PowerDataProcessor()
+
+def send_discord_alert(alert):
+    """Send alert to Discord webhook"""
+    try:
+        # Determine color based on severity
+        color_map = {
+            'high': 0xFF0000,    # Red
+            'medium': 0xFFA500,  # Orange
+            'low': 0x0000FF      # Blue
+        }
+        color = color_map.get(alert['severity'], 0x808080)  # Default gray
+        
+        # Determine emoji based on alert type
+        emoji_map = {
+            'offline': '🔴',
+            'high_power': '⚡',
+            'zero_power': '🔌',
+            'power_spike': '📈',
+            'low_efficiency': '📉',
+            'sustained_high': '🔥'
+        }
+        emoji = emoji_map.get(alert['type'], '⚠️')
+        
+        embed = {
+            "title": f"{emoji} PDU Alert: {alert['type'].replace('_', ' ').title()}",
+            "description": alert['message'],
+            "color": color,
+            "timestamp": alert['timestamp'],
+            "footer": {
+                "text": "PDU Power Monitoring System"
+            }
+        }
+        
+        payload = {
+            "embeds": [embed]
+        }
+        
+        response = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
+        if response.status_code == 204:
+            logger.info(f"Discord alert sent successfully: {alert['type']}")
+        else:
+            logger.error(f"Failed to send Discord alert: {response.status_code}")
+            
+    except Exception as e:
+        logger.error(f"Error sending Discord alert: {str(e)}")
 
 @app.route('/')
 def index():
@@ -61,27 +110,37 @@ def get_power_data():
         
         # Get power data directly from database
         if period == 'hour':
-            # Get last 24 hours of data, grouped by hour
+            # Get last 24 hours of data, grouped by 15-minute intervals
             start_time = datetime.utcnow() - timedelta(hours=24)
             readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
             
-            # Group by hour
-            hourly_data = {}
+            # Group by 15-minute intervals
+            interval_data = {}
             for reading in readings:
-                hour = reading.timestamp.replace(minute=0, second=0, microsecond=0)
-                if hour not in hourly_data:
-                    hourly_data[hour] = []
-                hourly_data[hour].append(reading.power_watts)
+                # Round to nearest 15-minute interval
+                minutes = reading.timestamp.minute
+                rounded_minutes = (minutes // 15) * 15
+                interval = reading.timestamp.replace(minute=rounded_minutes, second=0, microsecond=0)
+                
+                if interval not in interval_data:
+                    interval_data[interval] = []
+                interval_data[interval].append(reading.power_watts)
             
             chart_data = {
                 'labels': [],
                 'power_watts': []
             }
             
-            for hour in sorted(hourly_data.keys()):
-                chart_data['labels'].append(hour.strftime('%H:%M'))
-                avg_power = sum(hourly_data[hour]) / len(hourly_data[hour])
-                chart_data['power_watts'].append(round(avg_power, 1))
+            # Create 15-minute intervals for the last 24 hours
+            for i in range(96):  # 24 hours * 4 intervals per hour
+                target_interval = start_time + timedelta(minutes=15*i)
+                chart_data['labels'].append(target_interval.strftime('%H:%M'))
+                
+                if target_interval in interval_data:
+                    avg_power = sum(interval_data[target_interval]) / len(interval_data[target_interval])
+                    chart_data['power_watts'].append(round(avg_power, 1))
+                else:
+                    chart_data['power_watts'].append(0)
         
         elif period == 'day':
             # Get last 7 days of data, grouped by day
@@ -334,17 +393,22 @@ def get_energy_data():
                     hourly_data[hour] = []
                 hourly_data[hour].append(reading.power_kw)
             
-            # Calculate energy for each hour
             chart_data = {
                 'labels': [],
                 'energy_kwh': []
             }
             
-            for hour in sorted(hourly_data.keys()):
-                chart_data['labels'].append(hour.strftime('%H:00'))
-                # Sum power readings and convert to kWh (assuming 1-minute intervals)
-                energy_kwh = sum(hourly_data[hour]) / 60
-                chart_data['energy_kwh'].append(round(energy_kwh, 3))
+            # Ensure we have exactly 24 hours of data
+            for i in range(24):
+                target_hour = today_start + timedelta(hours=i)
+                chart_data['labels'].append(target_hour.strftime('%H:00'))
+                
+                if target_hour in hourly_data:
+                    # Sum power readings and convert to kWh (assuming 1-minute intervals)
+                    energy_kwh = sum(hourly_data[target_hour]) / 60
+                    chart_data['energy_kwh'].append(round(energy_kwh, 3))
+                else:
+                    chart_data['energy_kwh'].append(0)
         
         elif period == 'week':
             # Get daily energy consumption for the last 7 days
@@ -451,7 +515,7 @@ def export_data():
             return Response(
                 csv_content,
                 mimetype='text/csv',
-                headers={'Content-Disposition': f'attachment; filename=pdu-power-data-{period}-{datetime.utcnow().strftime("%Y%m%d")}.csv'}
+                headers={'Content-Disposition': f'attachment; filename=pdu-power-data-{period}-{datetime.now().strftime("%Y%m%d-%H%M%S")}.csv'}
             )
         
         return jsonify({
@@ -461,6 +525,203 @@ def export_data():
         
     except Exception as e:
         logger.error(f"Error exporting data: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/alerts')
+def get_alerts():
+    """API endpoint to get current alerts"""
+    try:
+        # Get all PDUs
+        pdus = PDU.query.all()
+        alerts = []
+        
+        for pdu in pdus:
+            latest = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).first()
+            
+            if latest:
+                # Check for various alert conditions
+                time_diff = datetime.utcnow() - latest.timestamp
+                
+                # Offline alert (no reading in last 5 minutes)
+                if time_diff.total_seconds() > 300:
+                    alerts.append({
+                        'type': 'offline',
+                        'severity': 'high',
+                        'message': f'{pdu.name} is offline (last reading: {time_diff.total_seconds()/60:.1f} minutes ago)',
+                        'pdu_id': pdu.id,
+                        'timestamp': latest.timestamp.isoformat()
+                    })
+                
+                # High power alert (over 1000W)
+                if latest.power_watts > 1000:
+                    alerts.append({
+                        'type': 'high_power',
+                        'severity': 'medium',
+                        'message': f'{pdu.name} has high power consumption: {latest.power_watts:.1f}W',
+                        'pdu_id': pdu.id,
+                        'timestamp': latest.timestamp.isoformat()
+                    })
+                
+                # Zero power alert (for any PDU showing 0W)
+                if latest.power_watts == 0:
+                    alerts.append({
+                        'type': 'zero_power',
+                        'severity': 'medium',
+                        'message': f'{pdu.name} shows zero power consumption',
+                        'pdu_id': pdu.id,
+                        'timestamp': latest.timestamp.isoformat()
+                    })
+                
+                # Power spike alert (check last 5 readings for >50% increase)
+                recent_readings = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).limit(5).all()
+                if len(recent_readings) >= 2:
+                    current_power = recent_readings[0].power_watts
+                    previous_power = recent_readings[1].power_watts
+                    if previous_power > 0:
+                        power_increase = ((current_power - previous_power) / previous_power) * 100
+                        if power_increase > 50:
+                            alerts.append({
+                                'type': 'power_spike',
+                                'severity': 'medium',
+                                'message': f'{pdu.name} power spike: {power_increase:.1f}% increase ({previous_power:.1f}W → {current_power:.1f}W)',
+                                'pdu_id': pdu.id,
+                                'timestamp': latest.timestamp.isoformat()
+                            })
+                
+                # Efficiency alert (low power factor - assuming 0.95 is good, alert if <0.8)
+                # Since we're using current to power conversion, we'll estimate efficiency
+                # For IT equipment, power factor should be >0.8
+                estimated_power_factor = 0.95  # Default assumption
+                if latest.power_watts > 0:
+                    # Calculate apparent power (V * I)
+                    apparent_power = 240 * (latest.power_watts / 240 / 0.95)  # Reverse calculate current
+                    if apparent_power > 0:
+                        estimated_power_factor = latest.power_watts / apparent_power
+                        if estimated_power_factor < 0.8:
+                            alerts.append({
+                                'type': 'low_efficiency',
+                                'severity': 'low',
+                                'message': f'{pdu.name} low power factor: {estimated_power_factor:.2f} (should be >0.8)',
+                                'pdu_id': pdu.id,
+                                'timestamp': latest.timestamp.isoformat()
+                            })
+                
+                # Trend alert (sustained high usage >80% of typical for 1 hour)
+                # Get readings from last hour
+                hour_ago = datetime.utcnow() - timedelta(hours=1)
+                hourly_readings = PowerReading.query.filter(
+                    PowerReading.pdu_id == pdu.id,
+                    PowerReading.timestamp >= hour_ago
+                ).all()
+                
+                if len(hourly_readings) >= 10:  # At least 10 readings in the hour
+                    avg_power = sum(r.power_watts for r in hourly_readings) / len(hourly_readings)
+                    # Assume typical usage is around 500W (adjust as needed)
+                    typical_usage = 500
+                    if avg_power > typical_usage * 0.8:
+                        alerts.append({
+                            'type': 'sustained_high',
+                            'severity': 'medium',
+                            'message': f'{pdu.name} sustained high usage: {avg_power:.1f}W average over 1 hour',
+                            'pdu_id': pdu.id,
+                            'timestamp': latest.timestamp.isoformat()
+                        })
+        
+        # Send Discord notifications for new alerts
+        for alert in alerts:
+            send_discord_alert(alert)
+        
+        return jsonify({
+            'success': True,
+            'alerts': alerts,
+            'count': len(alerts)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting alerts: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/test-discord')
+def test_discord():
+    """Test endpoint to verify Discord webhook is working"""
+    try:
+        test_alert = {
+            'type': 'test',
+            'severity': 'medium',
+            'message': 'This is a test alert from the PDU monitoring system',
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        send_discord_alert(test_alert)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Test Discord alert sent successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error testing Discord webhook: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/power-summary')
+def get_power_summary():
+    """API endpoint to get detailed power summary"""
+    try:
+        # Get current readings
+        pdus = PDU.query.all()
+        summary = {
+            'total_power_watts': 0,
+            'total_power_kw': 0,
+            'online_pdus': 0,
+            'total_pdus': len(pdus),
+            'pdus': []
+        }
+        
+        for pdu in pdus:
+            latest = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).first()
+            
+            if latest:
+                time_diff = datetime.utcnow() - latest.timestamp
+                online = time_diff.total_seconds() < 300
+                
+                if online:
+                    summary['total_power_watts'] += latest.power_watts
+                    summary['total_power_kw'] += latest.power_kw
+                    summary['online_pdus'] += 1
+                
+                summary['pdus'].append({
+                    'id': pdu.id,
+                    'name': pdu.name,
+                    'ip_address': pdu.ip_address,
+                    'online': online,
+                    'current_power_watts': latest.power_watts,
+                    'current_power_kw': latest.power_kw,
+                    'last_reading': latest.timestamp.isoformat(),
+                    'uptime_minutes': (datetime.utcnow() - latest.timestamp).total_seconds() / 60
+                })
+        
+        # Calculate efficiency metrics
+        if summary['online_pdus'] > 0:
+            summary['avg_power_per_pdu'] = summary['total_power_watts'] / summary['online_pdus']
+        else:
+            summary['avg_power_per_pdu'] = 0
+        
+        return jsonify({
+            'success': True,
+            'summary': summary
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting power summary: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
