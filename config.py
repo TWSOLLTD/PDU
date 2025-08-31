@@ -42,3 +42,7 @@ FLASK_HOST = '0.0.0.0'
 FLASK_PORT = 5000
 FLASK_DEBUG = True
 
+# Webhook Configuration
+WEBHOOK_SECRET = 'your-secret-key-here'  # Change this to a secure random string
+WEBHOOK_PORT = 5001
+
