@@ -1157,10 +1157,10 @@
                              color: '#34a853',
                              line: { color: '#34a853', width: 1 }
                          },
-                                                   // Make bars span the full width between hour markers
+                                                   // Make bars span the full width between hour markers with small gaps
                           ...(this.currentEnergyPeriod === 'day' && {
                               offset: 0,
-                              width: 1
+                              width: 0.9
                           })
                      }
                  ];
