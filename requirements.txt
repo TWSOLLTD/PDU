@@ -1,8 +1,7 @@
 pysnmp==4.4.12
-flask==2.3.3
-flask-sqlalchemy==3.0.5
+flask==3.0.0
+flask-sqlalchemy==3.1.1
 plotly==5.17.0
-pandas==2.1.1
 python-dotenv==1.0.0
 apscheduler==3.10.4
 

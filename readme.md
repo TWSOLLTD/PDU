@@ -36,7 +36,13 @@ cd /opt/PDU-NEW
 apt update
 apt install -y git python3 python3-pip python3-venv snmp build-essential python3-dev libssl-dev
 
-# 3. Clone the repository
+# 3. Clone the repository (ensure directory is empty first)
+# IMPORTANT: The dot (.) at the end is crucial - it clones into current directory
+# If you get "destination path '.' already exists and is not an empty directory":
+# cd /opt
+# rm -rf PDU-NEW
+# mkdir PDU-NEW
+# cd PDU-NEW
 git clone https://github.com/TWSOLLTD/PDU .
 
 # 4. Set up Python environment
@@ -82,6 +88,20 @@ apt install -y snmp build-essential python3-dev libssl-dev
 
 ```bash
 # Clone the repository
+git clone https://github.com/TWSOLLTD/PDU .
+```
+
+**IMPORTANT:** The dot (`.`) at the end is crucial! 
+- `git clone https://github.com/TWSOLLTD/PDU` → Creates a new `PDU/` subdirectory
+- `git clone https://github.com/TWSOLLTD/PDU .` → Clones directly into current directory
+
+**Note:** If you get the error "destination path '.' already exists and is not an empty directory", the directory contains files (like a virtual environment). Clean it up first:
+
+```bash
+cd /opt
+rm -rf PDU-NEW
+mkdir PDU-NEW
+cd PDU-NEW
 git clone https://github.com/TWSOLLTD/PDU .
 ```
 
@@ -431,18 +451,34 @@ Get list of all configured PDUs.
 
 ### Common Issues
 
-1. **SNMP Connection Failed**
+1. **Git Clone Failed - "destination path '.' already exists and is not an empty directory"**
+   - The directory contains files (often a virtual environment)
+   - Solution: Clean up and start fresh
+   ```bash
+   cd /opt
+   rm -rf PDU-NEW
+   mkdir PDU-NEW
+   cd PDU-NEW
+   git clone https://github.com/TWSOLLTD/PDU .
+   ```
+
+2. **Wrong Git Clone Command - Creates PDU/ subdirectory instead of root**
+   - **WRONG:** `git clone https://github.com/TWSOLLTD/PDU` (creates PDU/ subdirectory)
+   - **CORRECT:** `git clone https://github.com/TWSOLLTD/PDU .` (clones into current directory)
+   - Solution: Use the dot (.) at the end of the git clone command
+
+3. **SNMP Connection Failed**
    - Verify PDU IP addresses are correct
    - Check SNMP credentials and protocols
    - Ensure network connectivity
    - Verify SNMP port (default: 161)
 
-2. **No Data in Charts**
+4. **No Data in Charts**
    - Check if data collector is running
    - Verify database has power readings
    - Check browser console for JavaScript errors
 
-3. **Database Errors**
+5. **Database Errors**
    - Ensure SQLite database is writable
    - Check database initialization
    - Verify table structure

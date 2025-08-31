@@ -8,7 +8,6 @@ import logging
 from datetime import datetime, timedelta
 from sqlalchemy import func, and_
 from models import db, PowerReading, PowerAggregation, PDU
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 
