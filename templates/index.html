@@ -1115,7 +1115,7 @@
                         font: { size: 18, color: '#202124' }
                     },
                     xaxis: {
-                        title: 'Time',
+                        title: this.currentPeriod === 'hour' ? 'Time (Hourly)' : 'Time',
                         gridcolor: '#e8eaed',
                         zeroline: false
                     },
@@ -1166,7 +1166,7 @@
                         font: { size: 18, color: '#202124' }
                     },
                     xaxis: {
-                        title: 'Time Period',
+                        title: 'Hour Period',
                         gridcolor: '#e8eaed',
                         zeroline: false
                     },

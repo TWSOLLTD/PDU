@@ -180,7 +180,11 @@ def get_power_data():
             # Create all 15-minute intervals for the last 24 hours
             for i in range(96):  # 24 hours * 4 intervals per hour
                 target_interval = start_time + timedelta(minutes=15*i)
-                chart_data['labels'].append(target_interval.strftime('%H:%M'))
+                # Show clean hour labels for hour boundaries only
+                if target_interval.minute == 0:
+                    chart_data['labels'].append(target_interval.strftime('%H:00'))
+                else:
+                    chart_data['labels'].append('')  # Empty label for non-hour marks
                 
                 if target_interval in interval_data:
                     avg_power = sum(interval_data[target_interval]) / len(interval_data[target_interval])
@@ -469,7 +473,9 @@ def get_energy_data():
             # Create all 24 hours for today
             for i in range(24):
                 target_hour = today_start + timedelta(hours=i)
-                chart_data['labels'].append(target_hour.strftime('%H:00'))
+                # Show time period (e.g., "9-10" instead of "09:00")
+                next_hour = target_hour + timedelta(hours=1)
+                chart_data['labels'].append(f"{target_hour.strftime('%H')}-{next_hour.strftime('%H')}")
                 
                 if target_hour in hourly_data:
                     # Sum power readings and convert to kWh (assuming 1-minute intervals)
