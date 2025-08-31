@@ -2,6 +2,8 @@
 
 A comprehensive system for monitoring APC PDU power consumption via SNMP with a modern web dashboard.
 
+**Repository:** [https://github.com/TWSOLLTD/PDU](https://github.com/TWSOLLTD/PDU)
+
 ## Features
 
 - **Real-time Monitoring**: Collects power consumption data from APC PDUs via SNMPv3
@@ -21,13 +23,51 @@ A comprehensive system for monitoring APC PDU power consumption via SNMP with a 
 - SNMPv3 support on PDUs
 - Systemd (for service management)
 
-## Installation
+## Quick Setup Summary
 
-### 1. Clone the Repository
+For `/opt/PDU-NEW/` installation:
 
 ```bash
-git clone <repository-url>
-cd PDU
+# 1. Create directory and set permissions
+sudo mkdir -p /opt/PDU-NEW
+sudo chown $USER:$USER /opt/PDU-NEW
+cd /opt/PDU-NEW
+
+# 2. Clone the repository
+git clone https://github.com/TWSOLLTD/PDU .
+
+# 3. Install dependencies
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv snmp snmp-mibs-downloader
+
+# 4. Set up Python environment
+python3 -m venv pdu_env
+source pdu_env/bin/activate
+pip install -r requirements.txt
+
+# 5. Initialize database
+python3 -c "from app import create_app; app = create_app()"
+
+# 6. Test SNMP connection
+python3 snmp_collector.py
+
+# 7. Start the system
+chmod +x start.sh
+./start.sh
+```
+
+## Installation
+
+### 1. Set Up Project Directory
+
+```bash
+# Create the project directory
+sudo mkdir -p /opt/PDU-NEW
+sudo chown $USER:$USER /opt/PDU-NEW
+cd /opt/PDU-NEW
+
+# Clone the repository
+git clone https://github.com/TWSOLLTD/PDU .
 ```
 
 ### 2. Install System Dependencies
@@ -52,6 +92,8 @@ source pdu_env/bin/activate
 
 # Install Python packages
 pip install -r requirements.txt
+
+# Note: Keep the virtual environment activated for the next steps
 ```
 
 ### 4. Configure PDU Settings
@@ -147,16 +189,17 @@ After=network.target
 [Service]
 Type=simple
 User=your_username
-WorkingDirectory=/path/to/your/pdu/project
-Environment=PATH=/path/to/your/pdu/project/pdu_env/bin
-ExecStart=/path/to/your/pdu/project/pdu_env/bin/python3 /path/to/your/pdu/project/scheduler.py
-ExecStartPost=/path/to/your/pdu/project/pdu_env/bin/python3 /path/to/your/pdu/project/app.py
+WorkingDirectory=/opt/PDU-NEW
+Environment=PATH=/opt/PDU-NEW/pdu_env/bin
+ExecStart=/opt/PDU-NEW/pdu_env/bin/python3 /opt/PDU-NEW/scheduler.py
 Restart=always
 RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+**Note:** Replace `your_username` with your actual username.
 
 3. **Enable and start the service:**
 
@@ -171,6 +214,48 @@ sudo systemctl status pdu-monitor
 
 ```bash
 sudo journalctl -u pdu-monitor -f
+```
+
+### Running the Web Dashboard
+
+The web dashboard needs to be run separately. You can either:
+
+**Option A: Run manually when needed**
+```bash
+cd /opt/PDU-NEW
+source pdu_env/bin/activate
+python3 app.py
+```
+
+**Option B: Create a separate systemd service for the web dashboard**
+```bash
+sudo nano /etc/systemd/system/pdu-web.service
+```
+
+Add this content:
+```ini
+[Unit]
+Description=PDU Web Dashboard
+After=network.target pdu-monitor.service
+
+[Service]
+Type=simple
+User=your_username
+WorkingDirectory=/opt/PDU-NEW
+Environment=PATH=/opt/PDU-NEW/pdu_env/bin
+ExecStart=/opt/PDU-NEW/pdu_env/bin/python3 /opt/PDU-NEW/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then enable and start it:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable pdu-web
+sudo systemctl start pdu-web
 ```
 
 ## Configuration Options
