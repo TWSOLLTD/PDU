@@ -33,7 +33,7 @@ COLLECTION_INTERVAL = 60  # seconds
 POWER_OID = '1.3.6.1.4.1.318.1.1.12.3.3.1.1.2.1'  # APC PDU power OID
 
 # Database Configuration
-DATABASE_URI = 'sqlite:///instance/pdu_monitor.db'
+DATABASE_URI = 'sqlite:///pdu_monitor.db'
 
 # Web Interface Configuration
 FLASK_HOST = '0.0.0.0'
