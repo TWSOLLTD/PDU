@@ -4,6 +4,8 @@ SNMP Collector for APC PDU Power Monitoring
 Collects power consumption data from APC PDUs via SNMPv3
 """
 
+# Test comment for auto-deployment - $(date)
+
 import time
 import logging
 from datetime import datetime, timedelta
