@@ -77,35 +77,15 @@ class PDUCollector:
                 power_data = self.get_power_reading(pdu_config)
                 
                 if power_data:
-                    # Find PDU in database
-                    pdu = PDU.query.filter_by(ip_address=pdu_config['ip']).first()
-                    
-                    if pdu:
-                        # Create power reading record
-                        reading = PowerReading(
-                            pdu_id=pdu.id,
-                            timestamp=datetime.utcnow(),
-                            power_watts=power_data['power_watts'],
-                            power_kw=power_data['power_kw']
-                        )
-                        
-                        db.session.add(reading)
-                        logger.info(f"Stored reading for {pdu_config['name']}: {power_data['power_watts']:.2f}W")
-                    else:
-                        logger.error(f"PDU {pdu_config['name']} not found in database")
+                    logger.info(f"✅ {pdu_config['name']}: {power_data['power_watts']:.2f}W ({power_data['power_kw']:.3f}kW)")
                 else:
-                    logger.warning(f"No power data collected from {pdu_config['name']}")
+                    logger.warning(f"⚠️ No power data collected from {pdu_config['name']}")
                     
             except Exception as e:
-                logger.error(f"Error processing {pdu_config['name']}: {str(e)}")
+                logger.error(f"❌ Error processing {pdu_config['name']}: {str(e)}")
                 continue
         
-        try:
-            db.session.commit()
-            logger.info("Power collection completed successfully")
-        except Exception as e:
-            logger.error(f"Error committing to database: {str(e)}")
-            db.session.rollback()
+        logger.info("Power collection completed successfully")
 
 def main():
     """Main function for standalone execution"""

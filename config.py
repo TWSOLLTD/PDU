@@ -11,8 +11,8 @@ PDUS = {
         'username': 'admin',
         'auth_passphrase': 'testingtesting123',
         'privacy_passphrase': 'testingtesting123',
-        'auth_protocol': 'SHA',
-        'privacy_protocol': 'AES'
+        'auth_protocol': 'sha',
+        'privacy_protocol': 'aes'
     },
     'PDU2': {
         'name': 'Left PDU',
@@ -20,8 +20,8 @@ PDUS = {
         'username': 'admin',
         'auth_passphrase': 'testingtesting123',
         'privacy_passphrase': 'testingtesting123',
-        'auth_protocol': 'SHA',
-        'privacy_protocol': 'AES'
+        'auth_protocol': 'sha',
+        'privacy_protocol': 'aes'
     }
 }
 
