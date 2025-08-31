@@ -11,266 +11,658 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-            --success-color: #27ae60;
-            --warning-color: #f39c12;
-            --danger-color: #e74c3c;
-            --light-bg: #f8f9fa;
-            --dark-bg: #343a40;
+            --primary-color: #1a73e8;
+            --secondary-color: #34a853;
+            --accent-color: #ea4335;
+            --warning-color: #fbbc04;
+            --dark-bg: #202124;
+            --card-bg: #ffffff;
+            --text-primary: #202124;
+            --text-secondary: #5f6368;
+            --border-color: #dadce0;
+            --success-green: #34a853;
+            --danger-red: #ea4335;
+            --warning-orange: #fbbc04;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
         body {
-            background-color: var(--light-bg);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+        }
+        
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), #4285f4);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
         }
         
         .navbar-brand {
-            font-weight: bold;
+            font-weight: 700;
             font-size: 1.5rem;
-        }
-        
-        .card {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            transition: transform 0.2s ease-in-out;
-        }
-        
-        .card:hover {
-            transform: translateY(-2px);
-        }
-        
-        .card-header {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
-            border-radius: 15px 15px 0 0 !important;
-            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
-        .status-card {
-            text-align: center;
-            padding: 20px;
+        .navbar-brand i {
+            font-size: 1.8rem;
         }
         
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-        
-        .status-online { background-color: var(--success-color); }
-        .status-offline { background-color: var(--danger-color); }
-        .status-no-data { background-color: var(--warning-color); }
-        
-        .power-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: var(--primary-color);
-        }
-        
-        .power-unit {
-            font-size: 1rem;
-            color: #6c757d;
-        }
-        
-        .chart-container {
-            height: 400px;
-            margin: 20px 0;
-        }
-        
-        .period-selector {
-            background: white;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .btn-period {
+        .status-badge {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 0.25rem 0.75rem;
             border-radius: 20px;
-            margin: 0 5px;
+            font-size: 0.875rem;
             font-weight: 500;
         }
         
-        .btn-period.active {
-            background-color: var(--secondary-color);
-            border-color: var(--secondary-color);
+        .content-wrapper {
+            padding: 2rem;
         }
         
-        .pdu-selector {
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .dashboard-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .last-updated {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .control-panel {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn-modern {
+            background: linear-gradient(135deg, var(--primary-color), #4285f4);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+        
+        .btn-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(26, 115, 232, 0.3);
+            color: white;
+        }
+        
+        .btn-secondary {
             background: white;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
+            color: var(--text-primary);
+            border: 2px solid var(--border-color);
         }
         
-        .form-check-input:checked {
-            background-color: var(--secondary-color);
-            border-color: var(--secondary-color);
+        .btn-secondary:hover {
+            background: var(--light-bg);
+            color: var(--text-primary);
+        }
+        
+        .auto-refresh-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 20px;
+            background: var(--border-color);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .toggle-switch.active {
+            background: var(--success-green);
+        }
+        
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+        
+        .toggle-switch.active::after {
+            transform: translateX(20px);
         }
         
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
         
         .stat-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+        
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+        
+        .stat-icon.power { background: linear-gradient(135deg, #ff6b6b, #ee5a24); }
+        .stat-icon.energy { background: linear-gradient(135deg, #4ecdc4, #44a08d); }
+        .stat-icon.efficiency { background: linear-gradient(135deg, #45b7d1, #96c93d); }
+        .stat-icon.status { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        
+        .stat-content {
+            text-align: right;
         }
         
         .stat-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--primary-color);
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+        
+        .stat-unit {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
         }
         
         .stat-label {
-            color: #6c757d;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
         }
         
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #6c757d;
-        }
-        
-        .refresh-btn {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            z-index: 1000;
+        .status-indicator {
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: inline-block;
+            margin-right: 0.5rem;
+            animation: pulse 2s infinite;
         }
         
+        .status-online { background-color: var(--success-green); }
+        .status-offline { background-color: var(--danger-red); }
+        .status-warning { background-color: var(--warning-orange); }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .chart-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-color);
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .period-selector {
+            display: flex;
+            gap: 0.5rem;
+            background: var(--light-bg);
+            padding: 0.25rem;
+            border-radius: 12px;
+        }
+        
+        .btn-period {
+            background: transparent;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .btn-period.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .chart-container {
+            height: 400px;
+            position: relative;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            z-index: 10;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .pdu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .pdu-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pdu-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+        
+        .pdu-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+        
+        .pdu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .pdu-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .pdu-power {
+            text-align: center;
+            margin: 1.5rem 0;
+        }
+        
+        .power-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            line-height: 1;
+        }
+        
+        .power-unit {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .pdu-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .detail-item {
+            text-align: center;
+            padding: 0.75rem;
+            background: var(--light-bg);
+            border-radius: 8px;
+        }
+        
+        .detail-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        
+        .detail-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        /* Responsive Design */
         @media (max-width: 768px) {
+            .content-wrapper {
+                padding: 1rem;
+            }
+            
+            .dashboard-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .control-panel {
+                justify-content: center;
+            }
+            
             .stats-grid {
                 grid-template-columns: 1fr;
             }
             
-            .power-value {
-                font-size: 1.5rem;
+            .pdu-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --card-bg: #2d2d2d;
+                --text-primary: #ffffff;
+                --text-secondary: #b0b0b0;
+                --border-color: #404040;
+                --light-bg: #3d3d3d;
+            }
+            
+            body {
+                background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
             }
         }
     </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));">
-        <div class="container">
-            <a class="navbar-brand" href="#">
-                <i class="fas fa-bolt me-2"></i>
-                PDU Power Monitor
-            </a>
-            <div class="navbar-nav ms-auto">
-                <span class="navbar-text">
-                    <i class="fas fa-clock me-1"></i>
-                    <span id="current-time"></span>
-                </span>
+    <div class="main-container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="container-fluid">
+                <div class="navbar-brand">
+                    <i class="fas fa-bolt"></i>
+                    PDU Power Monitor
+                </div>
+                <div class="status-badge">
+                    <i class="fas fa-circle text-success"></i>
+                    System Online
+                </div>
             </div>
-        </div>
-    </nav>
+        </nav>
 
-    <div class="container mt-4">
-        <!-- PDU Status Cards -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-server me-2"></i>
-                        PDU Status Overview
+        <!-- Main Content -->
+        <div class="content-wrapper">
+            <!-- Dashboard Header -->
+            <div class="dashboard-header">
+                <div>
+                    <h1 class="dashboard-title">Power Consumption Dashboard</h1>
+                    <div class="last-updated">
+                        <i class="fas fa-clock"></i>
+                        Last updated: <span id="last-updated-time">Loading...</span>
                     </div>
-                    <div class="card-body">
-                        <div class="row" id="pdu-status-cards">
-                            <!-- PDU status cards will be populated here -->
+                </div>
+                <div class="control-panel">
+                    <div class="auto-refresh-toggle">
+                        <span>Auto-refresh</span>
+                        <div class="toggle-switch" id="auto-refresh-toggle">
+                            <input type="checkbox" id="auto-refresh-checkbox" style="display: none;">
                         </div>
                     </div>
+                    <button class="btn btn-modern" id="refresh-btn" onclick="dashboard.refreshAll()">
+                        <i class="fas fa-sync-alt"></i>
+                        Refresh Now
+                    </button>
+                    <button class="btn btn-modern btn-secondary" onclick="dashboard.exportData()">
+                        <i class="fas fa-download"></i>
+                        Export Data
+                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- Controls -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="period-selector">
-                    <h6 class="mb-3"><i class="fas fa-calendar me-2"></i>Time Period</h6>
-                    <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-outline-primary btn-period active" data-period="day">Day</button>
-                        <button type="button" class="btn btn-outline-primary btn-period" data-period="week">Week</button>
-                        <button type="button" class="btn btn-outline-primary btn-period" data-period="month">Month</button>
-                        <button type="button" class="btn btn-outline-primary btn-period" data-period="year">Year</button>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="pdu-selector">
-                    <h6 class="mb-3"><i class="fas fa-filter me-2"></i>PDU Selection</h6>
-                    <div id="pdu-checkboxes">
-                        <!-- PDU checkboxes will be populated here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Statistics -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-chart-bar me-2"></i>
-                        Power Consumption Statistics
-                    </div>
-                    <div class="card-body">
-                        <div class="stats-grid" id="statistics-grid">
-                            <!-- Statistics will be populated here -->
+            <!-- Statistics Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon power">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-power">0</div>
+                            <div class="stat-unit">Watts</div>
                         </div>
                     </div>
+                    <div class="stat-label">Total Current Power</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon energy">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="total-energy">0</div>
+                            <div class="stat-unit">kWh</div>
+                        </div>
+                    </div>
+                    <div class="stat-label">Total Energy Today</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon efficiency">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="peak-power">0</div>
+                            <div class="stat-unit">Watts</div>
+                        </div>
+                    </div>
+                    <div class="stat-label">Peak Power Today</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon status">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="online-pdus">0</div>
+                            <div class="stat-unit">/ {{ pdus|length }}</div>
+                        </div>
+                    </div>
+                    <div class="stat-label">PDUs Online</div>
+                </div>
+            </div>
+
+            <!-- PDU Status Cards -->
+            <div class="pdu-grid" id="pdu-grid">
+                <!-- PDU cards will be populated by JavaScript -->
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <!-- Power Consumption Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Power Consumption Trend</h3>
+                        <div class="period-selector">
+                            <button class="btn-period active" data-period="hour" onclick="dashboard.setPeriod('hour')">Hour</button>
+                            <button class="btn-period" data-period="day" onclick="dashboard.setPeriod('day')">Day</button>
+                            <button class="btn-period" data-period="week" onclick="dashboard.setPeriod('week')">Week</button>
+                            <button class="btn-period" data-period="month" onclick="dashboard.setPeriod('month')">Month</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="loading-overlay" id="chart-loading">
+                            <div class="loading-spinner"></div>
+                            <div>Loading chart data...</div>
+                        </div>
+                        <div id="power-chart"></div>
+                    </div>
+                </div>
+
+                <!-- Energy Usage Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Energy Consumption</h3>
+                        <div class="period-selector">
+                            <button class="btn-period active" data-period="day" onclick="dashboard.setEnergyPeriod('day')">Day</button>
+                            <button class="btn-period" data-period="week" onclick="dashboard.setEnergyPeriod('week')">Week</button>
+                            <button class="btn-period" data-period="month" onclick="dashboard.setEnergyPeriod('month')">Month</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="loading-overlay" id="energy-chart-loading">
+                            <div class="loading-spinner"></div>
+                            <div>Loading energy data...</div>
+                        </div>
+                        <div id="energy-chart"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Charts -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-chart-line me-2"></i>
-                        Power Consumption Trends
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container" id="power-chart">
-                            <div class="loading">
-                                <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
-                                <p>Loading chart data...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <!-- Footer -->
+        <div class="footer">
+            <p>&copy; 2024 PDU Power Monitoring System | Real-time power consumption monitoring</p>
         </div>
     </div>
-
-    <!-- Refresh Button -->
-    <button class="btn btn-primary refresh-btn" id="refresh-btn" title="Refresh Data">
-        <i class="fas fa-sync-alt"></i>
-    </button>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -278,135 +670,147 @@
     <script>
         class PDUDashboard {
             constructor() {
-                this.currentPeriod = 'day';
-                this.selectedPDUs = [];
-                this.chart = null;
-                this.init();
-            }
-
-            init() {
-                this.setupEventListeners();
-                this.updateCurrentTime();
-                this.loadPDUs();
-                this.loadCurrentStatus();
-                this.loadPowerData();
-                this.loadStatistics();
+                this.currentPeriod = 'hour';
+                this.currentEnergyPeriod = 'day';
+                this.autoRefreshInterval = null;
+                this.autoRefreshEnabled = false;
+                this.lastUpdateTime = new Date();
                 
-                // Auto-refresh every 30 seconds
-                setInterval(() => {
-                    this.loadCurrentStatus();
-                    this.loadPowerData();
-                    this.loadStatistics();
-                }, 30000);
-                
-                // Update time every second
-                setInterval(() => this.updateCurrentTime(), 1000);
+                this.initializeEventListeners();
+                this.loadInitialData();
+                this.setupAutoRefresh();
             }
-
-            setupEventListeners() {
-                // Period selector
+            
+            initializeEventListeners() {
+                // Auto-refresh toggle
+                const toggle = document.getElementById('auto-refresh-toggle');
+                const checkbox = document.getElementById('auto-refresh-checkbox');
+                
+                toggle.addEventListener('click', () => {
+                    this.toggleAutoRefresh();
+                });
+                
+                // Period selector buttons
                 document.querySelectorAll('.btn-period').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         document.querySelectorAll('.btn-period').forEach(b => b.classList.remove('active'));
                         e.target.classList.add('active');
-                        this.currentPeriod = e.target.dataset.period;
-                        this.loadPowerData();
-                        this.loadStatistics();
                     });
                 });
-
-                // Refresh button
-                document.getElementById('refresh-btn').addEventListener('click', () => {
-                    this.refreshAll();
-                });
             }
-
-            updateCurrentTime() {
-                const now = new Date();
-                document.getElementById('current-time').textContent = now.toLocaleString();
-            }
-
-            async loadPDUs() {
-                try {
-                    const response = await fetch('/api/pdus');
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        this.renderPDUCheckboxes(data.data);
-                        this.selectedPDUs = data.data.map(pdu => pdu.id);
-                    }
-                } catch (error) {
-                    console.error('Error loading PDUs:', error);
+            
+            setupAutoRefresh() {
+                // Check if auto-refresh was previously enabled
+                const saved = localStorage.getItem('autoRefreshEnabled');
+                if (saved === 'true') {
+                    this.enableAutoRefresh();
                 }
             }
-
-            renderPDUCheckboxes(pdus) {
-                const container = document.getElementById('pdu-checkboxes');
-                container.innerHTML = '';
-                
-                pdus.forEach(pdu => {
-                    const div = document.createElement('div');
-                    div.className = 'form-check form-check-inline';
-                    div.innerHTML = `
-                        <input class="form-check-input" type="checkbox" id="pdu-${pdu.id}" value="${pdu.id}" checked>
-                        <label class="form-check-label" for="pdu-${pdu.id}">
-                            ${pdu.name} (${pdu.ip})
-                        </label>
-                    `;
-                    
-                    div.querySelector('input').addEventListener('change', (e) => {
-                        this.updateSelectedPDUs();
-                    });
-                    
-                    container.appendChild(div);
-                });
+            
+            toggleAutoRefresh() {
+                if (this.autoRefreshEnabled) {
+                    this.disableAutoRefresh();
+                } else {
+                    this.enableAutoRefresh();
+                }
             }
-
-            updateSelectedPDUs() {
-                this.selectedPDUs = Array.from(document.querySelectorAll('#pdu-checkboxes input:checked'))
-                    .map(input => parseInt(input.value));
+            
+            enableAutoRefresh() {
+                this.autoRefreshEnabled = true;
+                document.getElementById('auto-refresh-toggle').classList.add('active');
+                document.getElementById('auto-refresh-checkbox').checked = true;
+                localStorage.setItem('autoRefreshEnabled', 'true');
                 
-                this.loadPowerData();
-                this.loadStatistics();
+                this.autoRefreshInterval = setInterval(() => {
+                    this.refreshAll();
+                }, 30000); // Refresh every 30 seconds
+                
+                console.log('Auto-refresh enabled');
             }
-
+            
+            disableAutoRefresh() {
+                this.autoRefreshEnabled = false;
+                document.getElementById('auto-refresh-toggle').classList.remove('active');
+                document.getElementById('auto-refresh-checkbox').checked = false;
+                localStorage.setItem('autoRefreshEnabled', 'false');
+                
+                if (this.autoRefreshInterval) {
+                    clearInterval(this.autoRefreshInterval);
+                    this.autoRefreshInterval = null;
+                }
+                
+                console.log('Auto-refresh disabled');
+            }
+            
+            async loadInitialData() {
+                await Promise.all([
+                    this.loadCurrentStatus(),
+                    this.loadPowerData(),
+                    this.loadEnergyData(),
+                    this.loadStatistics()
+                ]);
+                
+                this.updateLastUpdatedTime();
+            }
+            
+            updateLastUpdatedTime() {
+                this.lastUpdateTime = new Date();
+                document.getElementById('last-updated-time').textContent = 
+                    this.lastUpdateTime.toLocaleTimeString();
+            }
+            
             async loadCurrentStatus() {
                 try {
                     const response = await fetch('/api/current-status');
                     const data = await response.json();
                     
                     if (data.success) {
-                        this.renderPDUStatusCards(data.data);
+                        this.renderPDUStatus(data.pdus);
+                        this.updateStatistics(data.statistics);
                     }
                 } catch (error) {
                     console.error('Error loading current status:', error);
                 }
             }
-
-            renderPDUStatusCards(pdus) {
-                const container = document.getElementById('pdu-status-cards');
+            
+            renderPDUStatus(pdus) {
+                const container = document.getElementById('pdu-grid');
                 container.innerHTML = '';
                 
                 pdus.forEach(pdu => {
+                    const statusClass = pdu.online ? 'status-online' : 'status-offline';
+                    const statusText = pdu.online ? 'Online' : 'Offline';
+                    
                     const col = document.createElement('div');
-                    col.className = 'col-md-6 col-lg-3 mb-3';
-                    
-                    const statusClass = `status-${pdu.status}`;
-                    const statusText = pdu.status.charAt(0).toUpperCase() + pdu.status.slice(1);
-                    
+                    col.className = 'pdu-card';
                     col.innerHTML = `
-                        <div class="card status-card">
-                            <div class="card-body">
-                                <h6 class="card-title">${pdu.name}</h6>
-                                <p class="card-text">
-                                    <span class="status-indicator ${statusClass}"></span>
-                                    ${statusText}
-                                </p>
-                                <div class="power-value">${pdu.current_power_watts.toFixed(1)}</div>
-                                <div class="power-unit">Watts</div>
-                                <small class="text-muted">${pdu.current_power_kw.toFixed(3)} kW</small>
-                                <br>
-                                <small class="text-muted">IP: ${pdu.ip}</small>
+                        <div class="pdu-header">
+                            <h4 class="pdu-name">${pdu.name}</h4>
+                            <div>
+                                <span class="status-indicator ${statusClass}"></span>
+                                <span class="text-${pdu.online ? 'success' : 'danger'}">${statusText}</span>
+                            </div>
+                        </div>
+                        <div class="pdu-power">
+                            <div class="power-value">${pdu.current_power_watts.toFixed(1)}</div>
+                            <div class="power-unit">Watts</div>
+                        </div>
+                        <div class="pdu-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Power (kW)</div>
+                                <div class="detail-value">${pdu.current_power_kw.toFixed(3)}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">IP Address</div>
+                                <div class="detail-value">${pdu.ip_address}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Last Reading</div>
+                                <div class="detail-value">${new Date(pdu.last_reading).toLocaleTimeString()}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Status</div>
+                                <div class="detail-value text-${pdu.online ? 'success' : 'danger'}">${statusText}</div>
                             </div>
                         </div>
                     `;
@@ -414,12 +818,20 @@
                     container.appendChild(col);
                 });
             }
-
+            
+            updateStatistics(stats) {
+                document.getElementById('total-power').textContent = stats.total_power_watts.toFixed(1);
+                document.getElementById('total-energy').textContent = stats.total_energy_kwh.toFixed(2);
+                document.getElementById('peak-power').textContent = stats.peak_power_watts.toFixed(1);
+                document.getElementById('online-pdus').textContent = stats.online_pdus;
+            }
+            
             async loadPowerData() {
                 try {
+                    this.showChartLoading('chart-loading');
+                    
                     const params = new URLSearchParams({
-                        period: this.currentPeriod,
-                        ...(this.selectedPDUs.length > 0 && { 'pdu_ids[]': this.selectedPDUs })
+                        period: this.currentPeriod
                     });
                     
                     const response = await fetch(`/api/power-data?${params}`);
@@ -427,141 +839,238 @@
                     
                     if (data.success) {
                         this.renderPowerChart(data.data);
+                    } else {
+                        this.showChartError('power-chart', 'No data available');
                     }
                 } catch (error) {
                     console.error('Error loading power data:', error);
+                    this.showChartError('power-chart', 'Error loading data');
+                } finally {
+                    this.hideChartLoading('chart-loading');
                 }
             }
-
-            renderPowerChart(chartData) {
-                if (chartData.labels.length === 0) {
-                    document.getElementById('power-chart').innerHTML = `
-                        <div class="loading">
-                            <i class="fas fa-chart-line fa-2x mb-3 text-muted"></i>
-                            <p class="text-muted">No data available for the selected period and PDUs</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                const traces = [
-                    {
-                        x: chartData.labels,
-                        y: chartData.kwh,
-                        type: 'scatter',
-                        mode: 'lines+markers',
-                        name: 'Total kWh',
-                        line: { color: '#3498db', width: 3 },
-                        marker: { size: 6 }
-                    },
-                    {
-                        x: chartData.labels,
-                        y: chartData.avg_power,
-                        type: 'scatter',
-                        mode: 'lines+markers',
-                        name: 'Avg Power (W)',
-                        line: { color: '#27ae60', width: 2 },
-                        marker: { size: 4 },
-                        yaxis: 'y2'
+            
+            async loadEnergyData() {
+                try {
+                    this.showChartLoading('energy-chart-loading');
+                    
+                    const params = new URLSearchParams({
+                        period: this.currentEnergyPeriod,
+                        type: 'energy'
+                    });
+                    
+                    const response = await fetch(`/api/energy-data?${params}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.renderEnergyChart(data.data);
+                    } else {
+                        this.showChartError('energy-chart', 'No energy data available');
                     }
-                ];
-
-                const layout = {
-                    title: {
-                        text: `Power Consumption - ${this.currentPeriod.charAt(0).toUpperCase() + this.currentPeriod.slice(1)} View`,
-                        font: { size: 18 }
-                    },
-                    xaxis: {
-                        title: 'Time',
-                        gridcolor: '#e1e5e9'
-                    },
-                    yaxis: {
-                        title: 'Total kWh',
-                        gridcolor: '#e1e5e9'
-                    },
-                    yaxis2: {
-                        title: 'Power (Watts)',
-                        overlaying: 'y',
-                        side: 'right',
-                        gridcolor: '#e1e5e9'
-                    },
-                    hovermode: 'x unified',
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#2c3e50' },
-                    margin: { t: 60, b: 60, l: 60, r: 60 }
-                };
-
-                const config = {
-                    responsive: true,
-                    displayModeBar: true,
-                    displaylogo: false
-                };
-
-                Plotly.newPlot('power-chart', traces, layout, config);
+                } catch (error) {
+                    console.error('Error loading energy data:', error);
+                    this.showChartError('energy-chart', 'Error loading energy data');
+                } finally {
+                    this.hideChartLoading('energy-chart-loading');
+                }
             }
-
+            
             async loadStatistics() {
                 try {
                     const params = new URLSearchParams({
-                        period: this.currentPeriod,
-                        ...(this.selectedPDUs.length > 0 && { 'pdu_ids[]': this.selectedPDUs })
+                        period: this.currentPeriod
                     });
                     
                     const response = await fetch(`/api/statistics?${params}`);
                     const data = await response.json();
                     
                     if (data.success) {
-                        this.renderStatistics(data.data);
+                        this.updateStatistics(data.data);
                     }
                 } catch (error) {
                     console.error('Error loading statistics:', error);
                 }
             }
+            
+            renderPowerChart(chartData) {
+                if (chartData.labels.length === 0) {
+                    this.showChartError('power-chart', 'No data available for the selected period');
+                    return;
+                }
 
-            renderStatistics(stats) {
-                const container = document.getElementById('statistics-grid');
-                container.innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.total_kwh}</div>
-                        <div class="stat-label">Total kWh</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.avg_power_watts}</div>
-                        <div class="stat-label">Average Power (W)</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.max_power_watts}</div>
-                        <div class="stat-label">Peak Power (W)</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.min_power_watts}</div>
-                        <div class="stat-label">Minimum Power (W)</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.peak_hour || 'N/A'}</div>
-                        <div class="stat-label">Peak Time</div>
+                const traces = [
+                    {
+                        x: chartData.labels,
+                        y: chartData.power_watts,
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'Power (W)',
+                        line: { color: '#1a73e8', width: 3 },
+                        marker: { size: 6, color: '#1a73e8' },
+                        fill: 'tonexty',
+                        fillcolor: 'rgba(26, 115, 232, 0.1)'
+                    }
+                ];
+
+                const layout = {
+                    title: {
+                        text: `Power Consumption - ${this.currentPeriod.charAt(0).toUpperCase() + this.currentPeriod.slice(1)} View`,
+                        font: { size: 18, color: '#202124' }
+                    },
+                    xaxis: {
+                        title: 'Time',
+                        gridcolor: '#e8eaed',
+                        zeroline: false
+                    },
+                    yaxis: {
+                        title: 'Power (Watts)',
+                        gridcolor: '#e8eaed',
+                        zeroline: false
+                    },
+                    hovermode: 'x unified',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#202124' },
+                    margin: { t: 60, b: 60, l: 60, r: 60 },
+                    showlegend: false
+                };
+
+                const config = {
+                    responsive: true,
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
+                };
+
+                Plotly.newPlot('power-chart', traces, layout, config);
+            }
+            
+            renderEnergyChart(chartData) {
+                if (chartData.labels.length === 0) {
+                    this.showChartError('energy-chart', 'No energy data available');
+                    return;
+                }
+
+                const traces = [
+                    {
+                        x: chartData.labels,
+                        y: chartData.energy_kwh,
+                        type: 'bar',
+                        name: 'Energy (kWh)',
+                        marker: { 
+                            color: '#34a853',
+                            line: { color: '#34a853', width: 1 }
+                        }
+                    }
+                ];
+
+                const layout = {
+                    title: {
+                        text: `Energy Consumption - ${this.currentEnergyPeriod.charAt(0).toUpperCase() + this.currentEnergyPeriod.slice(1)} View`,
+                        font: { size: 18, color: '#202124' }
+                    },
+                    xaxis: {
+                        title: 'Time Period',
+                        gridcolor: '#e8eaed',
+                        zeroline: false
+                    },
+                    yaxis: {
+                        title: 'Energy (kWh)',
+                        gridcolor: '#e8eaed',
+                        zeroline: false
+                    },
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#202124' },
+                    margin: { t: 60, b: 60, l: 60, r: 60 },
+                    showlegend: false
+                };
+
+                const config = {
+                    responsive: true,
+                    displayModeBar: true,
+                    displaylogo: false,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
+                };
+
+                Plotly.newPlot('energy-chart', traces, layout, config);
+            }
+            
+            showChartLoading(loadingId) {
+                document.getElementById(loadingId).style.display = 'flex';
+            }
+            
+            hideChartLoading(loadingId) {
+                document.getElementById(loadingId).style.display = 'none';
+            }
+            
+            showChartError(chartId, message) {
+                document.getElementById(chartId).innerHTML = `
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #5f6368;">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>${message}</p>
                     </div>
                 `;
             }
-
-            refreshAll() {
-                this.loadCurrentStatus();
+            
+            setPeriod(period) {
+                this.currentPeriod = period;
                 this.loadPowerData();
-                this.loadStatistics();
+            }
+            
+            setEnergyPeriod(period) {
+                this.currentEnergyPeriod = period;
+                this.loadEnergyData();
+            }
+            
+            async refreshAll() {
+                await Promise.all([
+                    this.loadCurrentStatus(),
+                    this.loadPowerData(),
+                    this.loadEnergyData(),
+                    this.loadStatistics()
+                ]);
+                
+                this.updateLastUpdatedTime();
                 
                 // Show refresh animation
                 const refreshBtn = document.getElementById('refresh-btn');
-                refreshBtn.querySelector('i').classList.add('fa-spin');
+                const icon = refreshBtn.querySelector('i');
+                icon.classList.add('fa-spin');
                 setTimeout(() => {
-                    refreshBtn.querySelector('i').classList.remove('fa-spin');
+                    icon.classList.remove('fa-spin');
                 }, 1000);
+            }
+            
+            async exportData() {
+                try {
+                    const params = new URLSearchParams({
+                        period: this.currentPeriod,
+                        format: 'csv'
+                    });
+                    
+                    const response = await fetch(`/api/export-data?${params}`);
+                    const blob = await response.blob();
+                    
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `pdu-power-data-${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } catch (error) {
+                    console.error('Error exporting data:', error);
+                    alert('Error exporting data. Please try again.');
+                }
             }
         }
 
         // Initialize dashboard when page loads
+        let dashboard;
         document.addEventListener('DOMContentLoaded', () => {
-            new PDUDashboard();
+            dashboard = new PDUDashboard();
         });
     </script>
 </body>
