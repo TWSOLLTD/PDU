@@ -785,12 +785,12 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <h3 class="chart-title">Power Consumption Trend</h3>
-                        <div class="period-selector">
-                            <button class="btn-period active" data-period="hour" onclick="dashboard.setPeriod('hour')">Hour</button>
-                            <button class="btn-period" data-period="day" onclick="dashboard.setPeriod('day')">Day</button>
-                            <button class="btn-period" data-period="week" onclick="dashboard.setPeriod('week')">Week</button>
-                            <button class="btn-period" data-period="month" onclick="dashboard.setPeriod('month')">Month</button>
-                        </div>
+                                                 <div class="period-selector">
+                             <button class="btn-period active" data-period="hour">Hour</button>
+                             <button class="btn-period" data-period="day">Day</button>
+                             <button class="btn-period" data-period="week">Week</button>
+                             <button class="btn-period" data-period="month">Month</button>
+                         </div>
                     </div>
                     <div class="chart-container">
                         <div class="loading-overlay" id="chart-loading">
@@ -805,11 +805,11 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <h3 class="chart-title">Energy Consumption</h3>
-                        <div class="period-selector">
-                            <button class="btn-period active" data-period="day" onclick="dashboard.setEnergyPeriod('day')">Day</button>
-                            <button class="btn-period" data-period="week" onclick="dashboard.setEnergyPeriod('week')">Week</button>
-                            <button class="btn-period" data-period="month" onclick="dashboard.setEnergyPeriod('month')">Month</button>
-                        </div>
+                                                 <div class="period-selector">
+                             <button class="btn-period active" data-period="day">Day</button>
+                             <button class="btn-period" data-period="week">Week</button>
+                             <button class="btn-period" data-period="month">Month</button>
+                         </div>
                     </div>
                     <div class="chart-container">
                         <div class="loading-overlay" id="energy-chart-loading">
@@ -861,6 +861,31 @@
                 
                 darkModeToggle.addEventListener('click', () => {
                     this.toggleDarkMode();
+                });
+                
+                // Remove any existing onclick handlers and add proper event listeners
+                // Power chart period buttons
+                const powerChart = document.querySelectorAll('.chart-card')[0];
+                powerChart.querySelectorAll('.btn-period').forEach(btn => {
+                    btn.removeAttribute('onclick');
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const period = btn.getAttribute('data-period');
+                        console.log('Power chart period clicked:', period);
+                        this.setPeriod(period);
+                    });
+                });
+                
+                // Energy chart period buttons
+                const energyChart = document.querySelectorAll('.chart-card')[1];
+                energyChart.querySelectorAll('.btn-period').forEach(btn => {
+                    btn.removeAttribute('onclick');
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const period = btn.getAttribute('data-period');
+                        console.log('Energy chart period clicked:', period);
+                        this.setEnergyPeriod(period);
+                    });
                 });
             }
             
@@ -1180,7 +1205,7 @@
             setPeriod(period) {
                 this.currentPeriod = period;
                 
-                // Update button highlighting for power chart
+                // Update button highlighting for power chart (first chart card)
                 const powerChart = document.querySelectorAll('.chart-card')[0];
                 powerChart.querySelectorAll('.btn-period').forEach(btn => {
                     btn.classList.remove('active');
@@ -1196,7 +1221,7 @@
             setEnergyPeriod(period) {
                 this.currentEnergyPeriod = period;
                 
-                // Update button highlighting for energy chart
+                // Update button highlighting for energy chart (second chart card)
                 const energyChart = document.querySelectorAll('.chart-card')[1];
                 energyChart.querySelectorAll('.btn-period').forEach(btn => {
                     btn.classList.remove('active');
