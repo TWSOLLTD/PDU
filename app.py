@@ -186,7 +186,7 @@ def get_power_data():
                     avg_power = sum(interval_data[target_interval]) / len(interval_data[target_interval])
                     chart_data['power_watts'].append(round(avg_power, 1))
                 else:
-                    chart_data['power_watts'].append(None)  # Use None to show gaps
+                    chart_data['power_watts'].append(0)  # Use 0 to show all dots
         
         elif period == 'day':
             # Get last 7 days of data, grouped by day
@@ -216,7 +216,7 @@ def get_power_data():
                     avg_power = sum(daily_data[target_date]) / len(daily_data[target_date])
                     chart_data['power_watts'].append(round(avg_power, 1))
                 else:
-                    chart_data['power_watts'].append(None)
+                    chart_data['power_watts'].append(0)
         
         elif period == 'week':
             # Get last 4 weeks of data, grouped by week
@@ -249,7 +249,7 @@ def get_power_data():
                     avg_power = sum(weekly_data[target_week]) / len(weekly_data[target_week])
                     chart_data['power_watts'].append(round(avg_power, 1))
                 else:
-                    chart_data['power_watts'].append(None)
+                    chart_data['power_watts'].append(0)
         
         elif period == 'month':
             # Get last 12 months of data, grouped by month
@@ -279,7 +279,7 @@ def get_power_data():
                     avg_power = sum(monthly_data[target_month]) / len(monthly_data[target_month])
                     chart_data['power_watts'].append(round(avg_power, 1))
                 else:
-                    chart_data['power_watts'].append(None)
+                    chart_data['power_watts'].append(0)
         
         return jsonify({
             'success': True,
