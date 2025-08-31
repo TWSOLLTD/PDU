@@ -186,7 +186,7 @@ def get_power_data():
                     avg_power = sum(interval_data[target_interval]) / len(interval_data[target_interval])
                     chart_data['power_watts'].append(round(avg_power, 1))
                 else:
-                    chart_data['power_watts'].append(0)  # Use 0 for missing data
+                    chart_data['power_watts'].append(None)  # Use None to show gaps
         
         elif period == 'day':
             # Get last 7 days of data, grouped by day
@@ -216,7 +216,7 @@ def get_power_data():
                     avg_power = sum(daily_data[target_date]) / len(daily_data[target_date])
                     chart_data['power_watts'].append(round(avg_power, 1))
                 else:
-                    chart_data['power_watts'].append(0)
+                    chart_data['power_watts'].append(None)
         
         elif period == 'week':
             # Get last 4 weeks of data, grouped by week
@@ -249,7 +249,7 @@ def get_power_data():
                     avg_power = sum(weekly_data[target_week]) / len(weekly_data[target_week])
                     chart_data['power_watts'].append(round(avg_power, 1))
                 else:
-                    chart_data['power_watts'].append(0)
+                    chart_data['power_watts'].append(None)
         
         elif period == 'month':
             # Get last 12 months of data, grouped by month
@@ -279,7 +279,7 @@ def get_power_data():
                     avg_power = sum(monthly_data[target_month]) / len(monthly_data[target_month])
                     chart_data['power_watts'].append(round(avg_power, 1))
                 else:
-                    chart_data['power_watts'].append(0)
+                    chart_data['power_watts'].append(None)
         
         return jsonify({
             'success': True,
@@ -476,7 +476,7 @@ def get_energy_data():
                     energy_kwh = sum(hourly_data[target_hour]) / 60
                     chart_data['energy_kwh'].append(round(energy_kwh, 3))
                 else:
-                    chart_data['energy_kwh'].append(0)
+                    chart_data['energy_kwh'].append(None)
         
         elif period == 'week':
             # Get daily energy consumption for the last 7 days
@@ -506,7 +506,7 @@ def get_energy_data():
                     energy_kwh = sum(daily_data[target_date]) / 60
                     chart_data['energy_kwh'].append(round(energy_kwh, 3))
                 else:
-                    chart_data['energy_kwh'].append(0)
+                    chart_data['energy_kwh'].append(None)
         
         elif period == 'month':
             # Get daily energy consumption for the last 30 days
@@ -536,7 +536,7 @@ def get_energy_data():
                     energy_kwh = sum(daily_data[target_date]) / 60
                     chart_data['energy_kwh'].append(round(energy_kwh, 3))
                 else:
-                    chart_data['energy_kwh'].append(0)
+                    chart_data['energy_kwh'].append(None)
         
         return jsonify({
             'success': True,

@@ -1071,7 +1071,7 @@
                         type: 'scatter',
                         mode: 'lines+markers',
                         name: 'Power (W)',
-                        line: { color: '#1a73e8', width: 3 },
+                        line: { color: '#1a73e8', width: 3, connectgaps: false },
                         marker: { size: 6, color: '#1a73e8' },
                         fill: 'tonexty',
                         fillcolor: 'rgba(26, 115, 232, 0.1)'
@@ -1182,11 +1182,15 @@
             setPeriod(period) {
                 this.currentPeriod = period;
                 
-                // Update button highlighting
-                document.querySelectorAll('.btn-period').forEach(btn => {
+                // Update button highlighting for power chart
+                const powerChart = document.querySelectorAll('.chart-card')[0];
+                powerChart.querySelectorAll('.btn-period').forEach(btn => {
                     btn.classList.remove('active');
                 });
-                document.querySelector(`[data-period="${period}"]`).classList.add('active');
+                const targetButton = powerChart.querySelector(`[data-period="${period}"]`);
+                if (targetButton) {
+                    targetButton.classList.add('active');
+                }
                 
                 this.loadPowerData();
             }
@@ -1199,7 +1203,10 @@
                 energyChart.querySelectorAll('.btn-period').forEach(btn => {
                     btn.classList.remove('active');
                 });
-                energyChart.querySelector(`[data-period="${period}"]`).classList.add('active');
+                const targetButton = energyChart.querySelector(`[data-period="${period}"]`);
+                if (targetButton) {
+                    targetButton.classList.add('active');
+                }
                 
                 this.loadEnergyData();
             }
