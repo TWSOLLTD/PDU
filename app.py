@@ -33,6 +33,9 @@ db.init_app(app)
 # Initialize data processor
 data_processor = PowerDataProcessor()
 
+# Alert state tracking to prevent duplicate alerts
+alert_states = {}  # Track which alerts are currently active
+
 def send_discord_alert(alert):
     """Send alert to Discord webhook"""
     try:
@@ -555,8 +558,8 @@ def get_alerts():
                         'timestamp': latest.timestamp.isoformat()
                     })
                 
-                # High power alert (over 1000W)
-                if latest.power_watts > 1000:
+                # High power alert (over 800W)
+                if latest.power_watts > 800:
                     alerts.append({
                         'type': 'high_power',
                         'severity': 'medium',
@@ -621,7 +624,7 @@ def get_alerts():
                     avg_power = sum(r.power_watts for r in hourly_readings) / len(hourly_readings)
                     # Assume typical usage is around 500W (adjust as needed)
                     typical_usage = 500
-                    if avg_power > typical_usage * 0.8:
+                    if avg_power > typical_usage * 0.9:  # Changed from 0.8 to 0.9 (450W instead of 400W)
                         alerts.append({
                             'type': 'sustained_high',
                             'severity': 'medium',
@@ -630,9 +633,28 @@ def get_alerts():
                             'timestamp': latest.timestamp.isoformat()
                         })
         
-        # Send Discord notifications for new alerts
+        # Send Discord notifications for new alerts only
         for alert in alerts:
-            send_discord_alert(alert)
+            # Create a unique key for this alert
+            alert_key = f"{alert['pdu_id']}_{alert['type']}"
+            
+            # Check if this alert is new
+            if alert_key not in alert_states:
+                # This is a new alert, send Discord notification
+                send_discord_alert(alert)
+                alert_states[alert_key] = {
+                    'timestamp': alert['timestamp'],
+                    'message': alert['message']
+                }
+            else:
+                # Update existing alert timestamp
+                alert_states[alert_key]['timestamp'] = alert['timestamp']
+        
+        # Clean up resolved alerts from state tracking
+        current_alert_keys = {f"{alert['pdu_id']}_{alert['type']}" for alert in alerts}
+        resolved_keys = set(alert_states.keys()) - current_alert_keys
+        for key in resolved_keys:
+            del alert_states[key]
         
         return jsonify({
             'success': True,
