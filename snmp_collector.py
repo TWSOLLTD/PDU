@@ -260,22 +260,60 @@ class PDUCollector:
             return current_reading
     
     def collect_all_pdus(self):
-        """Collect power readings from all configured PDUs"""
+        """Collect power readings from all configured PDUs and store in database"""
         logger.info("Starting PDU power collection...")
         
-        for pdu_key, pdu_config in PDUS.items():
-            try:
-                # Get power reading
-                power_data = self.get_power_reading(pdu_config)
-                
-                if power_data:
-                    logger.info(f"✅ {pdu_config['name']}: {power_data['power_watts']:.2f}W ({power_data['power_kw']:.3f}kW)")
-                else:
-                    logger.warning(f"⚠️ No power data collected from {pdu_config['name']}")
+        # Import here to avoid circular imports
+        from app import create_app
+        from models import db, PDU, PowerReading
+        
+        app = create_app()
+        
+        with app.app_context():
+            for pdu_key, pdu_config in PDUS.items():
+                try:
+                    # Get power reading
+                    power_data = self.get_power_reading(pdu_config)
                     
-            except Exception as e:
-                logger.error(f"❌ Error processing {pdu_config['name']}: {str(e)}")
-                continue
+                    if power_data:
+                        logger.info(f"✅ {pdu_config['name']}: {power_data['power_watts']:.2f}W ({power_data['power_kw']:.3f}kW)")
+                        
+                        # Store in database
+                        try:
+                            # Find or create PDU record
+                            pdu = PDU.query.filter_by(ip_address=pdu_config['ip']).first()
+                            if not pdu:
+                                pdu = PDU(
+                                    name=pdu_config['name'],
+                                    ip_address=pdu_config['ip']
+                                )
+                                db.session.add(pdu)
+                                db.session.commit()
+                                logger.info(f"Created new PDU record: {pdu_config['name']}")
+                            
+                            # Create power reading record
+                            reading = PowerReading(
+                                pdu_id=pdu.id,
+                                timestamp=datetime.utcnow(),
+                                power_watts=power_data['power_watts'],
+                                power_kw=power_data['power_kw']
+                            )
+                            db.session.add(reading)
+                            db.session.commit()
+                            
+                            logger.info(f"💾 Stored reading in database: {power_data['power_watts']:.1f}W")
+                            
+                        except Exception as db_error:
+                            logger.error(f"Database error storing reading for {pdu_config['name']}: {str(db_error)}")
+                            db.session.rollback()
+                            continue
+                            
+                    else:
+                        logger.warning(f"⚠️ No power data collected from {pdu_config['name']}")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error processing {pdu_config['name']}: {str(e)}")
+                    continue
         
         logger.info("Power collection completed successfully")
 
