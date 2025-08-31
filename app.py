@@ -183,8 +183,10 @@ def get_power_data():
                 # Show clean hour labels for hour boundaries only
                 if target_interval.minute == 0:
                     chart_data['labels'].append(target_interval.strftime('%H:00'))
+                elif target_interval.minute == 30:
+                    chart_data['labels'].append(target_interval.strftime('%H:30'))
                 else:
-                    chart_data['labels'].append('')  # Empty label for non-hour marks
+                    chart_data['labels'].append(target_interval.strftime('%H:%M'))  # Show 15 and 45 minute marks
                 
                 if target_interval in interval_data:
                     avg_power = sum(interval_data[target_interval]) / len(interval_data[target_interval])
@@ -482,7 +484,7 @@ def get_energy_data():
                     energy_kwh = sum(hourly_data[target_hour]) / 60
                     chart_data['energy_kwh'].append(round(energy_kwh, 3))
                 else:
-                    chart_data['energy_kwh'].append(None)
+                    chart_data['energy_kwh'].append(0)  # Use 0 to show all bars
         
         elif period == 'week':
             # Get daily energy consumption for the last 7 days
@@ -512,7 +514,7 @@ def get_energy_data():
                     energy_kwh = sum(daily_data[target_date]) / 60
                     chart_data['energy_kwh'].append(round(energy_kwh, 3))
                 else:
-                    chart_data['energy_kwh'].append(None)
+                    chart_data['energy_kwh'].append(0)  # Use 0 to show all bars
         
         elif period == 'month':
             # Get daily energy consumption for the last 30 days
@@ -542,7 +544,7 @@ def get_energy_data():
                     energy_kwh = sum(daily_data[target_date]) / 60
                     chart_data['energy_kwh'].append(round(energy_kwh, 3))
                 else:
-                    chart_data['energy_kwh'].append(None)
+                    chart_data['energy_kwh'].append(0)  # Use 0 to show all bars
         
         return jsonify({
             'success': True,
