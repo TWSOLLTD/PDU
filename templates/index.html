@@ -781,11 +781,11 @@
 
             <!-- Charts Section -->
             <div class="charts-section">
-                <!-- Power Consumption Chart -->
-                <div class="chart-card">
+                                <!-- Power Consumption Chart -->
+                <div class="chart-card" id="power-chart-container">
                     <div class="chart-header">
                         <h3 class="chart-title">Power Consumption Trend</h3>
-                                                 <div class="period-selector">
+                         <div class="period-selector">
                              <button class="btn-period active" data-period="hour">Hour</button>
                              <button class="btn-period" data-period="day">Day</button>
                              <button class="btn-period" data-period="week">Week</button>
@@ -801,11 +801,11 @@
                     </div>
                 </div>
 
-                <!-- Energy Usage Chart -->
-                <div class="chart-card">
+                                <!-- Energy Usage Chart -->
+                <div class="chart-card" id="energy-chart-container">
                     <div class="chart-header">
                         <h3 class="chart-title">Energy Consumption</h3>
-                                                 <div class="period-selector">
+                         <div class="period-selector">
                              <button class="btn-period active" data-period="day">Day</button>
                              <button class="btn-period" data-period="week">Week</button>
                              <button class="btn-period" data-period="month">Month</button>
@@ -865,7 +865,8 @@
                 
                 // Remove any existing onclick handlers and add proper event listeners
                 // Power chart period buttons
-                const powerChart = document.querySelectorAll('.chart-card')[0];
+                const powerChart = document.getElementById('power-chart-container');
+                console.log('Setting up power chart buttons:', powerChart.querySelectorAll('.btn-period').length);
                 powerChart.querySelectorAll('.btn-period').forEach(btn => {
                     btn.removeAttribute('onclick');
                     btn.addEventListener('click', (e) => {
@@ -877,7 +878,8 @@
                 });
                 
                 // Energy chart period buttons
-                const energyChart = document.querySelectorAll('.chart-card')[1];
+                const energyChart = document.getElementById('energy-chart-container');
+                console.log('Setting up energy chart buttons:', energyChart.querySelectorAll('.btn-period').length);
                 energyChart.querySelectorAll('.btn-period').forEach(btn => {
                     btn.removeAttribute('onclick');
                     btn.addEventListener('click', (e) => {
@@ -1019,6 +1021,7 @@
             
             async loadPowerData() {
                 try {
+                    console.log('Loading power data for period:', this.currentPeriod);
                     this.showChartLoading('chart-loading');
                     
                     const params = new URLSearchParams({
@@ -1029,6 +1032,7 @@
                     const data = await response.json();
                     
                     if (data.success) {
+                        console.log('Rendering power chart with data:', data.data);
                         this.renderPowerChart(data.data);
                     } else {
                         this.showChartError('power-chart', 'No data available');
@@ -1043,6 +1047,7 @@
             
             async loadEnergyData() {
                 try {
+                    console.log('Loading energy data for period:', this.currentEnergyPeriod);
                     this.showChartLoading('energy-chart-loading');
                     
                     const params = new URLSearchParams({
@@ -1054,6 +1059,7 @@
                     const data = await response.json();
                     
                     if (data.success) {
+                        console.log('Rendering energy chart with data:', data.data);
                         this.renderEnergyChart(data.data);
                     } else {
                         this.showChartError('energy-chart', 'No energy data available');
@@ -1204,13 +1210,18 @@
             
             setPeriod(period) {
                 this.currentPeriod = period;
+                console.log('setPeriod called with:', period);
                 
-                // Update button highlighting for power chart (first chart card)
-                const powerChart = document.querySelectorAll('.chart-card')[0];
+                // Update button highlighting for power chart
+                const powerChart = document.getElementById('power-chart-container');
+                console.log('Power chart container:', powerChart);
+                console.log('Power chart buttons:', powerChart.querySelectorAll('.btn-period'));
+                
                 powerChart.querySelectorAll('.btn-period').forEach(btn => {
                     btn.classList.remove('active');
                 });
                 const targetButton = powerChart.querySelector(`[data-period="${period}"]`);
+                console.log('Target button for power chart:', targetButton);
                 if (targetButton) {
                     targetButton.classList.add('active');
                 }
@@ -1220,13 +1231,18 @@
             
             setEnergyPeriod(period) {
                 this.currentEnergyPeriod = period;
+                console.log('setEnergyPeriod called with:', period);
                 
-                // Update button highlighting for energy chart (second chart card)
-                const energyChart = document.querySelectorAll('.chart-card')[1];
+                // Update button highlighting for energy chart
+                const energyChart = document.getElementById('energy-chart-container');
+                console.log('Energy chart container:', energyChart);
+                console.log('Energy chart buttons:', energyChart.querySelectorAll('.btn-period'));
+                
                 energyChart.querySelectorAll('.btn-period').forEach(btn => {
                     btn.classList.remove('active');
                 });
                 const targetButton = energyChart.querySelector(`[data-period="${period}"]`);
+                console.log('Target button for energy chart:', targetButton);
                 if (targetButton) {
                     targetButton.classList.add('active');
                 }
