@@ -6,7 +6,7 @@ load_dotenv()
 # PDU Configuration
 PDUS = {
     'PDU1': {
-        'name': 'PDU-1',
+        'name': 'Right PDU',
         'ip': '172.0.250.10',
         'username': 'admin',
         'auth_passphrase': 'testingtesting123',
@@ -15,7 +15,7 @@ PDUS = {
         'privacy_protocol': 'AES'
     },
     'PDU2': {
-        'name': 'PDU-2',
+        'name': 'Left PDU',
         'ip': '172.0.250.11',
         'username': 'admin',
         'auth_passphrase': 'testingtesting123',

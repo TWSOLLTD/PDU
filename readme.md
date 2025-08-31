@@ -61,7 +61,7 @@ Edit `config.py` to match your PDU configuration:
 ```python
 PDUS = {
     'PDU1': {
-        'name': 'PDU-1',
+        'name': 'Right PDU',
         'ip': '172.0.250.10',  # Your PDU IP
         'username': 'admin',
         'auth_passphrase': 'your_auth_passphrase',
@@ -70,7 +70,7 @@ PDUS = {
         'privacy_protocol': 'AES'
     },
     'PDU2': {
-        'name': 'PDU-2',
+        'name': 'Left PDU',
         'ip': '172.0.250.11',  # Your second PDU IP
         'username': 'admin',
         'auth_passphrase': 'your_auth_passphrase',
@@ -81,10 +81,10 @@ PDUS = {
 }
 ```
 
-### 4. Initialize Database
+### 5. Initialize Database
 
 ```bash
-python -c "from app import create_app; app = create_app()"
+python3 -c "from app import create_app; app = create_app()"
 ```
 
 ## Usage
@@ -92,7 +92,7 @@ python -c "from app import create_app; app = create_app()"
 ### Starting the Web Dashboard
 
 ```bash
-python app.py
+python3 app.py
 ```
 
 The web interface will be available at `http://localhost:5000`
@@ -100,7 +100,7 @@ The web interface will be available at `http://localhost:5000`
 ### Starting the Data Collector
 
 ```bash
-python scheduler.py
+python3 scheduler.py
 ```
 
 This will start collecting data from your PDUs every minute (configurable in `config.py`).
@@ -110,7 +110,67 @@ This will start collecting data from your PDUs every minute (configurable in `co
 To collect data manually:
 
 ```bash
-python snmp_collector.py
+python3 snmp_collector.py
+```
+
+### Using the Startup Script
+
+The easiest way to run the system is using the provided startup script:
+
+```bash
+# Make the script executable (first time only)
+chmod +x start.sh
+
+# Start the system
+./start.sh
+```
+
+This will start both the data collector and web dashboard automatically.
+
+### Running as a System Service (Recommended for Production)
+
+For production use, you can create a systemd service:
+
+1. **Create the service file:**
+
+```bash
+sudo nano /etc/systemd/system/pdu-monitor.service
+```
+
+2. **Add the following content:**
+
+```ini
+[Unit]
+Description=PDU Power Monitoring System
+After=network.target
+
+[Service]
+Type=simple
+User=your_username
+WorkingDirectory=/path/to/your/pdu/project
+Environment=PATH=/path/to/your/pdu/project/pdu_env/bin
+ExecStart=/path/to/your/pdu/project/pdu_env/bin/python3 /path/to/your/pdu/project/scheduler.py
+ExecStartPost=/path/to/your/pdu/project/pdu_env/bin/python3 /path/to/your/pdu/project/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+3. **Enable and start the service:**
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable pdu-monitor
+sudo systemctl start pdu-monitor
+sudo systemctl status pdu-monitor
+```
+
+4. **View logs:**
+
+```bash
+sudo journalctl -u pdu-monitor -f
 ```
 
 ## Configuration Options
