@@ -7,7 +7,7 @@ Collects power consumption data from APC PDUs via SNMPv3
 import time
 import logging
 from datetime import datetime, timedelta
-from pysnmp.hlapi import *
+from easysnmp import Session
 from config import PDUS, SNMP_PORT, SNMP_TIMEOUT, SNMP_RETRIES, POWER_OID
 from models import db, PDU, PowerReading
 import traceback
@@ -25,74 +25,40 @@ logger = logging.getLogger(__name__)
 
 class PDUCollector:
     def __init__(self):
-        self.auth_protocol_map = {
-            'SHA': usmHMACSHAAuthProtocol,
-            'MD5': usmHMACMD5AuthProtocol
-        }
-        
-        self.privacy_protocol_map = {
-            'AES': usmAesCfb128Protocol,
-            'DES': usmDESPrivProtocol
-        }
+        pass
     
     def get_power_reading(self, pdu_config):
         """Get power reading from a single PDU"""
         try:
-            # Get auth and privacy protocols
-            auth_protocol = self.auth_protocol_map.get(pdu_config['auth_protocol'])
-            privacy_protocol = self.privacy_protocol_map.get(pdu_config['privacy_protocol'])
-            
-            if not auth_protocol or not privacy_protocol:
-                logger.error(f"Unsupported protocol for {pdu_config['name']}")
-                return None
-            
-            # Create SNMP engine and user
-            engine = SnmpEngine()
-            user = UsmUserData(
-                pdu_config['username'],
-                authKey=pdu_config['auth_passphrase'],
-                privKey=pdu_config['privacy_passphrase'],
-                authProtocol=auth_protocol,
-                privProtocol=privacy_protocol
-            )
-            
-            # Create target
-            target = UdpTransportTarget(
-                (pdu_config['ip'], SNMP_PORT),
+            # Create SNMP session with easysnmp
+            session = Session(
+                hostname=pdu_config['ip'],
+                version=3,
+                security_level='authPriv',
+                security_username=pdu_config['username'],
+                auth_protocol=pdu_config['auth_protocol'].lower(),
+                auth_password=pdu_config['auth_passphrase'],
+                privacy_protocol=pdu_config['privacy_protocol'].lower(),
+                privacy_password=pdu_config['privacy_passphrase'],
                 timeout=SNMP_TIMEOUT,
                 retries=SNMP_RETRIES
             )
             
-            # Create context
-            context = ContextData()
-            
             # Perform SNMP GET request
-            iterator = getCmd(
-                engine,
-                user,
-                target,
-                context,
-                ObjectType(ObjectIdentity(POWER_OID))
-            )
+            result = session.get(POWER_OID)
             
-            errorIndication, errorStatus, errorIndex, varBinds = next(iterator)
-            
-            if errorIndication:
-                logger.error(f"SNMP Error for {pdu_config['name']}: {errorIndication}")
-                return None
-            elif errorStatus:
-                logger.error(f"SNMP Error for {pdu_config['name']}: {errorStatus}")
-                return None
+            if result:
+                power_watts = float(result.value)
+                power_kw = power_watts / 1000.0
+                
+                logger.info(f"{pdu_config['name']}: {power_watts:.2f}W ({power_kw:.3f}kW)")
+                return {
+                    'power_watts': power_watts,
+                    'power_kw': power_kw
+                }
             else:
-                for varBind in varBinds:
-                    power_watts = float(varBind[1])
-                    power_kw = power_watts / 1000.0
-                    
-                    logger.info(f"{pdu_config['name']}: {power_watts:.2f}W ({power_kw:.3f}kW)")
-                    return {
-                        'power_watts': power_watts,
-                        'power_kw': power_kw
-                    }
+                logger.error(f"No response from {pdu_config['name']}")
+                return None
                     
         except Exception as e:
             logger.error(f"Error collecting from {pdu_config['name']}: {str(e)}")
