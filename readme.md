@@ -29,16 +29,15 @@ For `/opt/PDU-NEW/` installation:
 
 ```bash
 # 1. Create directory and set permissions
-sudo mkdir -p /opt/PDU-NEW
-sudo chown $USER:$USER /opt/PDU-NEW
+mkdir -p /opt/PDU-NEW
 cd /opt/PDU-NEW
 
 # 2. Clone the repository
 git clone https://github.com/TWSOLLTD/PDU .
 
 # 3. Install dependencies
-sudo apt update
-sudo apt install -y python3 python3-pip python3-venv snmp snmp-mibs-downloader
+apt update
+apt install -y python3 python3-pip python3-venv snmp snmp-mibs-downloader
 
 # 4. Set up Python environment
 python3 -m venv pdu_env
@@ -62,8 +61,7 @@ chmod +x start.sh
 
 ```bash
 # Create the project directory
-sudo mkdir -p /opt/PDU-NEW
-sudo chown $USER:$USER /opt/PDU-NEW
+mkdir -p /opt/PDU-NEW
 cd /opt/PDU-NEW
 
 # Clone the repository
@@ -74,13 +72,13 @@ git clone https://github.com/TWSOLLTD/PDU .
 
 ```bash
 # Update package list
-sudo apt update
+apt update
 
 # Install Python 3 and pip
-sudo apt install -y python3 python3-pip python3-venv
+apt install -y python3 python3-pip python3-venv
 
 # Install system dependencies for SNMP
-sudo apt install -y snmp snmp-mibs-downloader
+apt install -y snmp snmp-mibs-downloader
 ```
 
 ### 3. Install Python Dependencies
@@ -176,7 +174,7 @@ For production use, you can create a systemd service:
 1. **Create the service file:**
 
 ```bash
-sudo nano /etc/systemd/system/pdu-monitor.service
+nano /etc/systemd/system/pdu-monitor.service
 ```
 
 2. **Add the following content:**
@@ -204,16 +202,16 @@ WantedBy=multi-user.target
 3. **Enable and start the service:**
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable pdu-monitor
-sudo systemctl start pdu-monitor
-sudo systemctl status pdu-monitor
+systemctl daemon-reload
+systemctl enable pdu-monitor
+systemctl start pdu-monitor
+systemctl status pdu-monitor
 ```
 
 4. **View logs:**
 
 ```bash
-sudo journalctl -u pdu-monitor -f
+journalctl -u pdu-monitor -f
 ```
 
 ### Running the Web Dashboard
@@ -229,7 +227,7 @@ python3 app.py
 
 **Option B: Create a separate systemd service for the web dashboard**
 ```bash
-sudo nano /etc/systemd/system/pdu-web.service
+nano /etc/systemd/system/pdu-web.service
 ```
 
 Add this content:
@@ -253,9 +251,9 @@ WantedBy=multi-user.target
 
 Then enable and start it:
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable pdu-web
-sudo systemctl start pdu-web
+systemctl daemon-reload
+systemctl enable pdu-web
+systemctl start pdu-web
 ```
 
 ## Configuration Options
