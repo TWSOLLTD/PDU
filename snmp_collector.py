@@ -38,9 +38,7 @@ class PDUCollector:
                 version=3,
                 security_level='authPriv',
                 security_username=pdu_config['username'],
-                auth_protocol=pdu_config['auth_protocol'].lower(),
                 auth_password=pdu_config['auth_passphrase'],
-                privacy_protocol=pdu_config['privacy_protocol'].lower(),
                 privacy_password=pdu_config['privacy_passphrase'],
                 timeout=SNMP_TIMEOUT,
                 retries=SNMP_RETRIES

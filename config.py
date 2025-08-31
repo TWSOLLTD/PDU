@@ -10,18 +10,16 @@ PDUS = {
         'ip': '172.0.250.10',
         'username': 'admin',
         'auth_passphrase': 'testingtesting123',
-        'privacy_passphrase': 'testingtesting123',
-        'auth_protocol': 'sha',
-        'privacy_protocol': 'aes'
+        'privacy_passphrase': 'testingtesting123'
+        # Let easysnmp use default protocols
     },
     'PDU2': {
         'name': 'Left PDU',
         'ip': '172.0.250.11',
         'username': 'admin',
         'auth_passphrase': 'testingtesting123',
-        'privacy_passphrase': 'testingtesting123',
-        'auth_protocol': 'sha',
-        'privacy_protocol': 'aes'
+        'privacy_passphrase': 'testingtesting123'
+        # Let easysnmp use default protocols
     }
 }
 
