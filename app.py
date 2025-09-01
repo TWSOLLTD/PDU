@@ -1087,6 +1087,49 @@ def debug_peak_power():
             'error': str(e)
         }), 500
 
+@app.route('/api/fix-database')
+def fix_database():
+    """Fix database by creating missing tables"""
+    try:
+        # Try to create the system_settings table if it doesn't exist
+        try:
+            # Check if table exists by trying to query it
+            SystemSettings.query.first()
+            return jsonify({
+                'success': True,
+                'message': 'system_settings table already exists'
+            })
+        except Exception as table_error:
+            # Table doesn't exist, create it
+            logger.info("Creating system_settings table...")
+            
+            # Create the table using raw SQL
+            db.engine.execute("""
+                CREATE TABLE IF NOT EXISTS system_settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    key TEXT UNIQUE NOT NULL,
+                    value TEXT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Commit the changes
+            db.session.commit()
+            
+            logger.info("system_settings table created successfully")
+            
+            return jsonify({
+                'success': True,
+                'message': 'system_settings table created successfully'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error fixing database: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/debug-database')
 def debug_database():
     """Debug endpoint to check database status"""
