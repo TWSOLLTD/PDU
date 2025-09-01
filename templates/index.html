@@ -1402,40 +1402,9 @@
              }
              
              updateChartColors(isDark) {
-                 // Update existing charts if they exist
-                 const powerChart = document.getElementById('power-chart');
-                 const energyChart = document.getElementById('energy-chart');
-                 
-                 const textColor = isDark ? '#ffffff' : '#202124';
-                 const gridColor = isDark ? '#404040' : '#e8eaed';
-                 
-                 if (powerChart && powerChart.data) {
-                     const update = {
-                         'layout.font.color': textColor,
-                         'layout.plot_bgcolor': 'rgba(0,0,0,0)',
-                         'layout.paper_bgcolor': 'rgba(0,0,0,0)',
-                         'layout.title.font.color': textColor,
-                         'layout.xaxis.color': textColor,
-                         'layout.yaxis.color': textColor,
-                         'layout.xaxis.gridcolor': gridColor,
-                         'layout.yaxis.gridcolor': gridColor
-                     };
-                     Plotly.relayout('power-chart', update);
-                 }
-                 
-                 if (energyChart && energyChart.data) {
-                     const update = {
-                         'layout.font.color': textColor,
-                         'layout.plot_bgcolor': 'rgba(0,0,0,0)',
-                         'layout.paper_bgcolor': 'rgba(0,0,0,0)',
-                         'layout.title.font.color': textColor,
-                         'layout.xaxis.color': textColor,
-                         'layout.yaxis.color': textColor,
-                         'layout.xaxis.gridcolor': gridColor,
-                         'layout.yaxis.gridcolor': gridColor
-                     };
-                     Plotly.relayout('energy-chart', update);
-                 }
+                 // Force refresh both charts to update colors immediately
+                 this.loadPowerData();
+                 this.loadEnergyData();
              }
             
             async clearHighUsageAlerts() {
