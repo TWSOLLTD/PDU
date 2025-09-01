@@ -38,6 +38,7 @@ data_processor = PowerDataProcessor()
 # Alert state tracking to prevent duplicate alerts
 alert_states = {}  # Track which alerts are currently active
 sustained_power_tracking = {}  # Track sustained high power periods
+cleared_alerts = set()  # Track alerts that have been permanently cleared
 
 def check_sustained_high_power(pdu_id, pdu_name, current_power, threshold_watts=None, duration_minutes=None):
     """Check if power has been high for a sustained period"""
@@ -741,6 +742,10 @@ def get_alerts():
             # Create a unique key for this alert
             alert_key = f"{alert['pdu_id']}_{alert['type']}"
             
+            # Check if this alert has been permanently cleared
+            if alert_key in cleared_alerts:
+                continue  # Skip this alert entirely - it's been permanently cleared
+            
             # Check if this alert is new
             if alert_key not in alert_states:
                 # This is a new alert, send Discord notification
@@ -759,10 +764,17 @@ def get_alerts():
         for key in resolved_keys:
             del alert_states[key]
         
+        # Filter out permanently cleared alerts from the final result
+        filtered_alerts = []
+        for alert in alerts:
+            alert_key = f"{alert['pdu_id']}_{alert['type']}"
+            if alert_key not in cleared_alerts:
+                filtered_alerts.append(alert)
+        
         return jsonify({
             'success': True,
-            'alerts': alerts,
-            'count': len(alerts)
+            'alerts': filtered_alerts,
+            'count': len(filtered_alerts)
         })
         
     except Exception as e:
@@ -774,18 +786,31 @@ def get_alerts():
 
 @app.route('/api/clear-high-usage-alerts', methods=['POST'])
 def clear_high_usage_alerts():
-    """Clear high usage alerts by resetting the sustained power tracking"""
+    """Clear high usage alerts by resetting the sustained power tracking and marking as permanently cleared"""
     try:
-        global sustained_power_tracking
+        global sustained_power_tracking, cleared_alerts
+        
+        # Get the request data to see what type of alerts to clear
+        data = request.get_json() or {}
+        alert_types = data.get('alert_types', ['sustained_high_power', 'sustained_high', 'power_spike'])
         
         # Clear all sustained power tracking data
         sustained_power_tracking.clear()
         
-        logger.info("High usage alerts cleared - sustained power tracking reset")
+        # Mark specified alert types as permanently cleared
+        # This will prevent them from appearing again even if conditions are met
+        cleared_count = 0
+        for alert_key in list(alert_states.keys()):
+            if any(alert_type in alert_key for alert_type in alert_types):
+                cleared_alerts.add(alert_key)
+                del alert_states[alert_key]
+                cleared_count += 1
+        
+        logger.info(f"Cleared {cleared_count} high usage alerts - sustained power tracking reset and alerts marked as permanently cleared")
         
         return jsonify({
             'success': True,
-            'message': 'High usage alerts cleared successfully'
+            'message': f'High usage alerts cleared successfully and will not reappear ({cleared_count} alerts cleared)'
         })
         
     except Exception as e:
