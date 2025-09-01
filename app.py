@@ -404,14 +404,22 @@ def get_current_status():
         peak_power_watts = 0
         if today_readings:
             peak_power_reset_time = get_peak_power_reset_time()
+            logger.info(f"Peak power calculation - Total readings today: {len(today_readings)}")
+            logger.info(f"Peak power calculation - Reset time: {peak_power_reset_time}")
+            
             if peak_power_reset_time:
                 # Only consider readings after the reset time
                 filtered_readings = [r for r in today_readings if r.timestamp > peak_power_reset_time]
+                logger.info(f"Peak power calculation - Filtered readings after reset: {len(filtered_readings)}")
                 if filtered_readings:
                     peak_power_watts = max(reading.power_watts for reading in filtered_readings)
+                    logger.info(f"Peak power calculation - Peak power after reset: {peak_power_watts:.1f}W")
+                else:
+                    logger.info("Peak power calculation - No readings after reset time")
             else:
                 # No reset, use all today's readings
                 peak_power_watts = max(reading.power_watts for reading in today_readings)
+                logger.info(f"Peak power calculation - Peak power (no reset): {peak_power_watts:.1f}W")
         
         statistics = {
             'total_power_watts': total_power_watts,
@@ -943,11 +951,17 @@ def clear_peak_power():
         reset_time = datetime.utcnow()
         set_peak_power_reset_time(reset_time)
         
+        # Get the stored reset time to verify it was saved
+        stored_reset_time = get_peak_power_reset_time()
+        
         logger.info(f"Peak power tracking reset at {reset_time}")
+        logger.info(f"Stored reset time verified: {stored_reset_time}")
         
         return jsonify({
             'success': True,
-            'message': f'Peak power tracking reset successfully at {reset_time.strftime("%H:%M:%S")}'
+            'message': f'Peak power tracking reset successfully at {reset_time.strftime("%H:%M:%S")}',
+            'reset_time': reset_time.isoformat(),
+            'stored_time': stored_reset_time.isoformat() if stored_reset_time else None
         })
         
     except Exception as e:

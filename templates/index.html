@@ -1435,6 +1435,7 @@
             
             async clearPeakPower() {
                 try {
+                    console.log('Clearing peak power...');
                     const response = await fetch('/api/clear-peak-power', {
                         method: 'POST',
                         headers: {
@@ -1444,10 +1445,20 @@
                     const data = await response.json();
                     
                     if (data.success) {
+                        console.log('Peak power reset response:', data);
                         alert('Peak power tracking reset successfully!');
-                        // Refresh current status to show updated peak power
+                        
+                        // Force a complete refresh of all data
+                        console.log('Refreshing current status...');
                         await this.loadCurrentStatus();
+                        
+                        // Also refresh power data to ensure charts are updated
+                        console.log('Refreshing power data...');
+                        await this.loadPowerData();
+                        
+                        console.log('Peak power reset completed');
                     } else {
+                        console.error('Peak power reset failed:', data.error);
                         alert('Error resetting peak power: ' + data.error);
                     }
                 } catch (error) {
