@@ -690,6 +690,10 @@
                         <i class="fas fa-times-circle"></i>
                         Clear High Usage Alerts
                     </button>
+                    <button class="btn btn-modern btn-secondary" onclick="dashboard.clearPeakPower()">
+                        <i class="fas fa-chart-line"></i>
+                        Clear Peak Power Today
+                    </button>
                      <div class="dark-mode-toggle">
                          <span>Dark Mode</span>
                          <div class="toggle-switch" id="dark-mode-toggle">
@@ -1408,6 +1412,29 @@
                 } catch (error) {
                     console.error('Error clearing high usage alerts:', error);
                     alert('Error clearing high usage alerts. Please try again.');
+                }
+            }
+            
+            async clearPeakPower() {
+                try {
+                    const response = await fetch('/api/clear-peak-power', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        alert('Peak power today cleared successfully!');
+                        // Refresh current status to show updated peak power
+                        await this.loadCurrentStatus();
+                    } else {
+                        alert('Error clearing peak power: ' + data.error);
+                    }
+                } catch (error) {
+                    console.error('Error clearing peak power:', error);
+                    alert('Error clearing peak power. Please try again.');
                 }
             }
             

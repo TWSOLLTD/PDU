@@ -886,6 +886,34 @@ def get_power_summary():
             'error': str(e)
         }), 500
 
+@app.route('/api/clear-peak-power', methods=['POST'])
+def clear_peak_power():
+    """Clear peak power today by deleting all today's readings"""
+    try:
+        # Get today's start time
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # Delete all power readings from today
+        deleted_count = PowerReading.query.filter(PowerReading.timestamp >= today_start).delete()
+        
+        # Commit the changes
+        db.session.commit()
+        
+        logger.info(f"Cleared peak power today - deleted {deleted_count} readings from {today_start}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Peak power today cleared successfully ({deleted_count} readings deleted)'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error clearing peak power: {str(e)}")
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/debug-alerts')
 def debug_alerts():
     """Debug endpoint to check alert status"""
