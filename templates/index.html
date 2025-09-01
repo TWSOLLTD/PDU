@@ -581,67 +581,91 @@
         }
         
                  /* Dark mode styles */
-         body.dark-mode {
-             background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-         }
-         
-         body.dark-mode .main-container {
-             background: rgba(45, 45, 45, 0.95);
-         }
-         
-         body.dark-mode :root {
-             --card-bg: #2d2d2d;
-             --text-primary: #ffffff;
-             --text-secondary: #b0b0b0;
-             --border-color: #404040;
-             --light-bg: #3d3d3d;
-         }
-         
-         body.dark-mode .stat-card,
-         body.dark-mode .chart-card,
-         body.dark-mode .pdu-card {
-             background: var(--card-bg);
-             border-color: var(--border-color);
-         }
-         
-         body.dark-mode .auto-refresh-toggle,
-         body.dark-mode .dark-mode-toggle {
-             background: var(--card-bg);
-             border-color: var(--border-color);
-         }
-         
-         body.dark-mode .btn-secondary {
-             background: var(--card-bg);
-             color: var(--text-primary);
-             border-color: var(--border-color);
-         }
-         
-         body.dark-mode .detail-item {
-             background: var(--light-bg);
-         }
-         
-         body.dark-mode .loading-overlay {
-             background: rgba(45, 45, 45, 0.9);
-         }
-         
-         body.dark-mode .alert-item {
-             background: rgba(45, 45, 45, 0.8);
-         }
-         
-         /* Dark mode support for system preference */
-         @media (prefers-color-scheme: dark) {
-             :root {
-                 --card-bg: #2d2d2d;
-                 --text-primary: #ffffff;
-                 --text-secondary: #b0b0b0;
-                 --border-color: #404040;
-                 --light-bg: #3d3d3d;
-             }
-             
-             body {
-                 background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-             }
-         }
+        body.dark-mode {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        }
+        
+        body.dark-mode .main-container {
+            background: rgba(45, 45, 45, 0.95);
+        }
+        
+        body.dark-mode .stat-card,
+        body.dark-mode .chart-card,
+        body.dark-mode .pdu-card {
+            background: #2d2d2d;
+            border-color: #404040;
+            color: #ffffff;
+        }
+        
+        body.dark-mode .auto-refresh-toggle,
+        body.dark-mode .dark-mode-toggle {
+            background: #2d2d2d;
+            border-color: #404040;
+            color: #ffffff;
+        }
+        
+        body.dark-mode .btn-secondary {
+            background: #2d2d2d;
+            color: #ffffff;
+            border-color: #404040;
+        }
+        
+        body.dark-mode .detail-item {
+            background: #3d3d3d;
+            color: #ffffff;
+        }
+        
+        body.dark-mode .loading-overlay {
+            background: rgba(45, 45, 45, 0.9);
+        }
+        
+        body.dark-mode .alert-item {
+            background: rgba(45, 45, 45, 0.8);
+        }
+        
+        body.dark-mode .dashboard-title,
+        body.dark-mode .chart-title,
+        body.dark-mode .pdu-name,
+        body.dark-mode .stat-value,
+        body.dark-mode .detail-value {
+            color: #ffffff !important;
+        }
+        
+        body.dark-mode .stat-label,
+        body.dark-mode .stat-unit,
+        body.dark-mode .detail-label,
+        body.dark-mode .last-updated,
+        body.dark-mode .alert-timestamp {
+            color: #b0b0b0 !important;
+        }
+        
+        body.dark-mode .period-selector {
+            background: #3d3d3d;
+        }
+        
+        body.dark-mode .btn-period {
+            color: #b0b0b0;
+        }
+        
+        body.dark-mode .btn-period.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        /* Remove system preference override to allow manual control */
+        /* @media (prefers-color-scheme: dark) {
+            :root {
+                --card-bg: #2d2d2d;
+                --text-primary: #ffffff;
+                --text-secondary: #b0b0b0;
+                --border-color: #404040;
+                --light-bg: #3d3d3d;
+            }
+            
+            body {
+                background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            }
+        } */
     </style>
 </head>
 <body>
@@ -1098,6 +1122,10 @@
                     return;
                 }
 
+                const isDarkMode = document.body.classList.contains('dark-mode');
+                const textColor = isDarkMode ? '#ffffff' : '#202124';
+                const gridColor = isDarkMode ? '#404040' : '#e8eaed';
+
                 const traces = [
                     {
                         x: chartData.labels,
@@ -1115,22 +1143,24 @@
                 const layout = {
                     title: {
                         text: `Power Consumption - ${this.currentPeriod === 'hour' ? 'Day' : this.currentPeriod.charAt(0).toUpperCase() + this.currentPeriod.slice(1)} View`,
-                        font: { size: 18, color: '#202124' }
+                        font: { size: 18, color: textColor }
                     },
                     xaxis: {
                         title: this.currentPeriod === 'hour' ? 'Time (15-minute intervals, UK)' : 'Time',
-                        gridcolor: '#e8eaed',
-                        zeroline: false
+                        gridcolor: gridColor,
+                        zeroline: false,
+                        color: textColor
                     },
                     yaxis: {
                         title: 'Power (Watts)',
-                        gridcolor: '#e8eaed',
-                        zeroline: false
+                        gridcolor: gridColor,
+                        zeroline: false,
+                        color: textColor
                     },
                     hovermode: 'x unified',
                     plot_bgcolor: 'rgba(0,0,0,0)',
                     paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#202124' },
+                    font: { color: textColor },
                     margin: { t: 60, b: 60, l: 60, r: 60 },
                     showlegend: false
                 };
@@ -1149,6 +1179,10 @@
                     this.showChartError('energy-chart', 'No energy data available');
                     return;
                 }
+
+                const isDarkMode = document.body.classList.contains('dark-mode');
+                const textColor = isDarkMode ? '#ffffff' : '#202124';
+                const gridColor = isDarkMode ? '#404040' : '#e8eaed';
 
                                  const traces = [
                      {
@@ -1171,12 +1205,13 @@
                 const layout = {
                     title: {
                         text: `Energy Consumption - ${this.currentEnergyPeriod.charAt(0).toUpperCase() + this.currentEnergyPeriod.slice(1)} View`,
-                        font: { size: 18, color: '#202124' }
+                        font: { size: 18, color: textColor }
                     },
                                          xaxis: {
                          title: this.currentEnergyPeriod === 'day' ? 'Hour' : 'Time Period',
-                         gridcolor: '#e8eaed',
+                         gridcolor: gridColor,
                          zeroline: false,
+                         color: textColor,
                                                    // For day view, position bars between hour markers
                           ...(this.currentEnergyPeriod === 'day' && {
                               tickmode: 'array',
@@ -1188,12 +1223,13 @@
                      },
                     yaxis: {
                         title: 'Energy (kWh)',
-                        gridcolor: '#e8eaed',
-                        zeroline: false
+                        gridcolor: gridColor,
+                        zeroline: false,
+                        color: textColor
                     },
                     plot_bgcolor: 'rgba(0,0,0,0)',
                     paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#202124' },
+                    font: { color: textColor },
                     margin: { t: 60, b: 60, l: 60, r: 60 },
                     showlegend: false
                 };
@@ -1370,20 +1406,33 @@
                  const powerChart = document.getElementById('power-chart');
                  const energyChart = document.getElementById('energy-chart');
                  
+                 const textColor = isDark ? '#ffffff' : '#202124';
+                 const gridColor = isDark ? '#404040' : '#e8eaed';
+                 
                  if (powerChart && powerChart.data) {
                      const update = {
-                         'layout.font.color': isDark ? '#ffffff' : '#202124',
+                         'layout.font.color': textColor,
                          'layout.plot_bgcolor': 'rgba(0,0,0,0)',
-                         'layout.paper_bgcolor': 'rgba(0,0,0,0)'
+                         'layout.paper_bgcolor': 'rgba(0,0,0,0)',
+                         'layout.title.font.color': textColor,
+                         'layout.xaxis.color': textColor,
+                         'layout.yaxis.color': textColor,
+                         'layout.xaxis.gridcolor': gridColor,
+                         'layout.yaxis.gridcolor': gridColor
                      };
                      Plotly.relayout('power-chart', update);
                  }
                  
                  if (energyChart && energyChart.data) {
                      const update = {
-                         'layout.font.color': isDark ? '#ffffff' : '#202124',
+                         'layout.font.color': textColor,
                          'layout.plot_bgcolor': 'rgba(0,0,0,0)',
-                         'layout.paper_bgcolor': 'rgba(0,0,0,0)'
+                         'layout.paper_bgcolor': 'rgba(0,0,0,0)',
+                         'layout.title.font.color': textColor,
+                         'layout.xaxis.color': textColor,
+                         'layout.yaxis.color': textColor,
+                         'layout.xaxis.gridcolor': gridColor,
+                         'layout.yaxis.gridcolor': gridColor
                      };
                      Plotly.relayout('energy-chart', update);
                  }
