@@ -17,7 +17,7 @@ from sqlalchemy import func
 
 # Discord webhook configuration
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1411794302513975499/fSvpOKKmWExxqOpSf7vDg5fJhkUMnlgQkeuaF3qpQwnI6vVC1POk3xw3yS175Ss3m0XB"
-from models import db, PDU, PowerReading, PowerAggregation, init_db
+from models import db, PDU, PowerReading, PowerAggregation, SystemSettings, init_db
 from data_processor import PowerDataProcessor
 
 # Configure logging
@@ -35,11 +35,35 @@ db.init_app(app)
 # Initialize data processor
 data_processor = PowerDataProcessor()
 
-# Alert state tracking to prevent duplicate alerts
+# Alert state tracking to prevent duplicate alerts (these are session-based)
 alert_states = {}  # Track which alerts are currently active
 sustained_power_tracking = {}  # Track sustained high power periods
-cleared_alerts = set()  # Track alerts that have been permanently cleared
-peak_power_reset_time = None  # Track when peak power was last reset
+
+# Helper functions to get/set persistent settings from database
+def get_cleared_alerts():
+    """Get cleared alerts from database"""
+    return SystemSettings.get_setting('cleared_alerts', set())
+
+def set_cleared_alerts(cleared_alerts_set):
+    """Save cleared alerts to database"""
+    SystemSettings.set_setting('cleared_alerts', list(cleared_alerts_set))
+
+def get_peak_power_reset_time():
+    """Get peak power reset time from database"""
+    reset_time_str = SystemSettings.get_setting('peak_power_reset_time')
+    if reset_time_str:
+        try:
+            return datetime.fromisoformat(reset_time_str)
+        except (ValueError, TypeError):
+            return None
+    return None
+
+def set_peak_power_reset_time(reset_time):
+    """Save peak power reset time to database"""
+    if reset_time:
+        SystemSettings.set_setting('peak_power_reset_time', reset_time.isoformat())
+    else:
+        SystemSettings.set_setting('peak_power_reset_time', None)
 
 def check_sustained_high_power(pdu_id, pdu_name, current_power, threshold_watts=None, duration_minutes=None):
     """Check if power has been high for a sustained period"""
@@ -365,6 +389,7 @@ def get_current_status():
         # Get peak power for today (only from readings after the last reset)
         peak_power_watts = 0
         if today_readings:
+            peak_power_reset_time = get_peak_power_reset_time()
             if peak_power_reset_time:
                 # Only consider readings after the reset time
                 filtered_readings = [r for r in today_readings if r.timestamp > peak_power_reset_time]
@@ -745,6 +770,9 @@ def get_alerts():
                             'timestamp': latest.timestamp.isoformat()
                         })
         
+        # Get cleared alerts from database
+        cleared_alerts = set(get_cleared_alerts())
+        
         # Send Discord notifications for new alerts only
         for alert in alerts:
             # Create a unique key for this alert
@@ -796,8 +824,6 @@ def get_alerts():
 def clear_high_usage_alerts():
     """Clear high usage alerts by resetting the sustained power tracking and marking as permanently cleared"""
     try:
-        global sustained_power_tracking, cleared_alerts
-        
         # Get the request data to see what type of alerts to clear
         try:
             data = request.get_json() or {}
@@ -807,6 +833,9 @@ def clear_high_usage_alerts():
         
         # Clear all sustained power tracking data
         sustained_power_tracking.clear()
+        
+        # Get current cleared alerts from database
+        cleared_alerts = set(get_cleared_alerts())
         
         # Mark specified alert types as permanently cleared
         # This will prevent them from appearing again even if conditions are met
@@ -819,11 +848,8 @@ def clear_high_usage_alerts():
                 del alert_states[alert_key]
                 cleared_count += 1
         
-        # Also clear any existing alerts that match these types from the cleared_alerts set
-        # This ensures we catch any alerts that might already be in the system
-        for alert_key in list(cleared_alerts):
-            if any(alert_type in alert_key for alert_type in alert_types):
-                cleared_count += 1  # Count these as well
+        # Save updated cleared alerts to database
+        set_cleared_alerts(cleared_alerts)
         
         logger.info(f"Cleared {cleared_count} high usage alerts - sustained power tracking reset and alerts marked as permanently cleared")
         
@@ -898,17 +924,16 @@ def get_power_summary():
 def clear_peak_power():
     """Clear peak power today by setting reset time to current time"""
     try:
-        global peak_power_reset_time
-        
         # Set the reset time to now - this will make peak power calculations
         # only consider readings from this point forward
-        peak_power_reset_time = datetime.utcnow()
+        reset_time = datetime.utcnow()
+        set_peak_power_reset_time(reset_time)
         
-        logger.info(f"Peak power tracking reset at {peak_power_reset_time}")
+        logger.info(f"Peak power tracking reset at {reset_time}")
         
         return jsonify({
             'success': True,
-            'message': f'Peak power tracking reset successfully at {peak_power_reset_time.strftime("%H:%M:%S")}'
+            'message': f'Peak power tracking reset successfully at {reset_time.strftime("%H:%M:%S")}'
         })
         
     except Exception as e:
@@ -926,11 +951,11 @@ def debug_alerts():
             'success': True,
             'debug_info': {
                 'alert_states': alert_states,
-                'cleared_alerts': list(cleared_alerts),
+                'cleared_alerts': list(get_cleared_alerts()),
                 'sustained_power_tracking': sustained_power_tracking,
-                'peak_power_reset_time': peak_power_reset_time.isoformat() if peak_power_reset_time else None,
+                'peak_power_reset_time': get_peak_power_reset_time().isoformat() if get_peak_power_reset_time() else None,
                 'alert_states_count': len(alert_states),
-                'cleared_alerts_count': len(cleared_alerts)
+                'cleared_alerts_count': len(get_cleared_alerts())
             }
         })
         

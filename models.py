@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import sqlite3
 import os
+import json
 
 db = SQLAlchemy()
 
@@ -46,6 +47,48 @@ class PowerAggregation(db.Model):
     
     def __repr__(self):
         return f'<PowerAggregation {self.period_type} {self.total_kwh}kWh>'
+
+class SystemSettings(db.Model):
+    __tablename__ = 'system_settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), nullable=False, unique=True)
+    value = db.Column(db.Text, nullable=True)  # Store as JSON string for complex data
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<SystemSettings {self.key}={self.value}>'
+    
+    @classmethod
+    def get_setting(cls, key, default=None):
+        """Get a setting value, return default if not found"""
+        setting = cls.query.filter_by(key=key).first()
+        if setting is None:
+            return default
+        
+        # Try to parse as JSON, fall back to string
+        try:
+            return json.loads(setting.value)
+        except (json.JSONDecodeError, TypeError):
+            return setting.value
+    
+    @classmethod
+    def set_setting(cls, key, value):
+        """Set a setting value"""
+        setting = cls.query.filter_by(key=key).first()
+        
+        # Convert value to JSON string if it's not a string
+        if not isinstance(value, str):
+            value = json.dumps(value)
+        
+        if setting is None:
+            setting = cls(key=key, value=value)
+            db.session.add(setting)
+        else:
+            setting.value = value
+        
+        db.session.commit()
+        return setting
 
 def check_database_integrity():
     """Check if database has existing data before initializing"""
