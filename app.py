@@ -13,6 +13,7 @@ import logging
 import requests
 
 from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG, ALERT_CONFIG
+from sqlalchemy import func
 
 # Discord webhook configuration
 DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1411794302513975499/fSvpOKKmWExxqOpSf7vDg5fJhkUMnlgQkeuaF3qpQwnI6vVC1POk3xw3yS175Ss3m0XB"
@@ -228,64 +229,81 @@ def get_power_data():
                     chart_data['power_watts'].append(0)
         
         elif period == 'week':
-            # Get last 4 weeks of data, grouped by week
-            start_time = datetime.utcnow() - timedelta(weeks=4)
-            readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
+            # Show up to the last 7 days, starting from the first available reading, using UK-local day boundaries
+            uk_tz = ZoneInfo('Europe/London')
+            now_uk = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(uk_tz)
+            first_ts = db.session.query(func.min(PowerReading.timestamp)).scalar()
+            if first_ts is None:
+                first_ts = datetime.utcnow()
+            first_uk = first_ts.replace(tzinfo=timezone.utc).astimezone(uk_tz)
+            # Start at UK midnight, not before first data, and not earlier than 6 days ago
+            start_uk = max(first_uk.replace(hour=0, minute=0, second=0, microsecond=0), (now_uk - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0))
+            end_uk = now_uk
+            start_utc = start_uk.astimezone(timezone.utc).replace(tzinfo=None)
             
-            # Group by week
-            weekly_data = {}
+            readings = PowerReading.query.filter(PowerReading.timestamp >= start_utc).all()
+            
+            # Group by UK-local day
+            daily_data = {}
             for reading in readings:
-                # Get the start of the week (Monday)
-                week_start = reading.timestamp - timedelta(days=reading.timestamp.weekday())
-                week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
-                if week_start not in weekly_data:
-                    weekly_data[week_start] = []
-                weekly_data[week_start].append(reading.power_watts)
+                ts_uk = reading.timestamp.replace(tzinfo=timezone.utc).astimezone(uk_tz)
+                day_key = ts_uk.replace(hour=0, minute=0, second=0, microsecond=0)
+                if day_key not in daily_data:
+                    daily_data[day_key] = []
+                daily_data[day_key].append(reading.power_watts)
             
             chart_data = {
                 'labels': [],
                 'power_watts': []
             }
             
-            # Create all 4 weeks
-            for i in range(4):
-                target_week = datetime.utcnow() - timedelta(weeks=3-i)
-                target_week = target_week - timedelta(days=target_week.weekday())
-                target_week = target_week.replace(hour=0, minute=0, second=0, microsecond=0)
-                chart_data['labels'].append(target_week.strftime('%Y-%m-%d'))
-                
-                if target_week in weekly_data:
-                    avg_power = sum(weekly_data[target_week]) / len(weekly_data[target_week])
+            # Build labels from start_uk to end_uk (inclusive days)
+            num_days = (end_uk.replace(hour=0, minute=0, second=0, microsecond=0) - start_uk).days + 1
+            for i in range(max(1, num_days)):
+                day_uk = start_uk + timedelta(days=i)
+                day_uk_midnight = day_uk.replace(hour=0, minute=0, second=0, microsecond=0)
+                chart_data['labels'].append(day_uk_midnight.strftime('%Y-%m-%d'))
+                if day_uk_midnight in daily_data:
+                    avg_power = sum(daily_data[day_uk_midnight]) / len(daily_data[day_uk_midnight])
                     chart_data['power_watts'].append(round(avg_power, 1))
                 else:
                     chart_data['power_watts'].append(0)
         
         elif period == 'month':
-            # Get last 12 months of data, grouped by month
-            start_time = datetime.utcnow() - timedelta(days=365)
-            readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
+            # Show up to the last 30 days, starting from the first available reading, using UK-local day boundaries
+            uk_tz = ZoneInfo('Europe/London')
+            now_uk = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(uk_tz)
+            first_ts = db.session.query(func.min(PowerReading.timestamp)).scalar()
+            if first_ts is None:
+                first_ts = datetime.utcnow()
+            first_uk = first_ts.replace(tzinfo=timezone.utc).astimezone(uk_tz)
+            start_uk = max(first_uk.replace(hour=0, minute=0, second=0, microsecond=0), (now_uk - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0))
+            end_uk = now_uk
+            start_utc = start_uk.astimezone(timezone.utc).replace(tzinfo=None)
             
-            # Group by month
-            monthly_data = {}
+            readings = PowerReading.query.filter(PowerReading.timestamp >= start_utc).all()
+            
+            # Group by UK-local day
+            daily_data = {}
             for reading in readings:
-                month_start = reading.timestamp.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                if month_start not in monthly_data:
-                    monthly_data[month_start] = []
-                monthly_data[month_start].append(reading.power_watts)
+                ts_uk = reading.timestamp.replace(tzinfo=timezone.utc).astimezone(uk_tz)
+                day_key = ts_uk.replace(hour=0, minute=0, second=0, microsecond=0)
+                if day_key not in daily_data:
+                    daily_data[day_key] = []
+                daily_data[day_key].append(reading.power_watts)
             
             chart_data = {
                 'labels': [],
                 'power_watts': []
             }
             
-            # Create all 12 months
-            for i in range(12):
-                target_month = datetime.utcnow() - timedelta(days=30*i)
-                target_month = target_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                chart_data['labels'].append(target_month.strftime('%Y-%m'))
-                
-                if target_month in monthly_data:
-                    avg_power = sum(monthly_data[target_month]) / len(monthly_data[target_month])
+            num_days = (end_uk.replace(hour=0, minute=0, second=0, microsecond=0) - start_uk).days + 1
+            for i in range(max(1, num_days)):
+                day_uk = start_uk + timedelta(days=i)
+                day_uk_midnight = day_uk.replace(hour=0, minute=0, second=0, microsecond=0)
+                chart_data['labels'].append(day_uk_midnight.strftime('%Y-%m-%d'))
+                if day_uk_midnight in daily_data:
+                    avg_power = sum(daily_data[day_uk_midnight]) / len(daily_data[day_uk_midnight])
                     chart_data['power_watts'].append(round(avg_power, 1))
                 else:
                     chart_data['power_watts'].append(0)
