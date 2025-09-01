@@ -786,8 +786,7 @@
                     <div class="chart-header">
                         <h3 class="chart-title">Power Consumption Trend</h3>
                          <div class="period-selector">
-                             <button class="btn-period active" data-period="hour">Hour</button>
-                             <button class="btn-period" data-period="day">Day</button>
+                             <button class="btn-period active" data-period="hour">Day</button>
                              <button class="btn-period" data-period="week">Week</button>
                              <button class="btn-period" data-period="month">Month</button>
                          </div>
@@ -1111,7 +1110,7 @@
 
                 const layout = {
                     title: {
-                        text: `Power Consumption - ${this.currentPeriod.charAt(0).toUpperCase() + this.currentPeriod.slice(1)} View`,
+                        text: `Power Consumption - ${this.currentPeriod === 'hour' ? 'Day' : this.currentPeriod.charAt(0).toUpperCase() + this.currentPeriod.slice(1)} View`,
                         font: { size: 18, color: '#202124' }
                     },
                     xaxis: {
