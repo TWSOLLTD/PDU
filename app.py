@@ -791,7 +791,10 @@ def clear_high_usage_alerts():
         global sustained_power_tracking, cleared_alerts
         
         # Get the request data to see what type of alerts to clear
-        data = request.get_json() or {}
+        try:
+            data = request.get_json() or {}
+        except:
+            data = {}
         alert_types = data.get('alert_types', ['sustained_high_power', 'sustained_high', 'sustained_power_spike'])
         
         # Clear all sustained power tracking data

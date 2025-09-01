@@ -1391,7 +1391,10 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
-                        }
+                        },
+                        body: JSON.stringify({
+                            alert_types: ['sustained_high_power', 'sustained_high', 'sustained_power_spike']
+                        })
                     });
                     const data = await response.json();
                     
