@@ -406,18 +406,29 @@ def get_current_status():
             peak_power_reset_time = get_peak_power_reset_time()
             logger.info(f"Peak power calculation - Total readings today: {len(today_readings)}")
             logger.info(f"Peak power calculation - Reset time: {peak_power_reset_time}")
+            logger.info(f"Peak power calculation - Current time: {datetime.utcnow()}")
             
             if peak_power_reset_time:
                 # Only consider readings after the reset time
-                filtered_readings = [r for r in today_readings if r.timestamp > peak_power_reset_time]
+                # Ensure both times are timezone-naive for comparison
+                reset_time_naive = peak_power_reset_time.replace(tzinfo=None) if peak_power_reset_time.tzinfo else peak_power_reset_time
+                filtered_readings = [r for r in today_readings if r.timestamp > reset_time_naive]
                 logger.info(f"Peak power calculation - Filtered readings after reset: {len(filtered_readings)}")
+                
+                # Show some sample timestamps for debugging
                 if filtered_readings:
+                    sample_timestamps = [r.timestamp.isoformat() for r in filtered_readings[:3]]
+                    logger.info(f"Peak power calculation - Sample timestamps after reset: {sample_timestamps}")
                     peak_power_watts = max(reading.power_watts for reading in filtered_readings)
                     logger.info(f"Peak power calculation - Peak power after reset: {peak_power_watts:.1f}W")
                 else:
                     # No readings after reset time, peak power should be 0
                     peak_power_watts = 0
                     logger.info("Peak power calculation - No readings after reset time, setting to 0")
+                    
+                    # Show some sample timestamps from all readings for debugging
+                    sample_timestamps = [r.timestamp.isoformat() for r in today_readings[:3]]
+                    logger.info(f"Peak power calculation - Sample timestamps from all readings: {sample_timestamps}")
             else:
                 # No reset, use all today's readings
                 peak_power_watts = max(reading.power_watts for reading in today_readings)
@@ -956,14 +967,20 @@ def clear_peak_power():
         # Get the stored reset time to verify it was saved
         stored_reset_time = get_peak_power_reset_time()
         
+        # Get some recent readings to verify the logic
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        recent_readings = PowerReading.query.filter(PowerReading.timestamp >= today_start).order_by(PowerReading.timestamp.desc()).limit(5).all()
+        
         logger.info(f"Peak power tracking reset at {reset_time}")
         logger.info(f"Stored reset time verified: {stored_reset_time}")
+        logger.info(f"Recent readings timestamps: {[r.timestamp.isoformat() for r in recent_readings]}")
         
         return jsonify({
             'success': True,
             'message': f'Peak power tracking reset successfully at {reset_time.strftime("%H:%M:%S")}',
             'reset_time': reset_time.isoformat(),
-            'stored_time': stored_reset_time.isoformat() if stored_reset_time else None
+            'stored_time': stored_reset_time.isoformat() if stored_reset_time else None,
+            'recent_readings': [{'timestamp': r.timestamp.isoformat(), 'power': r.power_watts} for r in recent_readings]
         })
         
     except Exception as e:
@@ -991,6 +1008,44 @@ def debug_alerts():
         
     except Exception as e:
         logger.error(f"Error in debug alerts endpoint: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/debug-peak-power')
+def debug_peak_power():
+    """Debug endpoint to check peak power calculation"""
+    try:
+        peak_power_reset_time = get_peak_power_reset_time()
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_readings = PowerReading.query.filter(PowerReading.timestamp >= today_start).all()
+        
+        debug_info = {
+            'reset_time': peak_power_reset_time.isoformat() if peak_power_reset_time else None,
+            'total_readings_today': len(today_readings),
+            'current_time': datetime.utcnow().isoformat()
+        }
+        
+        if peak_power_reset_time and today_readings:
+            reset_time_naive = peak_power_reset_time.replace(tzinfo=None) if peak_power_reset_time.tzinfo else peak_power_reset_time
+            filtered_readings = [r for r in today_readings if r.timestamp > reset_time_naive]
+            debug_info['filtered_readings_count'] = len(filtered_readings)
+            debug_info['sample_filtered_timestamps'] = [r.timestamp.isoformat() for r in filtered_readings[:3]]
+            if filtered_readings:
+                debug_info['peak_power'] = max(reading.power_watts for reading in filtered_readings)
+            else:
+                debug_info['peak_power'] = 0
+        else:
+            debug_info['peak_power'] = max(reading.power_watts for reading in today_readings) if today_readings else 0
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in debug peak power endpoint: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
