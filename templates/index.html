@@ -1436,6 +1436,10 @@
             async clearPeakPower() {
                 try {
                     console.log('Clearing peak power...');
+                    
+                    // Immediately reset the peak power display to 0
+                    document.getElementById('peak-power').textContent = '0.0';
+                    
                     const response = await fetch('/api/clear-peak-power', {
                         method: 'POST',
                         headers: {

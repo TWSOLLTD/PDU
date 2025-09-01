@@ -415,7 +415,9 @@ def get_current_status():
                     peak_power_watts = max(reading.power_watts for reading in filtered_readings)
                     logger.info(f"Peak power calculation - Peak power after reset: {peak_power_watts:.1f}W")
                 else:
-                    logger.info("Peak power calculation - No readings after reset time")
+                    # No readings after reset time, peak power should be 0
+                    peak_power_watts = 0
+                    logger.info("Peak power calculation - No readings after reset time, setting to 0")
             else:
                 # No reset, use all today's readings
                 peak_power_watts = max(reading.power_watts for reading in today_readings)
@@ -1043,6 +1045,20 @@ def debug_database():
                 'power_watts': r.power_watts
             } for r in recent_readings]
         
+        # Get peak power reset time and calculate current peak power
+        peak_power_reset_time = get_peak_power_reset_time()
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_readings = PowerReading.query.filter(PowerReading.timestamp >= today_start).all()
+        
+        current_peak_power = 0
+        if today_readings:
+            if peak_power_reset_time:
+                filtered_readings = [r for r in today_readings if r.timestamp > peak_power_reset_time]
+                if filtered_readings:
+                    current_peak_power = max(reading.power_watts for reading in filtered_readings)
+            else:
+                current_peak_power = max(reading.power_watts for reading in today_readings)
+        
         debug_info = {
             'total_pdus': len(pdus),
             'total_readings': total_readings,
@@ -1053,7 +1069,10 @@ def debug_database():
             'newest_reading': newest.timestamp.isoformat() if newest else None,
             'pdu_status': latest_readings,
             'recent_readings': recent_readings,
-            'current_time_utc': datetime.utcnow().isoformat()
+            'current_time_utc': datetime.utcnow().isoformat(),
+            'peak_power_reset_time': peak_power_reset_time.isoformat() if peak_power_reset_time else None,
+            'current_peak_power': current_peak_power,
+            'today_readings_count': len(today_readings)
         }
         
         return jsonify({
