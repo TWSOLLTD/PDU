@@ -58,26 +58,52 @@ def set_cleared_alerts(cleared_alerts_set):
 def get_peak_power_reset_time():
     """Get peak power reset time from database"""
     try:
+        logger.info("Getting peak power reset time from database...")
         reset_time_str = SystemSettings.get_setting('peak_power_reset_time')
+        logger.info(f"Raw value from database: {reset_time_str}")
+        
         if reset_time_str:
             try:
-                return datetime.fromisoformat(reset_time_str)
-            except (ValueError, TypeError):
+                parsed_time = datetime.fromisoformat(reset_time_str)
+                logger.info(f"Successfully parsed time: {parsed_time}")
+                return parsed_time
+            except (ValueError, TypeError) as parse_error:
+                logger.error(f"Error parsing reset time string '{reset_time_str}': {parse_error}")
                 return None
-        return None
+        else:
+            logger.info("No reset time found in database")
+            return None
     except Exception as e:
         logger.error(f"Error getting peak power reset time from database: {str(e)}")
+        logger.error(f"Exception type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return None
 
 def set_peak_power_reset_time(reset_time):
     """Save peak power reset time to database"""
     try:
+        logger.info(f"Setting peak power reset time: {reset_time}")
         if reset_time:
-            SystemSettings.set_setting('peak_power_reset_time', reset_time.isoformat())
+            value_to_store = reset_time.isoformat()
+            logger.info(f"Storing value: {value_to_store}")
+            SystemSettings.set_setting('peak_power_reset_time', value_to_store)
+            
+            # Verify it was stored
+            stored_value = SystemSettings.get_setting('peak_power_reset_time')
+            logger.info(f"Verification - stored value: {stored_value}")
         else:
+            logger.info("Setting peak power reset time to None")
             SystemSettings.set_setting('peak_power_reset_time', None)
+            
+            # Verify it was stored
+            stored_value = SystemSettings.get_setting('peak_power_reset_time')
+            logger.info(f"Verification - stored value: {stored_value}")
     except Exception as e:
         logger.error(f"Error setting peak power reset time in database: {str(e)}")
+        logger.error(f"Exception type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
 
 def check_sustained_high_power(pdu_id, pdu_name, current_power, threshold_watts=None, duration_minutes=None):
     """Check if power has been high for a sustained period"""
@@ -1017,6 +1043,15 @@ def debug_alerts():
 def debug_peak_power():
     """Debug endpoint to check peak power calculation"""
     try:
+        # Check if system_settings table exists and has data
+        try:
+            all_settings = SystemSettings.query.all()
+            settings_data = {s.key: s.value for s in all_settings}
+            logger.info(f"All system settings: {settings_data}")
+        except Exception as table_error:
+            logger.error(f"Error accessing system_settings table: {table_error}")
+            settings_data = {"error": str(table_error)}
+        
         peak_power_reset_time = get_peak_power_reset_time()
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         today_readings = PowerReading.query.filter(PowerReading.timestamp >= today_start).all()
@@ -1024,7 +1059,8 @@ def debug_peak_power():
         debug_info = {
             'reset_time': peak_power_reset_time.isoformat() if peak_power_reset_time else None,
             'total_readings_today': len(today_readings),
-            'current_time': datetime.utcnow().isoformat()
+            'current_time': datetime.utcnow().isoformat(),
+            'all_system_settings': settings_data
         }
         
         if peak_power_reset_time and today_readings:
