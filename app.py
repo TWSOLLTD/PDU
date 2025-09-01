@@ -6,7 +6,8 @@ Flask-based web interface for monitoring APC PDU power consumption
 
 from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import json
 import logging
 import requests
@@ -156,9 +157,15 @@ def get_power_data():
         
         # Get power data directly from database
         if period == 'hour':
-            # Get last 24 hours of data, grouped by 15-minute intervals
-            start_time = datetime.utcnow() - timedelta(hours=24)
-            readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
+            # Get last 24 hours of data aligned to 15-minute boundaries (UTC), then label in UK time
+            now_utc = datetime.utcnow()
+            end_time = now_utc.replace(minute=(now_utc.minute // 15) * 15, second=0, microsecond=0)
+            start_time = end_time - timedelta(hours=24)
+            readings = (
+                PowerReading.query
+                .filter(PowerReading.timestamp >= start_time, PowerReading.timestamp <= end_time)
+                .all()
+            )
             
             # Group by 15-minute intervals
             interval_data = {}
@@ -180,13 +187,9 @@ def get_power_data():
             # Create all 15-minute intervals for the last 24 hours
             for i in range(96):  # 24 hours * 4 intervals per hour
                 target_interval = start_time + timedelta(minutes=15*i)
-                # Show clean hour labels for hour boundaries only
-                if target_interval.minute == 0:
-                    chart_data['labels'].append(target_interval.strftime('%H:00'))
-                elif target_interval.minute == 30:
-                    chart_data['labels'].append(target_interval.strftime('%H:30'))
-                else:
-                    chart_data['labels'].append(target_interval.strftime('%H:%M'))  # Show 15 and 45 minute marks
+                # Convert UTC interval to UK time for labeling
+                uk_time = target_interval.replace(tzinfo=timezone.utc).astimezone(ZoneInfo('Europe/London'))
+                chart_data['labels'].append(uk_time.strftime('%H:%M'))
                 
                 if target_interval in interval_data:
                     avg_power = sum(interval_data[target_interval]) / len(interval_data[target_interval])
