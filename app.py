@@ -39,6 +39,7 @@ data_processor = PowerDataProcessor()
 alert_states = {}  # Track which alerts are currently active
 sustained_power_tracking = {}  # Track sustained high power periods
 cleared_alerts = set()  # Track alerts that have been permanently cleared
+peak_power_reset_time = None  # Track when peak power was last reset
 
 def check_sustained_high_power(pdu_id, pdu_name, current_power, threshold_watts=None, duration_minutes=None):
     """Check if power has been high for a sustained period"""
@@ -361,10 +362,17 @@ def get_current_status():
         # Assuming readings are taken every minute, each reading contributes 1/60 kWh
         total_energy_kwh = sum(reading.power_kw for reading in today_readings) / 60.0  # Convert to kWh (assuming 1-minute intervals)
         
-        # Get peak power for today
+        # Get peak power for today (only from readings after the last reset)
         peak_power_watts = 0
         if today_readings:
-            peak_power_watts = max(reading.power_watts for reading in today_readings)
+            if peak_power_reset_time:
+                # Only consider readings after the reset time
+                filtered_readings = [r for r in today_readings if r.timestamp > peak_power_reset_time]
+                if filtered_readings:
+                    peak_power_watts = max(reading.power_watts for reading in filtered_readings)
+            else:
+                # No reset, use all today's readings
+                peak_power_watts = max(reading.power_watts for reading in today_readings)
         
         statistics = {
             'total_power_watts': total_power_watts,
@@ -888,16 +896,19 @@ def get_power_summary():
 
 @app.route('/api/clear-peak-power', methods=['POST'])
 def clear_peak_power():
-    """Clear peak power today by resetting peak tracking (does NOT delete data)"""
+    """Clear peak power today by setting reset time to current time"""
     try:
-        # This function now only resets peak tracking, it does NOT delete any data
-        # The peak power will be recalculated from existing data on next refresh
+        global peak_power_reset_time
         
-        logger.info("Peak power tracking reset - no data was deleted")
+        # Set the reset time to now - this will make peak power calculations
+        # only consider readings from this point forward
+        peak_power_reset_time = datetime.utcnow()
+        
+        logger.info(f"Peak power tracking reset at {peak_power_reset_time}")
         
         return jsonify({
             'success': True,
-            'message': 'Peak power tracking reset successfully (no data was deleted)'
+            'message': f'Peak power tracking reset successfully at {peak_power_reset_time.strftime("%H:%M:%S")}'
         })
         
     except Exception as e:
@@ -917,6 +928,7 @@ def debug_alerts():
                 'alert_states': alert_states,
                 'cleared_alerts': list(cleared_alerts),
                 'sustained_power_tracking': sustained_power_tracking,
+                'peak_power_reset_time': peak_power_reset_time.isoformat() if peak_power_reset_time else None,
                 'alert_states_count': len(alert_states),
                 'cleared_alerts_count': len(cleared_alerts)
             }
