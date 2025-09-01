@@ -686,10 +686,10 @@
                         <i class="fas fa-download"></i>
                         Export Data
                     </button>
-                                         <button class="btn btn-modern btn-secondary" onclick="dashboard.testDiscord()">
-                         <i class="fas fa-bell"></i>
-                         Test Discord
-                     </button>
+                    <button class="btn btn-modern btn-secondary" onclick="dashboard.clearHighUsageAlerts()">
+                        <i class="fas fa-times-circle"></i>
+                        Clear High Usage Alerts
+                    </button>
                      <div class="dark-mode-toggle">
                          <span>Dark Mode</span>
                          <div class="toggle-switch" id="dark-mode-toggle">
@@ -1385,19 +1385,26 @@
                  }
              }
             
-            async testDiscord() {
+            async clearHighUsageAlerts() {
                 try {
-                    const response = await fetch('/api/test-discord');
+                    const response = await fetch('/api/clear-high-usage-alerts', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
                     const data = await response.json();
                     
                     if (data.success) {
-                        alert('Discord test alert sent successfully!');
+                        alert('High usage alerts cleared successfully!');
+                        // Refresh alerts to show updated state
+                        await this.loadAlerts();
                     } else {
-                        alert('Error sending Discord test alert: ' + data.error);
+                        alert('Error clearing high usage alerts: ' + data.error);
                     }
                 } catch (error) {
-                    console.error('Error testing Discord:', error);
-                    alert('Error testing Discord webhook. Please try again.');
+                    console.error('Error clearing high usage alerts:', error);
+                    alert('Error clearing high usage alerts. Please try again.');
                 }
             }
             

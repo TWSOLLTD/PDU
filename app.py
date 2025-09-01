@@ -772,26 +772,24 @@ def get_alerts():
             'error': str(e)
         }), 500
 
-@app.route('/api/test-discord')
-def test_discord():
-    """Test endpoint to verify Discord webhook is working"""
+@app.route('/api/clear-high-usage-alerts', methods=['POST'])
+def clear_high_usage_alerts():
+    """Clear high usage alerts by resetting the sustained power tracking"""
     try:
-        test_alert = {
-            'type': 'test',
-            'severity': 'medium',
-            'message': 'This is a test alert from the PDU monitoring system',
-            'timestamp': datetime.utcnow().isoformat()
-        }
+        global sustained_power_tracking
         
-        send_discord_alert(test_alert)
+        # Clear all sustained power tracking data
+        sustained_power_tracking.clear()
+        
+        logger.info("High usage alerts cleared - sustained power tracking reset")
         
         return jsonify({
             'success': True,
-            'message': 'Test Discord alert sent successfully'
+            'message': 'High usage alerts cleared successfully'
         })
         
     except Exception as e:
-        logger.error(f"Error testing Discord webhook: {str(e)}")
+        logger.error(f"Error clearing high usage alerts: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
