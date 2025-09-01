@@ -76,10 +76,24 @@ class PDUCollector:
                 if reading_value < 100:  # Likely current in amps (not power in watts)
                     current_amps = reading_value
                     power_watts = current_amps * PDU_VOLTAGE * PDU_POWER_FACTOR
+                    
+                    # Validate the calculated power is reasonable for a 16A circuit
+                    max_power_16a = 16 * PDU_VOLTAGE * PDU_POWER_FACTOR  # ~3,648W for 16A at 240V
+                    if power_watts > max_power_16a:
+                        logger.error(f"🚨 Calculated power exceeds 16A circuit limit: {power_watts:.1f}W from {current_amps:.1f}A (max: {max_power_16a:.1f}W) - possible calculation error")
+                        return None
+                    
                     logger.info(f"💡 Current reading: {current_amps:.1f}A → Power: {power_watts:.1f}W ({power_watts/1000.0:.3f}kW)")
                 else:
                     # Direct power reading
                     power_watts = reading_value
+                    
+                    # Validate the power reading is reasonable for a 16A circuit
+                    max_power_16a = 16 * PDU_VOLTAGE * PDU_POWER_FACTOR  # ~3,648W for 16A at 240V
+                    if power_watts > max_power_16a:
+                        logger.error(f"🚨 Power reading exceeds 16A circuit limit: {power_watts:.1f}W (max: {max_power_16a:.1f}W) - possible sensor error")
+                        return None
+                    
                     logger.info(f"💡 Power reading: {power_watts}W ({power_watts/1000.0:.3f}kW)")
                 
                 power_kw = power_watts / 1000.0
@@ -103,7 +117,7 @@ class PDUCollector:
     def _try_snmp_v2c(self, pdu_config):
         """Try SNMPv2c first (most reliable for this PDU)"""
         try:
-            # Try the L1 phase current OID first (most stable!)
+            # Try the L1 phase current OID first (highest priority - most stable!)
             session = Session(
                 hostname=pdu_config['ip'],
                 version=2,
@@ -119,8 +133,15 @@ class PDUCollector:
                 result = session.get(L1_PHASE_CURRENT_OID)
                 if result and result.value:
                     value = int(result.value)
+                    logger.info(f"🔍 Raw SNMP value from L1 phase current OID: {value} (type: {type(value)})")
                     if value > 0:  # Valid current reading (in 0.1A units)
                         current_amps = value / 10.0  # Convert from 0.1A units to amps
+                        
+                        # Validate current doesn't exceed 16A circuit limit
+                        if current_amps > 16:
+                            logger.error(f"🚨 Current reading exceeds 16A circuit limit: {current_amps:.1f}A (raw: {value}) - possible sensor error")
+                            return None
+                        
                         logger.info(f"✅ Found L1 phase current with SNMPv2c: {current_amps:.1f}A (gauge: {value})")
                         return current_amps
             except Exception as e:
@@ -134,6 +155,12 @@ class PDUCollector:
                         value = int(result.value)
                         if value > 0:  # Valid current reading (in 0.1A units)
                             current_amps = value / 10.0  # Convert from 0.1A units to amps
+                            
+                            # Validate current doesn't exceed 16A circuit limit
+                            if current_amps > 16:
+                                logger.error(f"🚨 Current reading exceeds 16A circuit limit: {current_amps:.1f}A (raw: {value}) - possible sensor error")
+                                continue
+                            
                             logger.info(f"✅ Found phase current with SNMPv2c: {current_amps:.1f}A (gauge: {value})")
                             return current_amps
                 except Exception as e:
@@ -147,6 +174,7 @@ class PDUCollector:
                     result = session.get(oid)
                     if result and result.value:
                         value = int(result.value)
+                        logger.info(f"🔍 Raw SNMP value from power OID {oid}: {value} (type: {type(value)})")
                         if value > 0:  # Valid power reading
                             logger.info(f"✅ Found power with SNMPv2c at {oid}: {value}W")
                             return value

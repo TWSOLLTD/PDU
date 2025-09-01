@@ -354,7 +354,11 @@ def get_current_status():
         # Calculate total energy for today
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         today_readings = PowerReading.query.filter(PowerReading.timestamp >= today_start).all()
-        total_energy_kwh = sum(reading.power_kw for reading in today_readings) / 60  # Convert to kWh (assuming 1-minute intervals)
+        
+        # Calculate energy consumption (kWh) from power readings
+        # Each reading represents instantaneous power, so we need to integrate over time
+        # Assuming readings are taken every minute, each reading contributes 1/60 kWh
+        total_energy_kwh = sum(reading.power_kw for reading in today_readings) / 60.0  # Convert to kWh (assuming 1-minute intervals)
         
         # Get peak power for today
         peak_power_watts = 0
