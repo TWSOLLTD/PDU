@@ -1104,17 +1104,16 @@ def fix_database():
             logger.info("Creating system_settings table...")
             
             # Create the table using raw SQL
-            db.engine.execute("""
-                CREATE TABLE IF NOT EXISTS system_settings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    key TEXT UNIQUE NOT NULL,
-                    value TEXT,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            # Commit the changes
-            db.session.commit()
+            with db.engine.connect() as conn:
+                conn.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS system_settings (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        key TEXT UNIQUE NOT NULL,
+                        value TEXT,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
             
             logger.info("system_settings table created successfully")
             
