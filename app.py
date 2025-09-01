@@ -888,27 +888,20 @@ def get_power_summary():
 
 @app.route('/api/clear-peak-power', methods=['POST'])
 def clear_peak_power():
-    """Clear peak power today by deleting all today's readings"""
+    """Clear peak power today by resetting peak tracking (does NOT delete data)"""
     try:
-        # Get today's start time
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        # This function now only resets peak tracking, it does NOT delete any data
+        # The peak power will be recalculated from existing data on next refresh
         
-        # Delete all power readings from today
-        deleted_count = PowerReading.query.filter(PowerReading.timestamp >= today_start).delete()
-        
-        # Commit the changes
-        db.session.commit()
-        
-        logger.info(f"Cleared peak power today - deleted {deleted_count} readings from {today_start}")
+        logger.info("Peak power tracking reset - no data was deleted")
         
         return jsonify({
             'success': True,
-            'message': f'Peak power today cleared successfully ({deleted_count} readings deleted)'
+            'message': 'Peak power tracking reset successfully (no data was deleted)'
         })
         
     except Exception as e:
         logger.error(f"Error clearing peak power: {str(e)}")
-        db.session.rollback()
         return jsonify({
             'success': False,
             'error': str(e)

@@ -692,7 +692,7 @@
                     </button>
                     <button class="btn btn-modern btn-secondary" onclick="dashboard.clearPeakPower()">
                         <i class="fas fa-chart-line"></i>
-                        Clear Peak Power Today
+                        Reset Peak Power
                     </button>
                      <div class="dark-mode-toggle">
                          <span>Dark Mode</span>
@@ -1426,15 +1426,15 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        alert('Peak power today cleared successfully!');
+                        alert('Peak power tracking reset successfully!');
                         // Refresh current status to show updated peak power
                         await this.loadCurrentStatus();
                     } else {
-                        alert('Error clearing peak power: ' + data.error);
+                        alert('Error resetting peak power: ' + data.error);
                     }
                 } catch (error) {
-                    console.error('Error clearing peak power:', error);
-                    alert('Error clearing peak power. Please try again.');
+                    console.error('Error resetting peak power:', error);
+                    alert('Error resetting peak power. Please try again.');
                 }
             }
             
