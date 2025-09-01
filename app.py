@@ -42,28 +42,42 @@ sustained_power_tracking = {}  # Track sustained high power periods
 # Helper functions to get/set persistent settings from database
 def get_cleared_alerts():
     """Get cleared alerts from database"""
-    return SystemSettings.get_setting('cleared_alerts', set())
+    try:
+        return SystemSettings.get_setting('cleared_alerts', set())
+    except Exception as e:
+        logger.error(f"Error getting cleared alerts from database: {str(e)}")
+        return set()
 
 def set_cleared_alerts(cleared_alerts_set):
     """Save cleared alerts to database"""
-    SystemSettings.set_setting('cleared_alerts', list(cleared_alerts_set))
+    try:
+        SystemSettings.set_setting('cleared_alerts', list(cleared_alerts_set))
+    except Exception as e:
+        logger.error(f"Error setting cleared alerts in database: {str(e)}")
 
 def get_peak_power_reset_time():
     """Get peak power reset time from database"""
-    reset_time_str = SystemSettings.get_setting('peak_power_reset_time')
-    if reset_time_str:
-        try:
-            return datetime.fromisoformat(reset_time_str)
-        except (ValueError, TypeError):
-            return None
-    return None
+    try:
+        reset_time_str = SystemSettings.get_setting('peak_power_reset_time')
+        if reset_time_str:
+            try:
+                return datetime.fromisoformat(reset_time_str)
+            except (ValueError, TypeError):
+                return None
+        return None
+    except Exception as e:
+        logger.error(f"Error getting peak power reset time from database: {str(e)}")
+        return None
 
 def set_peak_power_reset_time(reset_time):
     """Save peak power reset time to database"""
-    if reset_time:
-        SystemSettings.set_setting('peak_power_reset_time', reset_time.isoformat())
-    else:
-        SystemSettings.set_setting('peak_power_reset_time', None)
+    try:
+        if reset_time:
+            SystemSettings.set_setting('peak_power_reset_time', reset_time.isoformat())
+        else:
+            SystemSettings.set_setting('peak_power_reset_time', None)
+    except Exception as e:
+        logger.error(f"Error setting peak power reset time in database: {str(e)}")
 
 def check_sustained_high_power(pdu_id, pdu_name, current_power, threshold_watts=None, duration_minutes=None):
     """Check if power has been high for a sustained period"""
@@ -1052,7 +1066,17 @@ def create_app():
     """Application factory function"""
     with app.app_context():
         init_db()
-        logger.info("Database initialized successfully")
+        
+        # Ensure SystemSettings table exists
+        try:
+            # Try to create a test setting to verify the table works
+            SystemSettings.set_setting('_test_setting', 'test_value')
+            SystemSettings.query.filter_by(key='_test_setting').delete()
+            db.session.commit()
+            logger.info("SystemSettings table verified successfully")
+        except Exception as e:
+            logger.error(f"SystemSettings table issue: {str(e)}")
+            logger.info("Database initialized successfully")
     
     return app
 
