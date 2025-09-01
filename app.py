@@ -229,20 +229,14 @@ def get_power_data():
                     chart_data['power_watts'].append(0)
         
         elif period == 'week':
-            # Show up to the last 7 days, starting from the first available reading, using UK-local day boundaries
+            # Last 7 days, UK-local day boundaries, one dot per day
             uk_tz = ZoneInfo('Europe/London')
             now_uk = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(uk_tz)
-            first_ts = db.session.query(func.min(PowerReading.timestamp)).scalar()
-            if first_ts is None:
-                first_ts = datetime.utcnow()
-            first_uk = first_ts.replace(tzinfo=timezone.utc).astimezone(uk_tz)
-            # Start at UK midnight, not before first data, and not earlier than 6 days ago
-            start_uk = max(first_uk.replace(hour=0, minute=0, second=0, microsecond=0), (now_uk - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0))
-            end_uk = now_uk
+            start_uk = (now_uk - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
             start_utc = start_uk.astimezone(timezone.utc).replace(tzinfo=None)
-            
+
             readings = PowerReading.query.filter(PowerReading.timestamp >= start_utc).all()
-            
+
             # Group by UK-local day
             daily_data = {}
             for reading in readings:
@@ -251,15 +245,13 @@ def get_power_data():
                 if day_key not in daily_data:
                     daily_data[day_key] = []
                 daily_data[day_key].append(reading.power_watts)
-            
+
             chart_data = {
                 'labels': [],
                 'power_watts': []
             }
-            
-            # Build labels from start_uk to end_uk (inclusive days)
-            num_days = (end_uk.replace(hour=0, minute=0, second=0, microsecond=0) - start_uk).days + 1
-            for i in range(max(1, num_days)):
+
+            for i in range(7):
                 day_uk = start_uk + timedelta(days=i)
                 day_uk_midnight = day_uk.replace(hour=0, minute=0, second=0, microsecond=0)
                 chart_data['labels'].append(day_uk_midnight.strftime('%Y-%m-%d'))
@@ -270,19 +262,14 @@ def get_power_data():
                     chart_data['power_watts'].append(0)
         
         elif period == 'month':
-            # Show up to the last 30 days, starting from the first available reading, using UK-local day boundaries
+            # Last 30 days, UK-local day boundaries, one dot per day
             uk_tz = ZoneInfo('Europe/London')
             now_uk = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(uk_tz)
-            first_ts = db.session.query(func.min(PowerReading.timestamp)).scalar()
-            if first_ts is None:
-                first_ts = datetime.utcnow()
-            first_uk = first_ts.replace(tzinfo=timezone.utc).astimezone(uk_tz)
-            start_uk = max(first_uk.replace(hour=0, minute=0, second=0, microsecond=0), (now_uk - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0))
-            end_uk = now_uk
+            start_uk = (now_uk - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
             start_utc = start_uk.astimezone(timezone.utc).replace(tzinfo=None)
-            
+
             readings = PowerReading.query.filter(PowerReading.timestamp >= start_utc).all()
-            
+
             # Group by UK-local day
             daily_data = {}
             for reading in readings:
@@ -291,14 +278,13 @@ def get_power_data():
                 if day_key not in daily_data:
                     daily_data[day_key] = []
                 daily_data[day_key].append(reading.power_watts)
-            
+
             chart_data = {
                 'labels': [],
                 'power_watts': []
             }
-            
-            num_days = (end_uk.replace(hour=0, minute=0, second=0, microsecond=0) - start_uk).days + 1
-            for i in range(max(1, num_days)):
+
+            for i in range(30):
                 day_uk = start_uk + timedelta(days=i)
                 day_uk_midnight = day_uk.replace(hour=0, minute=0, second=0, microsecond=0)
                 chart_data['labels'].append(day_uk_midnight.strftime('%Y-%m-%d'))
