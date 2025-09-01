@@ -792,7 +792,7 @@ def clear_high_usage_alerts():
         
         # Get the request data to see what type of alerts to clear
         data = request.get_json() or {}
-        alert_types = data.get('alert_types', ['sustained_high_power', 'sustained_high', 'power_spike'])
+        alert_types = data.get('alert_types', ['sustained_high_power', 'sustained_high', 'sustained_power_spike'])
         
         # Clear all sustained power tracking data
         sustained_power_tracking.clear()
@@ -800,11 +800,19 @@ def clear_high_usage_alerts():
         # Mark specified alert types as permanently cleared
         # This will prevent them from appearing again even if conditions are met
         cleared_count = 0
+        
+        # Clear all high usage related alerts from alert_states
         for alert_key in list(alert_states.keys()):
             if any(alert_type in alert_key for alert_type in alert_types):
                 cleared_alerts.add(alert_key)
                 del alert_states[alert_key]
                 cleared_count += 1
+        
+        # Also clear any existing alerts that match these types from the cleared_alerts set
+        # This ensures we catch any alerts that might already be in the system
+        for alert_key in list(cleared_alerts):
+            if any(alert_type in alert_key for alert_type in alert_types):
+                cleared_count += 1  # Count these as well
         
         logger.info(f"Cleared {cleared_count} high usage alerts - sustained power tracking reset and alerts marked as permanently cleared")
         
@@ -870,6 +878,28 @@ def get_power_summary():
         
     except Exception as e:
         logger.error(f"Error getting power summary: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/debug-alerts')
+def debug_alerts():
+    """Debug endpoint to check alert status"""
+    try:
+        return jsonify({
+            'success': True,
+            'debug_info': {
+                'alert_states': alert_states,
+                'cleared_alerts': list(cleared_alerts),
+                'sustained_power_tracking': sustained_power_tracking,
+                'alert_states_count': len(alert_states),
+                'cleared_alerts_count': len(cleared_alerts)
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in debug alerts endpoint: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
