@@ -1,510 +1,257 @@
-# PDU Power Monitoring System
+# Raritan PDU Power Monitoring System
 
-A comprehensive system for monitoring APC PDU power consumption via SNMP with a modern web dashboard.
+A modern, real-time power monitoring system designed specifically for the **Raritan PDU PX3-5892** with per-port monitoring capabilities.
 
-**Repository:** [https://github.com/TWSOLLTD/PDU](https://github.com/TWSOLLTD/PDU)
+## 🚀 Features
 
-## Features
+### Core Monitoring
+- **Per-Port Power Monitoring**: Individual power consumption tracking for all 36 ports
+- **Real-Time Data**: Live power readings updated every minute
+- **Total PDU Power**: Aggregate power consumption across all ports
+- **Port Status Tracking**: Online/offline status for each port
+- **Port Naming**: Customizable port names that sync with PDU configuration
 
-- **Real-time Monitoring**: Collects power consumption data from APC PDUs via SNMPv3
-- **Multi-PDU Support**: Monitor multiple PDUs simultaneously
-- **Time-based Views**: View data by day (hourly), week (daily), month (daily), and year (monthly)
-- **Interactive Charts**: Beautiful charts powered by Plotly.js showing power trends
-- **Statistics Dashboard**: Comprehensive statistics including total kWh, average power, peak power, etc.
-- **Responsive Design**: Modern, mobile-friendly web interface
-- **Automatic Data Collection**: Scheduled data collection with configurable intervals
-- **Data Aggregation**: Efficient storage and retrieval of time-based power consumption data
+### Advanced Analytics
+- **Multi-Period Views**: Day, Week, Month, and Year data visualization
+- **Per-Port Graphs**: Individual line graphs for each port with unique colors
+- **Total Power Graphs**: Aggregate power consumption trends
+- **Energy Consumption**: kWh tracking and visualization
+- **15-Minute Intervals**: High-resolution data collection for detailed analysis
 
-## System Requirements
+### Modern UI
+- **Dark Mode Design**: Beautiful, modern interface with dark theme
+- **Responsive Layout**: Works perfectly on desktop, tablet, and mobile
+- **Interactive Charts**: Plotly.js powered charts with hover details
+- **Real-Time Updates**: Auto-refresh every 30 seconds
+- **Export Capabilities**: CSV data export for analysis
+
+### Technical Features
+- **SNMP Integration**: Direct SNMP communication with Raritan PDU
+- **Database Storage**: SQLite database for reliable data persistence
+- **RESTful API**: Clean API endpoints for data access
+- **Error Handling**: Robust error handling and logging
+- **Port Name Sync**: Automatic synchronization of port names from PDU
+
+## 📋 Requirements
 
 - Python 3.8+
-- Debian/Ubuntu Linux (or similar)
-- Network access to PDU devices
-- SNMPv3 support on PDUs
-- Systemd (for service management)
+- Network access to Raritan PDU PX3-5892
+- SNMP enabled on PDU (v2c recommended)
+- Web browser with JavaScript enabled
 
-## Quick Setup Summary
+## 🛠️ Installation
 
-For `/opt/PDU-NEW/` installation:
-
+### 1. Clone the Repository
 ```bash
-# 1. Create directory
-mkdir -p /opt/PDU-NEW
-cd /opt/PDU-NEW
-
-# 2. Install dependencies
-apt update
-apt install -y git python3 python3-pip python3-venv snmp build-essential python3-dev libssl-dev
-
-# 3. Clone the repository (ensure directory is empty first)
-# IMPORTANT: The dot (.) at the end is crucial - it clones into current directory
-# If you get "destination path '.' already exists and is not an empty directory":
-# cd /opt
-# rm -rf PDU-NEW
-# mkdir PDU-NEW
-# cd PDU-NEW
-git clone https://github.com/TWSOLLTD/PDU .
-
-# 4. Set up Python environment
-python3 -m venv pdu_env
-source pdu_env/bin/activate
-pip install -r requirements.txt
-
-# 5. Initialize database
-python3 -c "from app import create_app; app = create_app()"
-
-# 6. Test SNMP connection
-python3 snmp_collector.py
-
-# 7. Start the system
-chmod +x start.sh
-./start.sh
+git clone <repository-url>
+cd PDU
 ```
 
-## Installation
-
-### 1. Set Up Project Directory
-
+### 2. Install Dependencies
 ```bash
-# Create the project directory
-mkdir -p /opt/PDU-NEW
-cd /opt/PDU-NEW
+pip3 install -r requirements.txt
 ```
 
-### 2. Install System Dependencies
-
-```bash
-# Update package list
-apt update
-
-# Install Git and Python 3
-apt install -y git python3 python3-pip python3-venv
-
-# Install system dependencies for SNMP and development
-apt install -y snmp build-essential python3-dev libssl-dev
-```
-
-### 3. Clone the Repository
-
-```bash
-# Clone the repository
-git clone https://github.com/TWSOLLTD/PDU .
-```
-
-**IMPORTANT:** The dot (`.`) at the end is crucial! 
-- `git clone https://github.com/TWSOLLTD/PDU` → Creates a new `PDU/` subdirectory
-- `git clone https://github.com/TWSOLLTD/PDU .` → Clones directly into current directory
-
-**Note:** If you get the error "destination path '.' already exists and is not an empty directory", the directory contains files (like a virtual environment). Clean it up first:
-
-```bash
-cd /opt
-rm -rf PDU-NEW
-mkdir PDU-NEW
-cd PDU-NEW
-git clone https://github.com/TWSOLLTD/PDU .
-```
-
-### 4. Install Python Dependencies
-
-```bash
-# Create virtual environment (recommended)
-python3 -m venv pdu_env
-source pdu_env/bin/activate
-
-# Install Python packages
-pip install -r requirements.txt
-
-# Note: Keep the virtual environment activated for the next steps
-```
-
-### 5. Configure PDU Settings
-
-Edit `config.py` to match your PDU configuration:
+### 3. Configure PDU Settings
+Edit `config.py` and update the Raritan PDU configuration:
 
 ```python
-PDUS = {
-    'PDU1': {
-        'name': 'Right PDU',
-        'ip': '172.0.250.10',  # Your PDU IP
-        'username': 'admin',
-        'auth_passphrase': 'your_auth_passphrase',
-        'privacy_passphrase': 'your_privacy_passphrase',
-        'auth_protocol': 'SHA',
-        'privacy_protocol': 'AES'
-    },
-    'PDU2': {
-        'name': 'Left PDU',
-        'ip': '172.0.250.11',  # Your second PDU IP
-        'username': 'admin',
-        'auth_passphrase': 'your_auth_passphrase',
-        'privacy_passphrase': 'your_privacy_passphrase',
-        'auth_protocol': 'SHA',
-        'privacy_protocol': 'AES'
-    }
+RARITAN_CONFIG = {
+    'name': 'Raritan PX3-5892',
+    'ip': '192.168.1.100',  # Your PDU's IP address
+    'username': 'admin',     # PDU username
+    'password': 'admin',     # PDU password
+    'snmp_community': 'public',  # SNMP community string
+    'snmp_port': 161,
+    'snmp_timeout': 10,
+    'snmp_retries': 5
 }
 ```
 
-### 6. Initialize Database
-
+### 4. Initialize Database
 ```bash
 python3 -c "from app import create_app; app = create_app()"
 ```
 
-## Usage
+## 🚀 Quick Start
 
-### Starting the Web Dashboard
-
+### Start the System
 ```bash
-python3 app.py
-```
-
-The web interface will be available at `http://localhost:5000`
-
-### Starting the Data Collector
-
-```bash
-python3 scheduler.py
-```
-
-This will start collecting data from your PDUs every minute (configurable in `config.py`).
-
-### Manual Data Collection
-
-To collect data manually:
-
-```bash
-python3 snmp_collector.py
-```
-
-### Using the Startup Script
-
-The easiest way to run the system is using the provided startup script:
-
-```bash
-# Make the script executable (first time only)
 chmod +x start.sh
-
-# Start the system
 ./start.sh
 ```
 
-This will start both the data collector and web dashboard automatically.
+### Access the Dashboard
+Open your web browser and navigate to:
+```
+http://localhost:5000
+```
 
-### Running as a System Service (Recommended for Production)
-
-For production use, you can create a systemd service:
-
-1. **Create the service file:**
-
+### Stop the System
 ```bash
-nano /etc/systemd/system/pdu-monitor.service
+chmod +x stop.sh
+./stop.sh
 ```
 
-2. **Add the following content:**
+## 📊 Dashboard Features
 
-```ini
-[Unit]
-Description=PDU Power Monitoring System
-After=network.target
-
-[Service]
-Type=simple
-User=your_username
-WorkingDirectory=/opt/PDU-NEW
-Environment=PATH=/opt/PDU-NEW/pdu_env/bin
-ExecStart=/opt/PDU-NEW/pdu_env/bin/python3 /opt/PDU-NEW/scheduler.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**Note:** Replace `your_username` with your actual username.
-
-3. **Enable and start the service:**
-
-```bash
-systemctl daemon-reload
-systemctl enable pdu-monitor
-systemctl start pdu-monitor
-systemctl status pdu-monitor
-```
-
-4. **View logs:**
-
-```bash
-journalctl -u pdu-monitor -f
-```
-
-### Running the Web Dashboard
-
-The web dashboard needs to be run separately. You can either:
-
-**Option A: Run manually when needed**
-```bash
-cd /opt/PDU-NEW
-source pdu_env/bin/activate
-python3 app.py
-```
-
-**Option B: Create a separate systemd service for the web dashboard**
-```bash
-nano /etc/systemd/system/pdu-web.service
-```
-
-Add this content:
-```ini
-[Unit]
-Description=PDU Web Dashboard
-After=network.target pdu-monitor.service
-
-[Service]
-Type=simple
-User=your_username
-WorkingDirectory=/opt/PDU-NEW
-Environment=PATH=/opt/PDU-NEW/pdu_env/bin
-ExecStart=/opt/PDU-NEW/pdu_env/bin/python3 /opt/PDU-NEW/app.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Then enable and start it:
-```bash
-systemctl daemon-reload
-systemctl enable pdu-web
-systemctl start pdu-web
-```
-
-## Configuration Options
-
-### Data Collection Interval
-
-Edit `config.py` to change how often data is collected:
-
-```python
-COLLECTION_INTERVAL = 60  # seconds
-```
-
-### SNMP Settings
-
-```python
-SNMP_PORT = 161
-SNMP_TIMEOUT = 3
-SNMP_RETRIES = 3
-```
-
-### Web Interface Settings
-
-```python
-FLASK_HOST = '0.0.0.0'  # Listen on all interfaces
-FLASK_PORT = 5000
-FLASK_DEBUG = True
-```
-
-## Web Dashboard Features
-
-### PDU Status Overview
-- Real-time status of each PDU
-- Current power consumption in watts and kilowatts
-- Online/offline status indicators
-- IP address information
-
-### Time Period Selection
-- **Day View**: Hourly breakdown of power consumption
-- **Week View**: Daily totals for the last 7 days
-- **Month View**: Daily totals for the last 30 days
-- **Year View**: Monthly totals for the last 12 months
-
-### PDU Selection
-- Checkbox controls to select which PDUs to display
-- Individual PDU data or combined totals
-- Real-time filtering of charts and statistics
+### Main Dashboard
+- **Statistics Cards**: Total power, energy consumption, peak power, and online ports
+- **Port Grid**: Individual cards showing each port's power consumption and status
+- **Real-Time Updates**: Auto-refresh every 30 seconds
 
 ### Power Consumption Charts
-- Interactive line charts showing power trends
-- Dual Y-axis: kWh consumption and power in watts
-- Hover tooltips with detailed information
-- Responsive design for all screen sizes
+- **Total Power View**: Aggregate power consumption across all ports
+- **Per-Port View**: Individual line graphs for each port
+- **Time Periods**: Day (15-min intervals), Week, Month, Year
+- **Interactive**: Hover for detailed information
 
-### Statistics Dashboard
-- Total kWh consumption for selected period
-- Average, maximum, and minimum power consumption
-- Peak consumption time identification
-- Real-time updates every 30 seconds
+### Energy Consumption Charts
+- **Bar Charts**: Energy consumption in kWh
+- **Multiple Periods**: Day, Week, Month, Year views
+- **Total Energy**: Cumulative energy usage tracking
 
-## API Endpoints
+### Port Management
+- **Click to Rename**: Click any port name to edit it
+- **Status Indicators**: Visual online/offline status
+- **Detailed Metrics**: Power, current, voltage, and power factor
 
-### GET `/api/power-data`
-Get power consumption data for charts.
+## 🔧 Configuration
 
-**Parameters:**
-- `period`: Time period (day, week, month, year)
-- `pdu_ids[]`: Array of PDU IDs to include
+### SNMP OIDs
+The system uses the following SNMP OIDs for Raritan PX3-5892:
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "labels": ["00:00", "01:00", ...],
-    "kwh": [1.2, 1.5, ...],
-    "avg_power": [1200.0, 1500.0, ...],
-    "max_power": [1300.0, 1600.0, ...],
-    "min_power": [1100.0, 1400.0, ...]
-  }
+```python
+RARITAN_OIDS = {
+    'total_power_watts': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.1.1',
+    'port_power_watts': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.1',
+    'port_current': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.3',
+    'port_voltage': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.4',
+    'port_power_factor': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.5',
+    'port_name': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.7',
 }
 ```
 
-### GET `/api/current-status`
-Get current status of all PDUs.
+### Data Collection
+- **Interval**: 60 seconds (configurable in `config.py`)
+- **Storage**: SQLite database (`pdu_monitor.db`)
+- **Logging**: Detailed logs in `logs/` directory
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "name": "PDU-1",
-      "ip": "172.0.250.10",
-      "current_power_watts": 1250.5,
-      "current_power_kw": 1.2505,
-      "last_reading": "2024-01-01T12:00:00",
-      "status": "online"
-    }
-  ]
-}
-```
+## 📁 File Structure
 
-### GET `/api/statistics`
-Get power consumption statistics.
+ ```
+ PDU/
+ ├── app.py                 # Main Flask application
+ ├── snmp_collector.py     # SNMP data collector
+ ├── models.py             # Database models
+ ├── config.py             # Configuration settings
+ ├── requirements.txt      # Python dependencies
+ ├── start.sh             # Startup script
+ ├── stop.sh              # Stop script
+ ├── reset_db.py          # Database reset utility
+ ├── templates/
+ │   └── index.html       # Main dashboard template
+ └── README.md           # This file
+ ```
 
-**Parameters:**
-- `period`: Time period (day, week, month, year)
-- `pdu_ids[]`: Array of PDU IDs to include
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "total_kwh": 28.5,
-    "avg_power_watts": 1187.5,
-    "max_power_watts": 1500.0,
-    "min_power_watts": 950.0,
-    "peak_hour": "2024-01-01 14:00"
-  }
-}
-```
-
-### GET `/api/pdus`
-Get list of all configured PDUs.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "name": "PDU-1",
-      "ip": "172.0.250.10"
-    }
-  ]
-}
-```
-
-## Database Schema
-
-### Tables
-
-#### `pdus`
-- `id`: Primary key
-- `name`: PDU name
-- `ip_address`: PDU IP address
-- `created_at`: Record creation timestamp
-
-#### `power_readings`
-- `id`: Primary key
-- `pdu_id`: Foreign key to pdus table
-- `timestamp`: Reading timestamp
-- `power_watts`: Power consumption in watts
-- `power_kw`: Power consumption in kilowatts
-
-#### `power_aggregations`
-- `id`: Primary key
-- `pdu_id`: Foreign key to pdus table (NULL for combined)
-- `period_type`: Aggregation type (hourly, daily, monthly)
-- `period_start`: Period start timestamp
-- `period_end`: Period end timestamp
-- `total_kwh`: Total kWh for period
-- `avg_power_watts`: Average power in watts
-- `max_power_watts`: Maximum power in watts
-- `min_power_watts`: Minimum power in watts
-
-## Troubleshooting
+## 🔍 Troubleshooting
 
 ### Common Issues
 
-1. **Git Clone Failed - "destination path '.' already exists and is not an empty directory"**
-   - The directory contains files (often a virtual environment)
-   - Solution: Clean up and start fresh
-   ```bash
-   cd /opt
-   rm -rf PDU-NEW
-   mkdir PDU-NEW
-   cd PDU-NEW
-   git clone https://github.com/TWSOLLTD/PDU .
-   ```
-
-2. **Wrong Git Clone Command - Creates PDU/ subdirectory instead of root**
-   - **WRONG:** `git clone https://github.com/TWSOLLTD/PDU` (creates PDU/ subdirectory)
-   - **CORRECT:** `git clone https://github.com/TWSOLLTD/PDU .` (clones into current directory)
-   - Solution: Use the dot (.) at the end of the git clone command
-
-3. **SNMP Connection Failed**
-   - Verify PDU IP addresses are correct
-   - Check SNMP credentials and protocols
+1. **SNMP Connection Failed**
+   - Verify PDU IP address in `config.py`
+   - Check SNMP community string
    - Ensure network connectivity
-   - Verify SNMP port (default: 161)
 
-4. **No Data in Charts**
-   - Check if data collector is running
-   - Verify database has power readings
-   - Check browser console for JavaScript errors
+ 2. **No Data Displayed**
+    - Check collector logs: `tail -f raritan_collector.log`
+    - Verify SNMP OIDs are correct for your PDU model
+    - Ensure PDU has power monitoring enabled
 
-5. **Database Errors**
-   - Ensure SQLite database is writable
-   - Check database initialization
-   - Verify table structure
+3. **Web Interface Not Loading**
+   - Check web logs: `tail -f logs/web.log`
+   - Verify port 5000 is not in use
+   - Check firewall settings
 
-### Logs
+ ### Log Files
+ - **Collector Log**: `raritan_collector.log`
+ - **Web Log**: `logs/web.log` (created by start.sh)
+ - **Database**: `pdu_monitor.db`
 
-The system generates several log files:
-- `pdu_collector.log`: SNMP collection logs
-- `pdu_scheduler.log`: Scheduler operation logs
-- Flask application logs (console output)
+## 🔄 API Endpoints
 
-## Security Considerations
+### Current Status
+```
+GET /api/current-status
+```
+Returns current PDU and port status
 
-- SNMPv3 authentication and privacy are enabled by default
-- Web interface is accessible on all network interfaces (configurable)
-- No authentication on web interface (add if needed for production)
-- Database is stored locally (consider encryption for sensitive environments)
+### Power Data
+```
+GET /api/power-data?period=hour&view=total
+```
+Returns power consumption data for charts
 
-## Performance
+### Energy Data
+```
+GET /api/energy-data?period=day&view=total
+```
+Returns energy consumption data
 
-- Data collection: Every 60 seconds (configurable)
-- Web dashboard refresh: Every 30 seconds
-- Chart data is aggregated for efficient storage
-- SQLite database with proper indexing
+### Port Management
+```
+GET /api/ports
+POST /api/update-port-name
+```
+Port listing and name updates
 
-## Contributing
+### Data Export
+```
+GET /api/export-data?period=day&format=csv
+```
+Exports data as CSV
+
+## 🎨 Customization
+
+### UI Themes
+The dashboard uses CSS custom properties for easy theming. Edit the `:root` section in `templates/index.html`:
+
+```css
+:root {
+    --primary-color: #6366f1;
+    --secondary-color: #10b981;
+    --dark-bg: #0f172a;
+    --card-bg: #1e293b;
+    /* ... more variables */
+}
+```
+
+### Chart Colors
+Port colors are defined in the JavaScript:
+
+```javascript
+this.portColors = [
+    '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+    // ... add more colors as needed
+];
+```
+
+## 📈 Performance
+
+- **Data Collection**: ~1 second per collection cycle
+- **Web Interface**: Sub-second response times
+- **Database**: Optimized queries with proper indexing
+- **Memory Usage**: Minimal memory footprint
+- **Storage**: Efficient SQLite storage with automatic cleanup
+
+## 🔒 Security
+
+- **SNMP**: Uses community strings (consider SNMPv3 for production)
+- **Web Interface**: No authentication (add if needed)
+- **Database**: Local SQLite file
+- **Network**: Only required ports (5000 for web, SNMP port for PDU)
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -512,24 +259,18 @@ The system generates several log files:
 4. Test thoroughly
 5. Submit a pull request
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Support
+## 🆘 Support
 
 For issues and questions:
 1. Check the troubleshooting section
 2. Review the logs
 3. Open an issue on GitHub
-4. Contact the development team
+4. Include relevant log files and configuration
 
-## Future Enhancements
+---
 
-- Email alerts for power consumption thresholds
-- Export functionality (CSV, PDF reports)
-- User authentication and role-based access
-- REST API for external integrations
-- Historical data archiving
-- Power cost calculations
-- Environmental impact metrics
+**Built for Raritan PDU PX3-5892** ⚡

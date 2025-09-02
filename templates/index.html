@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDU Power Monitoring Dashboard</title>
+    <title>Raritan PDU Power Monitor</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
@@ -15,22 +15,29 @@
     <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --primary-color: #1a73e8;
-            --secondary-color: #34a853;
-            --accent-color: #ea4335;
-            --warning-color: #fbbc04;
-            --dark-bg: #202124;
-            --card-bg: #ffffff;
-            --text-primary: #202124;
-            --text-secondary: #5f6368;
-            --border-color: #dadce0;
-            --success-green: #34a853;
-            --danger-red: #ea4335;
-            --warning-orange: #fbbc04;
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary-color: #10b981;
+            --accent-color: #f59e0b;
+            --danger-color: #ef4444;
+            --warning-color: #f97316;
+            --success-color: #22c55e;
+            --dark-bg: #0f172a;
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --gradient-secondary: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --gradient-accent: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
         
         * {
@@ -41,50 +48,75 @@
         
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            background: var(--dark-bg);
             color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
         }
         
         .main-container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            margin: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
+            min-height: 100vh;
+            background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
         }
         
         .navbar {
-            background: linear-gradient(135deg, var(--primary-color), #4285f4);
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--card-border);
             padding: 1rem 2rem;
-            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
         
         .navbar-brand {
-            font-weight: 700;
+            font-weight: 800;
             font-size: 1.5rem;
-            color: white;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
         
         .navbar-brand i {
             font-size: 1.8rem;
+            color: var(--primary-color);
         }
         
-        .status-badge {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 0.25rem 0.75rem;
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
             border-radius: 20px;
+            color: var(--success-color);
+            font-weight: 600;
             font-size: 0.875rem;
-            font-weight: 500;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success-color);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         
         .content-wrapper {
             padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
         }
         
         .dashboard-header {
@@ -97,15 +129,19 @@
         }
         
         .dashboard-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--text-primary);
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin: 0;
         }
         
-        .last-updated {
+        .dashboard-subtitle {
             color: var(--text-secondary);
-            font-size: 0.875rem;
+            font-size: 1.125rem;
+            margin-top: 0.5rem;
         }
         
         .control-panel {
@@ -116,89 +152,75 @@
         }
         
         .btn-modern {
-            background: linear-gradient(135deg, var(--primary-color), #4285f4);
+            background: var(--gradient-primary);
             color: white;
             border: none;
-            padding: 0.75rem 1.5rem;
+            padding: 12px 24px;
             border-radius: 12px;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 0.875rem;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 8px;
             text-decoration: none;
+            box-shadow: var(--shadow-lg);
         }
         
         .btn-modern:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(26, 115, 232, 0.3);
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.3);
             color: white;
         }
         
         .btn-secondary {
-            background: white;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid var(--card-border);
             color: var(--text-primary);
-            border: 2px solid var(--border-color);
         }
         
         .btn-secondary:hover {
-            background: var(--light-bg);
+            background: rgba(51, 65, 85, 0.8);
             color: var(--text-primary);
         }
         
-        .auto-refresh-toggle {
+        .view-toggle {
             display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: white;
-            padding: 0.5rem 1rem;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid var(--card-border);
             border-radius: 12px;
-            border: 2px solid var(--border-color);
+            padding: 4px;
         }
         
-        .toggle-switch {
-            position: relative;
-            width: 40px;
-            height: 20px;
-            background: var(--border-color);
-            border-radius: 20px;
+        .view-btn {
+            background: transparent;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: all 0.3s ease;
             cursor: pointer;
-            transition: background 0.3s ease;
         }
         
-        .toggle-switch.active {
-            background: var(--success-green);
-        }
-        
-        .toggle-switch::after {
-            content: '';
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 16px;
-            height: 16px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.3s ease;
-        }
-        
-        .toggle-switch.active::after {
-            transform: translateX(20px);
+        .view-btn.active {
+            background: var(--primary-color);
+            color: white;
         }
         
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
         
         .stat-card {
             background: var(--card-bg);
+            border: 1px solid var(--card-border);
             border-radius: 16px;
             padding: 1.5rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-xl);
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
@@ -206,7 +228,7 @@
         
         .stat-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
         }
         
         .stat-card::before {
@@ -216,7 +238,7 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            background: var(--gradient-primary);
         }
         
         .stat-header {
@@ -237,18 +259,18 @@
             color: white;
         }
         
-        .stat-icon.power { background: linear-gradient(135deg, #ff6b6b, #ee5a24); }
-        .stat-icon.energy { background: linear-gradient(135deg, #4ecdc4, #44a08d); }
-        .stat-icon.efficiency { background: linear-gradient(135deg, #45b7d1, #96c93d); }
-        .stat-icon.status { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .stat-icon.power { background: var(--gradient-primary); }
+        .stat-icon.energy { background: var(--gradient-secondary); }
+        .stat-icon.peak { background: var(--gradient-accent); }
+        .stat-icon.ports { background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%); }
         
         .stat-content {
             text-align: right;
         }
         
         .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
+            font-size: 2.5rem;
+            font-weight: 800;
             color: var(--text-primary);
             line-height: 1;
         }
@@ -265,106 +287,125 @@
             margin-top: 0.5rem;
         }
         
-        .stat-hint {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-top: 0.5rem;
-            opacity: 0.7;
-        }
-        
-        .clickable {
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .clickable:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-        }
-        
-        .clickable:active {
-            transform: translateY(-4px);
-        }
-        
-        .alerts-section {
+        .ports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
             margin-bottom: 2rem;
         }
         
-        .alert-count {
-            background: var(--danger-red);
-            color: white;
-            padding: 0.25rem 0.75rem;
+        .port-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-xl);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .port-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        }
+        
+        .port-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-secondary);
+        }
+        
+        .port-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .port-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+            cursor: pointer;
+        }
+        
+        .port-name:hover {
+            color: var(--primary-color);
+        }
+        
+        .port-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
             border-radius: 20px;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             font-weight: 600;
         }
         
-        .alerts-container {
-            max-height: 300px;
-            overflow-y: auto;
+        .port-status.online {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(34, 197, 94, 0.2);
         }
         
-        .alert-item {
-            display: flex;
-            align-items: center;
+        .port-status.offline {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        
+        .port-power {
+            text-align: center;
+            margin: 1.5rem 0;
+        }
+        
+        .power-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            line-height: 1;
+        }
+        
+        .power-unit {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .port-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 1rem;
-            padding: 1rem;
-            margin-bottom: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .detail-item {
+            text-align: center;
+            padding: 0.75rem;
+            background: rgba(51, 65, 85, 0.3);
             border-radius: 8px;
-            border-left: 4px solid;
-            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid var(--card-border);
         }
         
-        .alert-item.high {
-            border-left-color: var(--danger-red);
-            background: rgba(234, 67, 53, 0.1);
-        }
-        
-        .alert-item.medium {
-            border-left-color: var(--warning-orange);
-            background: rgba(251, 188, 4, 0.1);
-        }
-        
-        .alert-item.low {
-            border-left-color: var(--primary-color);
-            background: rgba(26, 115, 232, 0.1);
-        }
-        
-        .alert-icon {
-            font-size: 1.25rem;
-        }
-        
-        .alert-content {
-            flex: 1;
-        }
-        
-        .alert-message {
+        .detail-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
             font-weight: 500;
             margin-bottom: 0.25rem;
         }
         
-        .alert-timestamp {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-        }
-        
-        .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 0.5rem;
-            animation: pulse 2s infinite;
-        }
-        
-        .status-online { background-color: var(--success-green); }
-        .status-offline { background-color: var(--danger-red); }
-        .status-warning { background-color: var(--warning-orange); }
-        
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+        .detail-value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
         }
         
         .charts-section {
@@ -376,10 +417,10 @@
         
         .chart-card {
             background: var(--card-bg);
+            border: 1px solid var(--card-border);
             border-radius: 16px;
             padding: 1.5rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-xl);
         }
         
         .chart-header {
@@ -391,23 +432,23 @@
         
         .chart-title {
             font-size: 1.25rem;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--text-primary);
             margin: 0;
         }
         
         .period-selector {
             display: flex;
-            gap: 0.5rem;
-            background: var(--light-bg);
-            padding: 0.25rem;
+            background: rgba(51, 65, 85, 0.3);
+            border: 1px solid var(--card-border);
             border-radius: 12px;
+            padding: 4px;
         }
         
         .btn-period {
             background: transparent;
             border: none;
-            padding: 0.5rem 1rem;
+            padding: 8px 16px;
             border-radius: 8px;
             font-size: 0.875rem;
             font-weight: 500;
@@ -432,7 +473,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(30, 41, 59, 0.9);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -444,7 +485,7 @@
         .loading-spinner {
             width: 40px;
             height: 40px;
-            border: 4px solid var(--border-color);
+            border: 4px solid var(--card-border);
             border-top: 4px solid var(--primary-color);
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -456,104 +497,13 @@
             100% { transform: rotate(360deg); }
         }
         
-        .pdu-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .pdu-card {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: 1px solid var(--border-color);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .pdu-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-        }
-        
-        .pdu-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-        }
-        
-        .pdu-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        
-        .pdu-name {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin: 0;
-        }
-        
-        .pdu-power {
-            text-align: center;
-            margin: 1.5rem 0;
-        }
-        
-        .power-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--primary-color);
-            line-height: 1;
-        }
-        
-        .power-unit {
-            font-size: 1rem;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-        
-        .pdu-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-        
-        .detail-item {
-            text-align: center;
-            padding: 0.75rem;
-            background: var(--light-bg);
-            border-radius: 8px;
-        }
-        
-        .detail-label {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            font-weight: 500;
-            margin-bottom: 0.25rem;
-        }
-        
-        .detail-value {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-        
         .footer {
             text-align: center;
             padding: 2rem;
-            color: var(--text-secondary);
+            color: var(--text-muted);
             font-size: 0.875rem;
+            border-top: 1px solid var(--card-border);
+            margin-top: 2rem;
         }
         
         /* Responsive Design */
@@ -575,97 +525,32 @@
                 grid-template-columns: 1fr;
             }
             
-            .pdu-grid {
+            .ports-grid {
                 grid-template-columns: 1fr;
             }
-        }
-        
-                 /* Dark mode styles */
-        body.dark-mode {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-        }
-        
-        body.dark-mode .main-container {
-            background: rgba(45, 45, 45, 0.95);
-        }
-        
-        body.dark-mode .stat-card,
-        body.dark-mode .chart-card,
-        body.dark-mode .pdu-card {
-            background: #2d2d2d;
-            border-color: #404040;
-            color: #ffffff;
-        }
-        
-        body.dark-mode .auto-refresh-toggle,
-        body.dark-mode .dark-mode-toggle {
-            background: #2d2d2d;
-            border-color: #404040;
-            color: #ffffff;
-        }
-        
-        body.dark-mode .btn-secondary {
-            background: #2d2d2d;
-            color: #ffffff;
-            border-color: #404040;
-        }
-        
-        body.dark-mode .detail-item {
-            background: #3d3d3d;
-            color: #ffffff;
-        }
-        
-        body.dark-mode .loading-overlay {
-            background: rgba(45, 45, 45, 0.9);
-        }
-        
-        body.dark-mode .alert-item {
-            background: rgba(45, 45, 45, 0.8);
-        }
-        
-        body.dark-mode .dashboard-title,
-        body.dark-mode .chart-title,
-        body.dark-mode .pdu-name,
-        body.dark-mode .stat-value,
-        body.dark-mode .detail-value {
-            color: #ffffff !important;
-        }
-        
-        body.dark-mode .stat-label,
-        body.dark-mode .stat-unit,
-        body.dark-mode .detail-label,
-        body.dark-mode .last-updated,
-        body.dark-mode .alert-timestamp {
-            color: #b0b0b0 !important;
-        }
-        
-        body.dark-mode .period-selector {
-            background: #3d3d3d;
-        }
-        
-        body.dark-mode .btn-period {
-            color: #b0b0b0;
-        }
-        
-        body.dark-mode .btn-period.active {
-            background: var(--primary-color);
-            color: white;
-        }
-        
-        /* Remove system preference override to allow manual control */
-        /* @media (prefers-color-scheme: dark) {
-            :root {
-                --card-bg: #2d2d2d;
-                --text-primary: #ffffff;
-                --text-secondary: #b0b0b0;
-                --border-color: #404040;
-                --light-bg: #3d3d3d;
-            }
             
-            body {
-                background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            .dashboard-title {
+                font-size: 2rem;
             }
-        } */
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--card-bg);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--card-border);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
     </style>
 </head>
 <body>
@@ -675,11 +560,11 @@
             <div class="container-fluid">
                 <div class="navbar-brand">
                     <i class="fas fa-bolt"></i>
-                    PDU Power Monitor
+                    Raritan PDU Monitor
                 </div>
-                <div class="status-badge">
-                    <i class="fas fa-circle text-success"></i>
-                    System Online
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>System Online</span>
                 </div>
             </div>
         </nav>
@@ -690,46 +575,30 @@
             <div class="dashboard-header">
                 <div>
                     <h1 class="dashboard-title">Power Consumption Dashboard</h1>
-                    <div class="last-updated">
+                    <div class="dashboard-subtitle">
                         <i class="fas fa-clock"></i>
                         Last updated: <span id="last-updated-time">Loading...</span>
                     </div>
                 </div>
                 <div class="control-panel">
-                    <div class="auto-refresh-toggle">
-                        <span>Auto-refresh</span>
-                        <div class="toggle-switch" id="auto-refresh-toggle">
-                            <input type="checkbox" id="auto-refresh-checkbox" style="display: none;">
-                        </div>
+                    <div class="view-toggle">
+                        <button class="view-btn active" data-view="total">Total Power</button>
+                        <button class="view-btn" data-view="ports">Per Port</button>
                     </div>
                     <button class="btn btn-modern" id="refresh-btn" onclick="dashboard.refreshAll()">
                         <i class="fas fa-sync-alt"></i>
-                        Refresh Now
+                        Refresh
                     </button>
                     <button class="btn btn-modern btn-secondary" onclick="dashboard.exportData()">
                         <i class="fas fa-download"></i>
-                        Export Data
+                        Export
                     </button>
-                    <button class="btn btn-modern btn-secondary" onclick="dashboard.clearHighUsageAlerts()">
-                        <i class="fas fa-times-circle"></i>
-                        Clear High Usage Alerts
-                    </button>
-                    <button class="btn btn-modern btn-secondary" onclick="dashboard.clearPeakPower()">
-                        <i class="fas fa-chart-line"></i>
-                        Reset Peak Power
-                    </button>
-                     <div class="dark-mode-toggle">
-                         <span>Dark Mode</span>
-                         <div class="toggle-switch" id="dark-mode-toggle">
-                             <input type="checkbox" id="dark-mode-checkbox" style="display: none;">
-                         </div>
-                     </div>
                 </div>
             </div>
 
             <!-- Statistics Cards -->
             <div class="stats-grid">
-                <div class="stat-card clickable" onclick="dashboard.showPowerDetails()">
+                <div class="stat-card">
                     <div class="stat-header">
                         <div class="stat-icon power">
                             <i class="fas fa-bolt"></i>
@@ -740,10 +609,9 @@
                         </div>
                     </div>
                     <div class="stat-label">Total Current Power</div>
-                    <div class="stat-hint">Click for details</div>
                 </div>
                 
-                <div class="stat-card clickable" onclick="dashboard.showEnergyDetails()">
+                <div class="stat-card">
                     <div class="stat-header">
                         <div class="stat-icon energy">
                             <i class="fas fa-chart-line"></i>
@@ -754,12 +622,11 @@
                         </div>
                     </div>
                     <div class="stat-label">Total Energy Today</div>
-                    <div class="stat-hint">Click for details</div>
                 </div>
                 
-                <div class="stat-card clickable" onclick="dashboard.showPeakDetails()">
+                <div class="stat-card">
                     <div class="stat-header">
-                        <div class="stat-icon efficiency">
+                        <div class="stat-icon peak">
                             <i class="fas fa-tachometer-alt"></i>
                         </div>
                         <div class="stat-content">
@@ -768,56 +635,39 @@
                         </div>
                     </div>
                     <div class="stat-label">Peak Power Today</div>
-                    <div class="stat-hint">Click for details</div>
                 </div>
                 
-                <div class="stat-card clickable" onclick="dashboard.showStatusDetails()">
+                <div class="stat-card">
                     <div class="stat-header">
-                        <div class="stat-icon status">
-                            <i class="fas fa-server"></i>
+                        <div class="stat-icon ports">
+                            <i class="fas fa-plug"></i>
                         </div>
                         <div class="stat-content">
-                            <div class="stat-value" id="online-pdus">0</div>
-                            <div class="stat-unit">/ {{ pdus|length }}</div>
+                                                     <div class="stat-value" id="online-ports">0</div>
+                         <div class="stat-unit">/ 36</div>
                         </div>
                     </div>
-                    <div class="stat-label">PDUs Online</div>
-                    <div class="stat-hint">Click for details</div>
+                    <div class="stat-label">Ports Online</div>
                 </div>
             </div>
 
-            <!-- Alerts Section -->
-            <div class="alerts-section" id="alerts-section" style="display: none;">
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <h3 class="chart-title">
-                            <i class="fas fa-exclamation-triangle text-warning"></i>
-                            System Alerts
-                        </h3>
-                        <div class="alert-count" id="alert-count">0</div>
-                    </div>
-                    <div class="alerts-container" id="alerts-container">
-                        <!-- Alerts will be populated by JavaScript -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- PDU Status Cards -->
-            <div class="pdu-grid" id="pdu-grid">
-                <!-- PDU cards will be populated by JavaScript -->
+            <!-- Port Status Cards -->
+            <div class="ports-grid" id="ports-grid">
+                <!-- Port cards will be populated by JavaScript -->
             </div>
 
             <!-- Charts Section -->
             <div class="charts-section">
-                                <!-- Power Consumption Chart -->
+                <!-- Power Consumption Chart -->
                 <div class="chart-card" id="power-chart-container">
                     <div class="chart-header">
                         <h3 class="chart-title">Power Consumption Trend</h3>
-                         <div class="period-selector">
-                             <button class="btn-period active" data-period="hour">Day</button>
-                             <button class="btn-period" data-period="week">Week</button>
-                             <button class="btn-period" data-period="month">Month</button>
-                         </div>
+                        <div class="period-selector">
+                            <button class="btn-period active" data-period="hour">Day</button>
+                            <button class="btn-period" data-period="week">Week</button>
+                            <button class="btn-period" data-period="month">Month</button>
+                            <button class="btn-period" data-period="year">Year</button>
+                        </div>
                     </div>
                     <div class="chart-container">
                         <div class="loading-overlay" id="chart-loading">
@@ -828,15 +678,16 @@
                     </div>
                 </div>
 
-                                <!-- Energy Usage Chart -->
+                <!-- Energy Usage Chart -->
                 <div class="chart-card" id="energy-chart-container">
                     <div class="chart-header">
                         <h3 class="chart-title">Energy Consumption</h3>
-                         <div class="period-selector">
-                             <button class="btn-period active" data-period="day">Day</button>
-                             <button class="btn-period" data-period="week">Week</button>
-                             <button class="btn-period" data-period="month">Month</button>
-                         </div>
+                        <div class="period-selector">
+                            <button class="btn-period active" data-period="day">Day</button>
+                            <button class="btn-period" data-period="week">Week</button>
+                            <button class="btn-period" data-period="month">Month</button>
+                            <button class="btn-period" data-period="year">Year</button>
+                        </div>
                     </div>
                     <div class="chart-container">
                         <div class="loading-overlay" id="energy-chart-loading">
@@ -851,7 +702,7 @@
 
         <!-- Footer -->
         <div class="footer">
-            <p>&copy; 2024 PDU Power Monitoring System | Real-time power consumption monitoring</p>
+            <p>&copy; 2024 Raritan PDU Power Monitoring System | Real-time per-port power monitoring</p>
         </div>
     </div>
 
@@ -859,115 +710,69 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        class PDUDashboard {
+        class RaritanPDUDashboard {
             constructor() {
                 this.currentPeriod = 'hour';
                 this.currentEnergyPeriod = 'day';
+                this.currentView = 'total';
                 this.autoRefreshInterval = null;
-                this.autoRefreshEnabled = false;
+                this.autoRefreshEnabled = true;
                 this.lastUpdateTime = new Date();
+                                 this.portColors = [
+                     '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                     '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6',
+                     '#f43f5e', '#a855f7', '#22c55e', '#eab308', '#3b82f6',
+                     '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6',
+                     '#f43f5e', '#a855f7', '#22c55e', '#eab308', '#3b82f6',
+                     '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6',
+                     '#f43f5e', '#a855f7', '#22c55e', '#eab308', '#3b82f6',
+                     '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6'
+                 ];
                 
-                                 this.initializeEventListeners();
-                 this.loadInitialData();
-                 this.setupAutoRefresh();
-                 this.setupDarkMode();
+                this.initializeEventListeners();
+                this.loadInitialData();
+                this.setupAutoRefresh();
             }
             
-                        initializeEventListeners() {
-                // Auto-refresh toggle
-                const toggle = document.getElementById('auto-refresh-toggle');
-                const checkbox = document.getElementById('auto-refresh-checkbox');
-                
-                toggle.addEventListener('click', () => {
-                    this.toggleAutoRefresh();
-                });
-                
-                // Dark mode toggle
-                const darkModeToggle = document.getElementById('dark-mode-toggle');
-                const darkModeCheckbox = document.getElementById('dark-mode-checkbox');
-                
-                darkModeToggle.addEventListener('click', () => {
-                    this.toggleDarkMode();
-                });
-                
-                // Remove any existing onclick handlers and add proper event listeners
-                // Power chart period buttons
-                const powerChart = document.getElementById('power-chart-container');
-                console.log('Setting up power chart buttons:', powerChart.querySelectorAll('.btn-period').length);
-                powerChart.querySelectorAll('.btn-period').forEach(btn => {
-                    btn.removeAttribute('onclick');
+            initializeEventListeners() {
+                // View toggle buttons
+                document.querySelectorAll('.view-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        const period = btn.getAttribute('data-period');
-                        console.log('Power chart period clicked:', period);
+                        const view = e.target.getAttribute('data-view');
+                        this.setView(view);
+                    });
+                });
+                
+                // Power chart period buttons
+                document.getElementById('power-chart-container').querySelectorAll('.btn-period').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const period = e.target.getAttribute('data-period');
                         this.setPeriod(period);
                     });
                 });
                 
                 // Energy chart period buttons
-                const energyChart = document.getElementById('energy-chart-container');
-                console.log('Setting up energy chart buttons:', energyChart.querySelectorAll('.btn-period').length);
-                energyChart.querySelectorAll('.btn-period').forEach(btn => {
-                    btn.removeAttribute('onclick');
+                document.getElementById('energy-chart-container').querySelectorAll('.btn-period').forEach(btn => {
                     btn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        const period = btn.getAttribute('data-period');
-                        console.log('Energy chart period clicked:', period);
+                        const period = e.target.getAttribute('data-period');
                         this.setEnergyPeriod(period);
                     });
                 });
             }
             
             setupAutoRefresh() {
-                // Auto-refresh is enabled by default
-                const saved = localStorage.getItem('autoRefreshEnabled');
-                if (saved !== 'false') {  // Enable unless explicitly disabled
-                    this.enableAutoRefresh();
-                }
-            }
-            
-            toggleAutoRefresh() {
                 if (this.autoRefreshEnabled) {
-                    this.disableAutoRefresh();
-                } else {
-                    this.enableAutoRefresh();
+                    this.autoRefreshInterval = setInterval(() => {
+                        this.refreshAll();
+                    }, 30000); // Refresh every 30 seconds
                 }
-            }
-            
-            enableAutoRefresh() {
-                this.autoRefreshEnabled = true;
-                document.getElementById('auto-refresh-toggle').classList.add('active');
-                document.getElementById('auto-refresh-checkbox').checked = true;
-                localStorage.setItem('autoRefreshEnabled', 'true');
-                
-                this.autoRefreshInterval = setInterval(() => {
-                    this.refreshAll();
-                }, 30000); // Refresh every 30 seconds
-                
-                console.log('Auto-refresh enabled');
-            }
-            
-            disableAutoRefresh() {
-                this.autoRefreshEnabled = false;
-                document.getElementById('auto-refresh-toggle').classList.remove('active');
-                document.getElementById('auto-refresh-checkbox').checked = false;
-                localStorage.setItem('autoRefreshEnabled', 'false');
-                
-                if (this.autoRefreshInterval) {
-                    clearInterval(this.autoRefreshInterval);
-                    this.autoRefreshInterval = null;
-                }
-                
-                console.log('Auto-refresh disabled');
             }
             
             async loadInitialData() {
                 await Promise.all([
                     this.loadCurrentStatus(),
                     this.loadPowerData(),
-                    this.loadEnergyData(),
-                    this.loadStatistics(),
-                    this.loadAlerts()
+                    this.loadEnergyData()
                 ]);
                 
                 this.updateLastUpdatedTime();
@@ -985,81 +790,80 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        this.renderPDUStatus(data.pdus);
-                        this.updateStatistics(data.statistics);
+                        this.renderPDUStatus(data.pdu);
+                        this.renderPortStatus(data.ports);
                     }
                 } catch (error) {
                     console.error('Error loading current status:', error);
                 }
             }
             
-            renderPDUStatus(pdus) {
-                const container = document.getElementById('pdu-grid');
+            renderPDUStatus(pdu) {
+                document.getElementById('total-power').textContent = pdu.total_power_watts.toFixed(1);
+                document.getElementById('total-energy').textContent = pdu.total_energy_kwh.toFixed(2);
+                document.getElementById('peak-power').textContent = pdu.peak_power_watts.toFixed(1);
+                document.getElementById('online-ports').textContent = pdu.online_ports;
+            }
+            
+            renderPortStatus(ports) {
+                const container = document.getElementById('ports-grid');
                 container.innerHTML = '';
                 
-                pdus.forEach(pdu => {
-                    const statusClass = pdu.online ? 'status-online' : 'status-offline';
-                    const statusText = pdu.online ? 'Online' : 'Offline';
+                ports.forEach((port, index) => {
+                    const statusClass = port.online ? 'online' : 'offline';
+                    const statusText = port.online ? 'Online' : 'Offline';
                     
-                    const col = document.createElement('div');
-                    col.className = 'pdu-card';
-                    col.innerHTML = `
-                        <div class="pdu-header">
-                            <h4 class="pdu-name">${pdu.name}</h4>
-                            <div>
-                                <span class="status-indicator ${statusClass}"></span>
-                                <span class="text-${pdu.online ? 'success' : 'danger'}">${statusText}</span>
+                    const portCard = document.createElement('div');
+                    portCard.className = 'port-card';
+                    portCard.innerHTML = `
+                        <div class="port-header">
+                            <h4 class="port-name" onclick="dashboard.editPortName(${port.id}, '${port.name}')">${port.name}</h4>
+                            <div class="port-status ${statusClass}">
+                                <i class="fas fa-circle"></i>
+                                <span>${statusText}</span>
                             </div>
                         </div>
-                        <div class="pdu-power">
-                            <div class="power-value">${pdu.current_power_watts.toFixed(1)}</div>
+                        <div class="port-power">
+                            <div class="power-value">${port.current_power_watts.toFixed(1)}</div>
                             <div class="power-unit">Watts</div>
                         </div>
-                        <div class="pdu-details">
+                        <div class="port-details">
                             <div class="detail-item">
                                 <div class="detail-label">Power (kW)</div>
-                                <div class="detail-value">${pdu.current_power_kw.toFixed(3)}</div>
+                                <div class="detail-value">${port.current_power_kw.toFixed(3)}</div>
                             </div>
                             <div class="detail-item">
-                                <div class="detail-label">IP Address</div>
-                                <div class="detail-value">${pdu.ip_address}</div>
+                                <div class="detail-label">Current (A)</div>
+                                <div class="detail-value">${port.current_amps ? port.current_amps.toFixed(2) : 'N/A'}</div>
                             </div>
                             <div class="detail-item">
-                                <div class="detail-label">Last Reading</div>
-                                <div class="detail-value">${new Date(pdu.last_reading).toLocaleTimeString()}</div>
+                                <div class="detail-label">Voltage (V)</div>
+                                <div class="detail-value">${port.voltage ? port.voltage.toFixed(1) : 'N/A'}</div>
                             </div>
                             <div class="detail-item">
-                                <div class="detail-label">Status</div>
-                                <div class="detail-value text-${pdu.online ? 'success' : 'danger'}">${statusText}</div>
+                                <div class="detail-label">Power Factor</div>
+                                <div class="detail-value">${port.power_factor ? port.power_factor.toFixed(2) : 'N/A'}</div>
                             </div>
                         </div>
                     `;
                     
-                    container.appendChild(col);
+                    container.appendChild(portCard);
                 });
-            }
-            
-            updateStatistics(stats) {
-                document.getElementById('total-power').textContent = stats.total_power_watts.toFixed(1);
-                document.getElementById('total-energy').textContent = stats.total_energy_kwh.toFixed(2);
-                document.getElementById('peak-power').textContent = stats.peak_power_watts.toFixed(1);
-                document.getElementById('online-pdus').textContent = stats.online_pdus;
             }
             
             async loadPowerData() {
                 try {
-                    console.log('Loading power data for period:', this.currentPeriod);
                     this.showChartLoading('chart-loading');
                     
                     const params = new URLSearchParams({
-                        period: this.currentPeriod
+                        period: this.currentPeriod,
+                        view: this.currentView
                     });
                     
                     const response = await fetch(`/api/power-data?${params}`);
                     const data = await response.json();
                     
                     if (data.success) {
-                        console.log('Rendering power chart with data:', data.data);
                         this.renderPowerChart(data.data);
                     } else {
                         this.showChartError('power-chart', 'No data available');
@@ -1074,19 +878,17 @@
             
             async loadEnergyData() {
                 try {
-                    console.log('Loading energy data for period:', this.currentEnergyPeriod);
                     this.showChartLoading('energy-chart-loading');
                     
                     const params = new URLSearchParams({
                         period: this.currentEnergyPeriod,
-                        type: 'energy'
+                        view: this.currentView
                     });
                     
                     const response = await fetch(`/api/energy-data?${params}`);
                     const data = await response.json();
                     
                     if (data.success) {
-                        console.log('Rendering energy chart with data:', data.data);
                         this.renderEnergyChart(data.data);
                     } else {
                         this.showChartError('energy-chart', 'No energy data available');
@@ -1099,32 +901,19 @@
                 }
             }
             
-            async loadStatistics() {
-                try {
-                    const params = new URLSearchParams({
-                        period: this.currentPeriod
-                    });
-                    
-                    const response = await fetch(`/api/statistics?${params}`);
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        this.updateStatistics(data.data);
-                    }
-                } catch (error) {
-                    console.error('Error loading statistics:', error);
+            renderPowerChart(chartData) {
+                if (this.currentView === 'total') {
+                    this.renderTotalPowerChart(chartData);
+                } else {
+                    this.renderPortPowerChart(chartData);
                 }
             }
             
-            renderPowerChart(chartData) {
+            renderTotalPowerChart(chartData) {
                 if (chartData.labels.length === 0) {
                     this.showChartError('power-chart', 'No data available for the selected period');
                     return;
                 }
-
-                const isDarkMode = document.body.classList.contains('dark-mode');
-                const textColor = isDarkMode ? '#ffffff' : '#202124';
-                const gridColor = isDarkMode ? '#404040' : '#e8eaed';
 
                 const traces = [
                     {
@@ -1132,37 +921,100 @@
                         y: chartData.power_watts,
                         type: 'scatter',
                         mode: 'lines+markers',
-                        name: 'Power (W)',
-                        line: { color: '#1a73e8', width: 3, connectgaps: false },
-                        marker: { size: 6, color: '#1a73e8' },
+                        name: 'Total Power',
+                        line: { color: '#6366f1', width: 3, connectgaps: false },
+                        marker: { size: 6, color: '#6366f1' },
                         fill: 'tonexty',
-                        fillcolor: 'rgba(26, 115, 232, 0.1)'
+                        fillcolor: 'rgba(99, 102, 241, 0.1)'
                     }
                 ];
 
                 const layout = {
                     title: {
-                        text: `Power Consumption - ${this.currentPeriod === 'hour' ? 'Day' : this.currentPeriod.charAt(0).toUpperCase() + this.currentPeriod.slice(1)} View`,
-                        font: { size: 18, color: textColor }
+                        text: `Total Power Consumption - ${this.getPeriodDisplayName(this.currentPeriod)}`,
+                        font: { size: 18, color: '#f8fafc' }
                     },
                     xaxis: {
-                        title: this.currentPeriod === 'hour' ? 'Time (15-minute intervals, UK)' : 'Time',
-                        gridcolor: gridColor,
+                        title: this.getXAxisTitle(this.currentPeriod),
+                        gridcolor: '#334155',
                         zeroline: false,
-                        color: textColor
+                        color: '#cbd5e1'
                     },
                     yaxis: {
                         title: 'Power (Watts)',
-                        gridcolor: gridColor,
+                        gridcolor: '#334155',
                         zeroline: false,
-                        color: textColor
+                        color: '#cbd5e1'
                     },
                     hovermode: 'x unified',
                     plot_bgcolor: 'rgba(0,0,0,0)',
                     paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: textColor },
+                    font: { color: '#f8fafc' },
                     margin: { t: 60, b: 60, l: 60, r: 60 },
                     showlegend: false
+                };
+
+                const config = {
+                    responsive: true,
+                    displayModeBar: false,
+                    displaylogo: false
+                };
+
+                Plotly.newPlot('power-chart', traces, layout, config);
+            }
+            
+            renderPortPowerChart(chartData) {
+                if (chartData.ports.length === 0) {
+                    this.showChartError('power-chart', 'No port data available');
+                    return;
+                }
+
+                const traces = chartData.ports.map((port, index) => ({
+                    x: chartData.labels,
+                    y: port.power_watts,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: port.name,
+                    line: { 
+                        color: this.portColors[index % this.portColors.length], 
+                        width: 2, 
+                        connectgaps: false 
+                    },
+                    marker: { 
+                        size: 4, 
+                        color: this.portColors[index % this.portColors.length] 
+                    }
+                }));
+
+                const layout = {
+                    title: {
+                        text: `Per-Port Power Consumption - ${this.getPeriodDisplayName(this.currentPeriod)}`,
+                        font: { size: 18, color: '#f8fafc' }
+                    },
+                    xaxis: {
+                        title: this.getXAxisTitle(this.currentPeriod),
+                        gridcolor: '#334155',
+                        zeroline: false,
+                        color: '#cbd5e1'
+                    },
+                    yaxis: {
+                        title: 'Power (Watts)',
+                        gridcolor: '#334155',
+                        zeroline: false,
+                        color: '#cbd5e1'
+                    },
+                    hovermode: 'x unified',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#f8fafc' },
+                    margin: { t: 60, b: 60, l: 60, r: 60 },
+                    showlegend: true,
+                    legend: {
+                        bgcolor: 'rgba(30, 41, 59, 0.8)',
+                        bordercolor: '#334155',
+                        borderwidth: 1,
+                        font: { color: '#f8fafc' }
+                    }
                 };
 
                 const config = {
@@ -1180,56 +1032,39 @@
                     return;
                 }
 
-                const isDarkMode = document.body.classList.contains('dark-mode');
-                const textColor = isDarkMode ? '#ffffff' : '#202124';
-                const gridColor = isDarkMode ? '#404040' : '#e8eaed';
-
-                                 const traces = [
-                     {
-                         x: chartData.labels,
-                         y: chartData.energy_kwh,
-                         type: 'bar',
-                         name: 'Energy (kWh)',
-                         marker: { 
-                             color: '#34a853',
-                             line: { color: '#34a853', width: 1 }
-                         },
-                                                   // Make bars span the full width between hour markers with small gaps, centered
-                          ...(this.currentEnergyPeriod === 'day' && {
-                              offset: 0.05,
-                              width: 0.9
-                          })
-                     }
-                 ];
+                const traces = [
+                    {
+                        x: chartData.labels,
+                        y: chartData.energy_kwh,
+                        type: 'bar',
+                        name: 'Energy (kWh)',
+                        marker: { 
+                            color: '#10b981',
+                            line: { color: '#10b981', width: 1 }
+                        }
+                    }
+                ];
 
                 const layout = {
                     title: {
-                        text: `Energy Consumption - ${this.currentEnergyPeriod.charAt(0).toUpperCase() + this.currentEnergyPeriod.slice(1)} View`,
-                        font: { size: 18, color: textColor }
+                        text: `Energy Consumption - ${this.getPeriodDisplayName(this.currentEnergyPeriod)}`,
+                        font: { size: 18, color: '#f8fafc' }
                     },
-                                         xaxis: {
-                         title: this.currentEnergyPeriod === 'day' ? 'Hour' : 'Time Period',
-                         gridcolor: gridColor,
-                         zeroline: false,
-                         color: textColor,
-                                                   // For day view, position bars between hour markers
-                          ...(this.currentEnergyPeriod === 'day' && {
-                              tickmode: 'array',
-                              tickvals: chartData.labels,
-                              ticktext: chartData.labels.map(hour => `${hour}:00`),
-                              tickangle: 0,
-                              range: [-0.5, 23.5]
-                          })
-                     },
+                    xaxis: {
+                        title: this.getXAxisTitle(this.currentEnergyPeriod),
+                        gridcolor: '#334155',
+                        zeroline: false,
+                        color: '#cbd5e1'
+                    },
                     yaxis: {
                         title: 'Energy (kWh)',
-                        gridcolor: gridColor,
+                        gridcolor: '#334155',
                         zeroline: false,
-                        color: textColor
+                        color: '#cbd5e1'
                     },
                     plot_bgcolor: 'rgba(0,0,0,0)',
                     paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: textColor },
+                    font: { color: '#f8fafc' },
                     margin: { t: 60, b: 60, l: 60, r: 60 },
                     showlegend: false
                 };
@@ -1253,62 +1088,78 @@
             
             showChartError(chartId, message) {
                 document.getElementById(chartId).innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #5f6368;">
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #64748b;">
                         <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
                         <p>${message}</p>
                     </div>
                 `;
             }
             
+            setView(view) {
+                this.currentView = view;
+                
+                // Update button highlighting
+                document.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-view="${view}"]`).classList.add('active');
+                
+                this.loadPowerData();
+            }
+            
             setPeriod(period) {
                 this.currentPeriod = period;
-                console.log('setPeriod called with:', period);
                 
                 // Update button highlighting for power chart
                 const powerChart = document.getElementById('power-chart-container');
-                console.log('Power chart container:', powerChart);
-                console.log('Power chart buttons:', powerChart.querySelectorAll('.btn-period'));
-                
                 powerChart.querySelectorAll('.btn-period').forEach(btn => {
                     btn.classList.remove('active');
                 });
-                const targetButton = powerChart.querySelector(`[data-period="${period}"]`);
-                console.log('Target button for power chart:', targetButton);
-                if (targetButton) {
-                    targetButton.classList.add('active');
-                }
+                powerChart.querySelector(`[data-period="${period}"]`).classList.add('active');
                 
                 this.loadPowerData();
             }
             
             setEnergyPeriod(period) {
                 this.currentEnergyPeriod = period;
-                console.log('setEnergyPeriod called with:', period);
                 
                 // Update button highlighting for energy chart
                 const energyChart = document.getElementById('energy-chart-container');
-                console.log('Energy chart container:', energyChart);
-                console.log('Energy chart buttons:', energyChart.querySelectorAll('.btn-period'));
-                
                 energyChart.querySelectorAll('.btn-period').forEach(btn => {
                     btn.classList.remove('active');
                 });
-                const targetButton = energyChart.querySelector(`[data-period="${period}"]`);
-                console.log('Target button for energy chart:', targetButton);
-                if (targetButton) {
-                    targetButton.classList.add('active');
-                }
+                energyChart.querySelector(`[data-period="${period}"]`).classList.add('active');
                 
                 this.loadEnergyData();
+            }
+            
+            getPeriodDisplayName(period) {
+                const names = {
+                    'hour': 'Day',
+                    'week': 'Week',
+                    'month': 'Month',
+                    'year': 'Year',
+                    'day': 'Day'
+                };
+                return names[period] || period;
+            }
+            
+            getXAxisTitle(period) {
+                const titles = {
+                    'hour': 'Time (15-minute intervals)',
+                    'week': 'Date',
+                    'month': 'Date',
+                    'year': 'Month',
+                    'day': 'Hour'
+                };
+                return titles[period] || 'Time';
             }
             
             async refreshAll() {
                 await Promise.all([
                     this.loadCurrentStatus(),
                     this.loadPowerData(),
-                    this.loadEnergyData(),
-                    this.loadStatistics(),
-                    this.loadAlerts()
+                    this.loadEnergyData()
                 ]);
                 
                 this.updateLastUpdatedTime();
@@ -1335,7 +1186,7 @@
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `pdu-power-data-${new Date().toISOString().split('T')[0]}.csv`;
+                    a.download = `raritan-pdu-data-${new Date().toISOString().split('T')[0]}.csv`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -1346,187 +1197,33 @@
                 }
             }
             
-            showPowerDetails() {
-                this.setPeriod('hour');
-                document.querySelector('.chart-card').scrollIntoView({ behavior: 'smooth' });
-            }
-            
-            showEnergyDetails() {
-                this.setEnergyPeriod('day');
-                document.querySelectorAll('.chart-card')[1].scrollIntoView({ behavior: 'smooth' });
-            }
-            
-            showPeakDetails() {
-                this.setPeriod('day');
-                document.querySelector('.chart-card').scrollIntoView({ behavior: 'smooth' });
-            }
-            
-                         showStatusDetails() {
-                 document.getElementById('pdu-grid').scrollIntoView({ behavior: 'smooth' });
-             }
-             
-             setupDarkMode() {
-                 // Check for saved dark mode preference
-                 const saved = localStorage.getItem('darkModeEnabled');
-                 if (saved === 'true') {
-                     this.enableDarkMode();
-                 }
-             }
-             
-             toggleDarkMode() {
-                 if (document.body.classList.contains('dark-mode')) {
-                     this.disableDarkMode();
-                 } else {
-                     this.enableDarkMode();
-                 }
-             }
-             
-             enableDarkMode() {
-                 document.body.classList.add('dark-mode');
-                 document.getElementById('dark-mode-toggle').classList.add('active');
-                 document.getElementById('dark-mode-checkbox').checked = true;
-                 localStorage.setItem('darkModeEnabled', 'true');
-                 
-                 // Update chart colors for dark mode
-                 this.updateChartColors(true);
-             }
-             
-             disableDarkMode() {
-                 document.body.classList.remove('dark-mode');
-                 document.getElementById('dark-mode-toggle').classList.remove('active');
-                 document.getElementById('dark-mode-checkbox').checked = false;
-                 localStorage.setItem('darkModeEnabled', 'false');
-                 
-                 // Update chart colors for light mode
-                 this.updateChartColors(false);
-             }
-             
-             updateChartColors(isDark) {
-                 // Force refresh both charts to update colors immediately
-                 this.loadPowerData();
-                 this.loadEnergyData();
-             }
-            
-            async clearHighUsageAlerts() {
-                try {
-                    const response = await fetch('/api/clear-high-usage-alerts', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            alert_types: ['sustained_high_power', 'sustained_high', 'sustained_power_spike']
-                        })
-                    });
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        alert('High usage alerts cleared successfully!');
-                        // Refresh alerts to show updated state
-                        await this.loadAlerts();
-                    } else {
-                        alert('Error clearing high usage alerts: ' + data.error);
-                    }
-                } catch (error) {
-                    console.error('Error clearing high usage alerts:', error);
-                    alert('Error clearing high usage alerts. Please try again.');
-                }
-            }
-            
-            async clearPeakPower() {
-                try {
-                    console.log('Clearing peak power...');
-                    
-                    // Immediately reset the peak power display to 0
-                    document.getElementById('peak-power').textContent = '0.0';
-                    
-                    const response = await fetch('/api/clear-peak-power', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
+            async editPortName(portId, currentName) {
+                const newName = prompt('Enter new port name:', currentName);
+                if (newName && newName !== currentName) {
+                    try {
+                        const response = await fetch('/api/update-port-name', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                port_id: portId,
+                                name: newName
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                            // Refresh the data to show updated names
+                            await this.loadCurrentStatus();
+                            await this.loadPowerData();
+                        } else {
+                            alert('Error updating port name: ' + data.error);
                         }
-                    });
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        console.log('Peak power reset response:', data);
-                        alert('Peak power tracking reset successfully!');
-                        
-                        // Force a complete refresh of all data
-                        console.log('Refreshing current status...');
-                        await this.loadCurrentStatus();
-                        
-                        // Also refresh power data to ensure charts are updated
-                        console.log('Refreshing power data...');
-                        await this.loadPowerData();
-                        
-                        console.log('Peak power reset completed');
-                    } else {
-                        console.error('Peak power reset failed:', data.error);
-                        alert('Error resetting peak power: ' + data.error);
+                    } catch (error) {
+                        console.error('Error updating port name:', error);
+                        alert('Error updating port name. Please try again.');
                     }
-                } catch (error) {
-                    console.error('Error resetting peak power:', error);
-                    alert('Error resetting peak power. Please try again.');
-                }
-            }
-            
-            async loadAlerts() {
-                try {
-                    const response = await fetch('/api/alerts');
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        this.renderAlerts(data.alerts, data.count);
-                    }
-                } catch (error) {
-                    console.error('Error loading alerts:', error);
-                }
-            }
-            
-            renderAlerts(alerts, count) {
-                const alertsSection = document.getElementById('alerts-section');
-                const alertsContainer = document.getElementById('alerts-container');
-                const alertCount = document.getElementById('alert-count');
-                
-                // Update alert count
-                alertCount.textContent = count;
-                
-                if (count > 0) {
-                    // Show alerts section
-                    alertsSection.style.display = 'block';
-                    
-                    // Clear existing alerts
-                    alertsContainer.innerHTML = '';
-                    
-                    // Add each alert
-                    alerts.forEach(alert => {
-                        const alertItem = document.createElement('div');
-                        alertItem.className = `alert-item ${alert.severity}`;
-                        
-                        let icon = 'exclamation-triangle';
-                        if (alert.type === 'offline') icon = 'server';
-                        else if (alert.type === 'high_power') icon = 'bolt';
-                        else if (alert.type === 'zero_power') icon = 'power-off';
-                        else if (alert.type === 'power_spike') icon = 'chart-line';
-                        else if (alert.type === 'low_efficiency') icon = 'tachometer-alt';
-                        else if (alert.type === 'sustained_high') icon = 'fire';
-                        
-                        alertItem.innerHTML = `
-                            <div class="alert-icon">
-                                <i class="fas fa-${icon}"></i>
-                            </div>
-                            <div class="alert-content">
-                                <div class="alert-message">${alert.message}</div>
-                                <div class="alert-timestamp">${new Date(alert.timestamp).toLocaleString()}</div>
-                            </div>
-                        `;
-                        
-                        alertsContainer.appendChild(alertItem);
-                    });
-                } else {
-                    // Hide alerts section if no alerts
-                    alertsSection.style.display = 'none';
                 }
             }
         }
@@ -1534,7 +1231,7 @@
         // Initialize dashboard when page loads
         let dashboard;
         document.addEventListener('DOMContentLoaded', () => {
-            dashboard = new PDUDashboard();
+            dashboard = new RaritanPDUDashboard();
         });
     </script>
 </body>

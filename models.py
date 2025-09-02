@@ -12,13 +12,33 @@ class PDU(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     ip_address = db.Column(db.String(15), nullable=False, unique=True)
+    model = db.Column(db.String(50), nullable=False, default='Raritan PX3-5892')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relationship to power readings
-    power_readings = db.relationship('PowerReading', backref='pdu', lazy=True)
+    # Relationship to ports and power readings
+    ports = db.relationship('PDUPort', backref='pdu', lazy=True, cascade='all, delete-orphan')
+    power_readings = db.relationship('PowerReading', backref='pdu', lazy=True, cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<PDU {self.name} ({self.ip_address})>'
+
+class PDUPort(db.Model):
+    __tablename__ = 'pdu_ports'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    pdu_id = db.Column(db.Integer, db.ForeignKey('pdus.id'), nullable=False)
+    port_number = db.Column(db.Integer, nullable=False)  # Port number (1-36 for PX3-5892)
+    name = db.Column(db.String(100), nullable=False)  # User-defined port name
+    description = db.Column(db.String(200), nullable=True)  # Optional description
+    is_active = db.Column(db.Boolean, default=True)  # Whether port is being monitored
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship to power readings
+    power_readings = db.relationship('PortPowerReading', backref='port', lazy=True, cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<PDUPort {self.name} (Port {self.port_number})>'
 
 class PowerReading(db.Model):
     __tablename__ = 'power_readings'
@@ -26,18 +46,34 @@ class PowerReading(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     pdu_id = db.Column(db.Integer, db.ForeignKey('pdus.id'), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, index=True)
-    power_watts = db.Column(db.Float, nullable=False)
-    power_kw = db.Column(db.Float, nullable=False)
+    total_power_watts = db.Column(db.Float, nullable=False)  # Total PDU power
+    total_power_kw = db.Column(db.Float, nullable=False)
     
     def __repr__(self):
-        return f'<PowerReading {self.power_watts}W at {self.timestamp}>'
+        return f'<PowerReading {self.total_power_watts}W at {self.timestamp}>'
+
+class PortPowerReading(db.Model):
+    __tablename__ = 'port_power_readings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    port_id = db.Column(db.Integer, db.ForeignKey('pdu_ports.id'), nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False, index=True)
+    power_watts = db.Column(db.Float, nullable=False)
+    power_kw = db.Column(db.Float, nullable=False)
+    current_amps = db.Column(db.Float, nullable=True)  # Current in amps
+    voltage = db.Column(db.Float, nullable=True)  # Voltage
+    power_factor = db.Column(db.Float, nullable=True)  # Power factor
+    
+    def __repr__(self):
+        return f'<PortPowerReading {self.power_watts}W at {self.timestamp}>'
 
 class PowerAggregation(db.Model):
     __tablename__ = 'power_aggregations'
     
     id = db.Column(db.Integer, primary_key=True)
     pdu_id = db.Column(db.Integer, db.ForeignKey('pdus.id'), nullable=True)  # NULL for combined
-    period_type = db.Column(db.String(20), nullable=False)  # hourly, daily, monthly
+    port_id = db.Column(db.Integer, db.ForeignKey('pdu_ports.id'), nullable=True)  # NULL for PDU total
+    period_type = db.Column(db.String(20), nullable=False)  # hourly, daily, monthly, yearly
     period_start = db.Column(db.DateTime, nullable=False, index=True)
     period_end = db.Column(db.DateTime, nullable=False)
     total_kwh = db.Column(db.Float, nullable=False)
@@ -142,16 +178,27 @@ def init_db():
     print("Initializing new database...")
     db.create_all()
     
-    # Create PDU records if they don't exist
-    from config import PDUS
-    for pdu_key, pdu_config in PDUS.items():
-        existing_pdu = PDU.query.filter_by(ip_address=pdu_config['ip']).first()
-        if not existing_pdu:
-            pdu = PDU(
-                name=pdu_config['name'],
-                ip_address=pdu_config['ip']
+    # Create single PDU record for Raritan PX3-5892
+    existing_pdu = PDU.query.first()
+    if not existing_pdu:
+        pdu = PDU(
+            name='Raritan PX3-5892',
+            ip_address='192.168.1.100',  # Default IP, will be updated via config
+            model='Raritan PX3-5892'
+        )
+        db.session.add(pdu)
+        db.session.flush()  # Get the ID
+        
+        # Create 36 ports for the PX3-5892
+        for port_num in range(1, 37):
+            port = PDUPort(
+                pdu_id=pdu.id,
+                port_number=port_num,
+                name=f'Port {port_num}',
+                description=f'Port {port_num} on Raritan PX3-5892',
+                is_active=True
             )
-            db.session.add(pdu)
+            db.session.add(port)
     
     db.session.commit()
     print("Database initialization completed.")

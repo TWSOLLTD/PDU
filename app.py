@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-PDU Power Monitoring Web Application
-Flask-based web interface for monitoring APC PDU power consumption
+Raritan PDU Power Monitoring Web Application
+Flask-based web interface for monitoring Raritan PDU PX3-5892 power consumption
 """
 
 from flask import Flask, render_template, jsonify, request
@@ -11,14 +11,10 @@ from zoneinfo import ZoneInfo
 import json
 import logging
 import requests
+from sqlalchemy import func, and_
 
-from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG, ALERT_CONFIG
-from sqlalchemy import func
-
-# Discord webhook configuration
-DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1411794302513975499/fSvpOKKmWExxqOpSf7vDg5fJhkUMnlgQkeuaF3qpQwnI6vVC1POk3xw3yS175Ss3m0XB"
-from models import db, PDU, PowerReading, PowerAggregation, SystemSettings, init_db
-from data_processor import PowerDataProcessor
+from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG, RARITAN_CONFIG
+from models import db, PDU, PDUPort, PowerReading, PortPowerReading, PowerAggregation, SystemSettings, init_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,361 +28,73 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize database
 db.init_app(app)
 
-# Initialize data processor
-data_processor = PowerDataProcessor()
-
-# Alert state tracking to prevent duplicate alerts (these are session-based)
-alert_states = {}  # Track which alerts are currently active
-sustained_power_tracking = {}  # Track sustained high power periods
-
-# Helper functions to get/set persistent settings from database
-def get_cleared_alerts():
-    """Get cleared alerts from database"""
-    try:
-        return SystemSettings.get_setting('cleared_alerts', set())
-    except Exception as e:
-        logger.error(f"Error getting cleared alerts from database: {str(e)}")
-        return set()
-
-def set_cleared_alerts(cleared_alerts_set):
-    """Save cleared alerts to database"""
-    try:
-        SystemSettings.set_setting('cleared_alerts', list(cleared_alerts_set))
-    except Exception as e:
-        logger.error(f"Error setting cleared alerts in database: {str(e)}")
-
-def get_peak_power_reset_time():
-    """Get peak power reset time from database"""
-    try:
-        logger.info("Getting peak power reset time from database...")
-        reset_time_str = SystemSettings.get_setting('peak_power_reset_time')
-        logger.info(f"Raw value from database: {reset_time_str}")
-        
-        if reset_time_str:
-            try:
-                parsed_time = datetime.fromisoformat(reset_time_str)
-                logger.info(f"Successfully parsed time: {parsed_time}")
-                return parsed_time
-            except (ValueError, TypeError) as parse_error:
-                logger.error(f"Error parsing reset time string '{reset_time_str}': {parse_error}")
-                return None
-        else:
-            logger.info("No reset time found in database")
-            return None
-    except Exception as e:
-        logger.error(f"Error getting peak power reset time from database: {str(e)}")
-        logger.error(f"Exception type: {type(e)}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        return None
-
-def set_peak_power_reset_time(reset_time):
-    """Save peak power reset time to database"""
-    try:
-        logger.info(f"Setting peak power reset time: {reset_time}")
-        if reset_time:
-            value_to_store = reset_time.isoformat()
-            logger.info(f"Storing value: {value_to_store}")
-            SystemSettings.set_setting('peak_power_reset_time', value_to_store)
-            
-            # Verify it was stored
-            stored_value = SystemSettings.get_setting('peak_power_reset_time')
-            logger.info(f"Verification - stored value: {stored_value}")
-        else:
-            logger.info("Setting peak power reset time to None")
-            SystemSettings.set_setting('peak_power_reset_time', None)
-            
-            # Verify it was stored
-            stored_value = SystemSettings.get_setting('peak_power_reset_time')
-            logger.info(f"Verification - stored value: {stored_value}")
-    except Exception as e:
-        logger.error(f"Error setting peak power reset time in database: {str(e)}")
-        logger.error(f"Exception type: {type(e)}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-
-def check_sustained_high_power(pdu_id, pdu_name, current_power, threshold_watts=None, duration_minutes=None):
-    """Check if power has been high for a sustained period"""
-    if threshold_watts is None:
-        threshold_watts = ALERT_CONFIG['high_power_threshold_watts']
-    if duration_minutes is None:
-        duration_minutes = ALERT_CONFIG['high_power_duration_minutes']
-    
-    current_time = datetime.utcnow()
-    
-    # Initialize tracking for this PDU if not exists
-    if pdu_id not in sustained_power_tracking:
-        sustained_power_tracking[pdu_id] = {
-            'start_time': None,
-            'threshold_exceeded': False,
-            'last_check': current_time
-        }
-    
-    tracking = sustained_power_tracking[pdu_id]
-    
-    # Check if current power exceeds threshold
-    if current_power > threshold_watts:
-        if not tracking['threshold_exceeded']:
-            # Just started exceeding threshold
-            tracking['start_time'] = current_time
-            tracking['threshold_exceeded'] = True
-            logger.info(f"🔍 {pdu_name} power threshold exceeded: {current_power:.1f}W > {threshold_watts}W")
-        
-        # Check if we've been over threshold for the required duration
-        if tracking['start_time']:
-            duration_exceeded = (current_time - tracking['start_time']).total_seconds() / 60
-            if duration_exceeded >= duration_minutes:
-                logger.warning(f"🚨 {pdu_name} sustained high power for {duration_exceeded:.1f} minutes: {current_power:.1f}W")
-                return True, duration_exceeded
-    else:
-        # Power is back below threshold, reset tracking
-        if tracking['threshold_exceeded']:
-            logger.info(f"✅ {pdu_name} power back to normal: {current_power:.1f}W")
-        tracking['threshold_exceeded'] = False
-        tracking['start_time'] = None
-    
-    return False, 0
-
-def send_discord_alert(alert):
-    """Send alert to Discord webhook"""
-    try:
-        # Determine color based on severity
-        color_map = {
-            'high': 0xFF0000,    # Red
-            'medium': 0xFFA500,  # Orange
-            'low': 0x0000FF      # Blue
-        }
-        color = color_map.get(alert['severity'], 0x808080)  # Default gray
-        
-        # Determine emoji based on alert type
-        emoji_map = {
-            'offline': '🔴',
-            'high_power': '⚡',
-            'zero_power': '🔌',
-            'power_spike': '📈',
-            'low_efficiency': '📉',
-            'sustained_high': '🔥'
-        }
-        emoji = emoji_map.get(alert['type'], '⚠️')
-        
-        embed = {
-            "title": f"{emoji} PDU Alert: {alert['type'].replace('_', ' ').title()}",
-            "description": alert['message'],
-            "color": color,
-            "timestamp": alert['timestamp'],
-            "footer": {
-                "text": "PDU Power Monitoring System"
-            }
-        }
-        
-        payload = {
-            "embeds": [embed]
-        }
-        
-        response = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
-        if response.status_code == 204:
-            logger.info(f"Discord alert sent successfully: {alert['type']}")
-        else:
-            logger.error(f"Failed to send Discord alert: {response.status_code}")
-            
-    except Exception as e:
-        logger.error(f"Error sending Discord alert: {str(e)}")
-
 @app.route('/')
 def index():
     """Main dashboard page"""
     try:
-        # Get all PDUs
-        pdus = PDU.query.all()
+        # Get the single PDU
+        pdu = PDU.query.first()
+        if not pdu:
+            return "No PDU configured", 404
+        
+        # Get all active ports
+        ports = PDUPort.query.filter_by(pdu_id=pdu.id, is_active=True).order_by(PDUPort.port_number).all()
         
         # Get current power readings
-        current_readings = {}
-        for pdu in pdus:
-            latest = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).first()
+        latest_total = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).first()
+        current_total_power = latest_total.total_power_watts if latest_total else 0
+        
+        # Get latest port readings
+        port_readings = {}
+        for port in ports:
+            latest = PortPowerReading.query.filter_by(port_id=port.id).order_by(PortPowerReading.timestamp.desc()).first()
             if latest:
-                current_readings[pdu.id] = {
+                port_readings[port.id] = {
                     'power_watts': latest.power_watts,
                     'power_kw': latest.power_kw,
+                    'current_amps': latest.current_amps,
+                    'voltage': latest.voltage,
+                    'power_factor': latest.power_factor,
                     'timestamp': latest.timestamp
                 }
+            else:
+                port_readings[port.id] = {
+                    'power_watts': 0,
+                    'power_kw': 0,
+                    'current_amps': 0,
+                    'voltage': 0,
+                    'power_factor': 0,
+                    'timestamp': None
+                }
         
-        return render_template('index.html', pdus=pdus, current_readings=current_readings)
+        return render_template('index.html', 
+                             pdu=pdu, 
+                             ports=ports, 
+                             current_total_power=current_total_power,
+                             port_readings=port_readings)
         
     except Exception as e:
         logger.error(f"Error rendering index: {str(e)}")
         return "Error loading dashboard", 500
 
-@app.route('/api/power-data')
-def get_power_data():
-    """API endpoint to get power consumption data"""
-    try:
-        period = request.args.get('period', 'hour')
-        
-        # Get power data directly from database
-        if period == 'hour':
-            # Get last 24 hours of data aligned to 15-minute boundaries (UTC), then label in UK time
-            now_utc = datetime.utcnow()
-            end_time = now_utc.replace(minute=(now_utc.minute // 15) * 15, second=0, microsecond=0)
-            start_time = end_time - timedelta(hours=24)
-            readings = (
-                PowerReading.query
-                .filter(PowerReading.timestamp >= start_time, PowerReading.timestamp <= end_time)
-                .all()
-            )
-            
-            # Group by 15-minute intervals
-            interval_data = {}
-            for reading in readings:
-                # Round to nearest 15-minute interval
-                minutes = reading.timestamp.minute
-                rounded_minutes = (minutes // 15) * 15
-                interval = reading.timestamp.replace(minute=rounded_minutes, second=0, microsecond=0)
-                
-                if interval not in interval_data:
-                    interval_data[interval] = []
-                interval_data[interval].append(reading.power_watts)
-            
-            chart_data = {
-                'labels': [],
-                'power_watts': []
-            }
-            
-            # Create all 15-minute intervals for the last 24 hours
-            for i in range(96):  # 24 hours * 4 intervals per hour
-                target_interval = start_time + timedelta(minutes=15*i)
-                # Convert UTC interval to UK time for labeling
-                uk_time = target_interval.replace(tzinfo=timezone.utc).astimezone(ZoneInfo('Europe/London'))
-                chart_data['labels'].append(uk_time.strftime('%H:%M'))
-                
-                if target_interval in interval_data:
-                    avg_power = sum(interval_data[target_interval]) / len(interval_data[target_interval])
-                    chart_data['power_watts'].append(round(avg_power, 1))
-                else:
-                    chart_data['power_watts'].append(0)  # Use 0 to show all dots
-        
-        elif period == 'day':
-            # Get last 7 days of data, grouped by day
-            start_time = datetime.utcnow() - timedelta(days=7)
-            readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
-            
-            # Group by day
-            daily_data = {}
-            for reading in readings:
-                day = reading.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
-                if day not in daily_data:
-                    daily_data[day] = []
-                daily_data[day].append(reading.power_watts)
-            
-            chart_data = {
-                'labels': [],
-                'power_watts': []
-            }
-            
-            # Create all 7 days
-            for i in range(7):
-                target_date = datetime.utcnow() - timedelta(days=6-i)
-                target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
-                
-                if target_date in daily_data:
-                    avg_power = sum(daily_data[target_date]) / len(daily_data[target_date])
-                    chart_data['power_watts'].append(round(avg_power, 1))
-                else:
-                    chart_data['power_watts'].append(0)
-        
-        elif period == 'week':
-            # Last 7 days, UK-local day boundaries, one dot per day
-            uk_tz = ZoneInfo('Europe/London')
-            now_uk = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(uk_tz)
-            start_uk = (now_uk - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
-            start_utc = start_uk.astimezone(timezone.utc).replace(tzinfo=None)
-
-            readings = PowerReading.query.filter(PowerReading.timestamp >= start_utc).all()
-
-            # Group by UK-local day
-            daily_data = {}
-            for reading in readings:
-                ts_uk = reading.timestamp.replace(tzinfo=timezone.utc).astimezone(uk_tz)
-                day_key = ts_uk.replace(hour=0, minute=0, second=0, microsecond=0)
-                if day_key not in daily_data:
-                    daily_data[day_key] = []
-                daily_data[day_key].append(reading.power_watts)
-
-            chart_data = {
-                'labels': [],
-                'power_watts': []
-            }
-
-            for i in range(7):
-                day_uk = start_uk + timedelta(days=i)
-                day_uk_midnight = day_uk.replace(hour=0, minute=0, second=0, microsecond=0)
-                chart_data['labels'].append(day_uk_midnight.strftime('%Y-%m-%d'))
-                if day_uk_midnight in daily_data:
-                    avg_power = sum(daily_data[day_uk_midnight]) / len(daily_data[day_uk_midnight])
-                    chart_data['power_watts'].append(round(avg_power, 1))
-                else:
-                    chart_data['power_watts'].append(0)
-        
-        elif period == 'month':
-            # Last 30 days, UK-local day boundaries, one dot per day
-            uk_tz = ZoneInfo('Europe/London')
-            now_uk = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(uk_tz)
-            start_uk = (now_uk - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
-            start_utc = start_uk.astimezone(timezone.utc).replace(tzinfo=None)
-
-            readings = PowerReading.query.filter(PowerReading.timestamp >= start_utc).all()
-
-            # Group by UK-local day
-            daily_data = {}
-            for reading in readings:
-                ts_uk = reading.timestamp.replace(tzinfo=timezone.utc).astimezone(uk_tz)
-                day_key = ts_uk.replace(hour=0, minute=0, second=0, microsecond=0)
-                if day_key not in daily_data:
-                    daily_data[day_key] = []
-                daily_data[day_key].append(reading.power_watts)
-
-            chart_data = {
-                'labels': [],
-                'power_watts': []
-            }
-
-            for i in range(30):
-                day_uk = start_uk + timedelta(days=i)
-                day_uk_midnight = day_uk.replace(hour=0, minute=0, second=0, microsecond=0)
-                chart_data['labels'].append(day_uk_midnight.strftime('%Y-%m-%d'))
-                if day_uk_midnight in daily_data:
-                    avg_power = sum(daily_data[day_uk_midnight]) / len(daily_data[day_uk_midnight])
-                    chart_data['power_watts'].append(round(avg_power, 1))
-                else:
-                    chart_data['power_watts'].append(0)
-        
-        return jsonify({
-            'success': True,
-            'data': chart_data,
-            'period': period
-        })
-        
-    except Exception as e:
-        logger.error(f"Error getting power data: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
 @app.route('/api/current-status')
 def get_current_status():
-    """API endpoint to get current PDU status and power readings"""
+    """API endpoint to get current PDU and port status"""
     try:
-        # Get all PDUs
-        pdus = PDU.query.all()
+        pdu = PDU.query.first()
+        if not pdu:
+            return jsonify({'success': False, 'error': 'No PDU configured'}), 404
         
-        # Get current power readings and calculate statistics
-        pdu_status = []
+        # Get latest total power reading
+        latest_total = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).first()
+        
+        # Get all active ports with their latest readings
+        ports = PDUPort.query.filter_by(pdu_id=pdu.id, is_active=True).order_by(PDUPort.port_number).all()
+        port_status = []
         total_power_watts = 0
-        online_pdus = 0
         
-        for pdu in pdus:
-            latest = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).first()
+        for port in ports:
+            latest = PortPowerReading.query.filter_by(port_id=port.id).order_by(PortPowerReading.timestamp.desc()).first()
             
             if latest:
                 # Check if reading is recent (within last 5 minutes)
@@ -394,26 +102,33 @@ def get_current_status():
                 online = time_diff.total_seconds() < 300  # 5 minutes
                 
                 if online:
-                    online_pdus += 1
                     total_power_watts += latest.power_watts
                 
-                pdu_status.append({
-                    'id': pdu.id,
-                    'name': pdu.name,
-                    'ip_address': pdu.ip_address,
+                port_status.append({
+                    'id': port.id,
+                    'port_number': port.port_number,
+                    'name': port.name,
+                    'description': port.description,
                     'online': online,
                     'current_power_watts': latest.power_watts,
                     'current_power_kw': latest.power_kw,
+                    'current_amps': latest.current_amps,
+                    'voltage': latest.voltage,
+                    'power_factor': latest.power_factor,
                     'last_reading': latest.timestamp.isoformat()
                 })
             else:
-                pdu_status.append({
-                    'id': pdu.id,
-                    'name': pdu.name,
-                    'ip_address': pdu.ip_address,
+                port_status.append({
+                    'id': port.id,
+                    'port_number': port.port_number,
+                    'name': port.name,
+                    'description': port.description,
                     'online': False,
                     'current_power_watts': 0,
                     'current_power_kw': 0,
+                    'current_amps': 0,
+                    'voltage': 0,
+                    'power_factor': 0,
                     'last_reading': None
                 })
         
@@ -422,55 +137,31 @@ def get_current_status():
         today_readings = PowerReading.query.filter(PowerReading.timestamp >= today_start).all()
         
         # Calculate energy consumption (kWh) from power readings
-        # Each reading represents instantaneous power, so we need to integrate over time
-        # Assuming readings are taken every minute, each reading contributes 1/60 kWh
-        total_energy_kwh = sum(reading.power_kw for reading in today_readings) / 60.0  # Convert to kWh (assuming 1-minute intervals)
+        total_energy_kwh = sum(reading.total_power_kw for reading in today_readings) / 60.0  # Convert to kWh (assuming 1-minute intervals)
         
-        # Get peak power for today (only from readings after the last reset)
+        # Get peak power for today
         peak_power_watts = 0
         if today_readings:
-            peak_power_reset_time = get_peak_power_reset_time()
-            logger.info(f"Peak power calculation - Total readings today: {len(today_readings)}")
-            logger.info(f"Peak power calculation - Reset time: {peak_power_reset_time}")
-            logger.info(f"Peak power calculation - Current time: {datetime.utcnow()}")
-            
-            if peak_power_reset_time:
-                # Only consider readings after the reset time
-                # Ensure both times are timezone-naive for comparison
-                reset_time_naive = peak_power_reset_time.replace(tzinfo=None) if peak_power_reset_time.tzinfo else peak_power_reset_time
-                filtered_readings = [r for r in today_readings if r.timestamp > reset_time_naive]
-                logger.info(f"Peak power calculation - Filtered readings after reset: {len(filtered_readings)}")
-                
-                # Show some sample timestamps for debugging
-                if filtered_readings:
-                    sample_timestamps = [r.timestamp.isoformat() for r in filtered_readings[:3]]
-                    logger.info(f"Peak power calculation - Sample timestamps after reset: {sample_timestamps}")
-                    peak_power_watts = max(reading.power_watts for reading in filtered_readings)
-                    logger.info(f"Peak power calculation - Peak power after reset: {peak_power_watts:.1f}W")
-                else:
-                    # No readings after reset time, peak power should be 0
-                    peak_power_watts = 0
-                    logger.info("Peak power calculation - No readings after reset time, setting to 0")
-                    
-                    # Show some sample timestamps from all readings for debugging
-                    sample_timestamps = [r.timestamp.isoformat() for r in today_readings[:3]]
-                    logger.info(f"Peak power calculation - Sample timestamps from all readings: {sample_timestamps}")
-            else:
-                # No reset, use all today's readings
-                peak_power_watts = max(reading.power_watts for reading in today_readings)
-                logger.info(f"Peak power calculation - Peak power (no reset): {peak_power_watts:.1f}W")
+            peak_power_watts = max(reading.total_power_watts for reading in today_readings)
         
-        statistics = {
-            'total_power_watts': total_power_watts,
-            'total_energy_kwh': total_energy_kwh,
-            'peak_power_watts': peak_power_watts,
-            'online_pdus': online_pdus
-        }
+        # Count online ports
+        online_ports = sum(1 for port in port_status if port['online'])
         
         return jsonify({
             'success': True,
-            'pdus': pdu_status,
-            'statistics': statistics
+            'pdu': {
+                'id': pdu.id,
+                'name': pdu.name,
+                'model': pdu.model,
+                'ip_address': pdu.ip_address,
+                'total_power_watts': total_power_watts,
+                'total_power_kw': total_power_watts / 1000,
+                'total_energy_kwh': total_energy_kwh,
+                'peak_power_watts': peak_power_watts,
+                'online_ports': online_ports,
+                'total_ports': len(ports)
+            },
+            'ports': port_status
         })
         
     except Exception as e:
@@ -480,74 +171,443 @@ def get_current_status():
             'error': str(e)
         }), 500
 
-@app.route('/api/statistics')
-def get_statistics():
-    """API endpoint to get power consumption statistics"""
+@app.route('/api/power-data')
+def get_power_data():
+    """API endpoint to get power consumption data for charts"""
     try:
-        period = request.args.get('period', 'day')
-        pdu_ids = request.args.getlist('pdu_ids[]')
+        period = request.args.get('period', 'hour')
+        view_type = request.args.get('view', 'total')  # 'total' or 'ports'
         
-        # Convert pdu_ids to integers if provided
-        if pdu_ids:
-            pdu_ids = [int(pid) for pid in pdu_ids if pid.isdigit()]
+        pdu = PDU.query.first()
+        if not pdu:
+            return jsonify({'success': False, 'error': 'No PDU configured'}), 404
         
-        # Get power summary data
-        data = data_processor.get_power_summary(period, pdu_ids)
-        
-        if not data:
+        if view_type == 'total':
+            # Get total PDU power data
+            if period == 'hour':
+                # Get last 24 hours of data aligned to 15-minute boundaries (UTC), then label in UK time
+                now_utc = datetime.utcnow()
+                end_time = now_utc.replace(minute=(now_utc.minute // 15) * 15, second=0, microsecond=0)
+                start_time = end_time - timedelta(hours=24)
+                readings = (
+                    PowerReading.query
+                    .filter(PowerReading.timestamp >= start_time, PowerReading.timestamp <= end_time)
+                    .all()
+                )
+                
+                # Group by 15-minute intervals
+                interval_data = {}
+                for reading in readings:
+                    minutes = reading.timestamp.minute
+                    rounded_minutes = (minutes // 15) * 15
+                    interval = reading.timestamp.replace(minute=rounded_minutes, second=0, microsecond=0)
+                    
+                    if interval not in interval_data:
+                        interval_data[interval] = []
+                    interval_data[interval].append(reading.total_power_watts)
+                
+                chart_data = {
+                    'labels': [],
+                    'power_watts': []
+                }
+                
+                # Create all 15-minute intervals for the last 24 hours
+                for i in range(96):  # 24 hours * 4 intervals per hour
+                    target_interval = start_time + timedelta(minutes=15*i)
+                    uk_time = target_interval.replace(tzinfo=timezone.utc).astimezone(ZoneInfo('Europe/London'))
+                    chart_data['labels'].append(uk_time.strftime('%H:%M'))
+                    
+                    if target_interval in interval_data:
+                        avg_power = sum(interval_data[target_interval]) / len(interval_data[target_interval])
+                        chart_data['power_watts'].append(round(avg_power, 1))
+                    else:
+                        chart_data['power_watts'].append(0)
+            
+            elif period == 'week':
+                # Get last 7 days of data, grouped by day
+                start_time = datetime.utcnow() - timedelta(days=7)
+                readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
+                
+                # Group by day
+                daily_data = {}
+                for reading in readings:
+                    day = reading.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+                    if day not in daily_data:
+                        daily_data[day] = []
+                    daily_data[day].append(reading.total_power_watts)
+                
+                chart_data = {
+                    'labels': [],
+                    'power_watts': []
+                }
+                
+                # Create all 7 days
+                for i in range(7):
+                    target_date = datetime.utcnow() - timedelta(days=6-i)
+                    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+                    
+                    if target_date in daily_data:
+                        avg_power = sum(daily_data[target_date]) / len(daily_data[target_date])
+                        chart_data['power_watts'].append(round(avg_power, 1))
+                    else:
+                        chart_data['power_watts'].append(0)
+            
+            elif period == 'month':
+                # Get last 30 days of data, grouped by day
+                start_time = datetime.utcnow() - timedelta(days=30)
+                readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
+                
+                # Group by day
+                daily_data = {}
+                for reading in readings:
+                    day = reading.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+                    if day not in daily_data:
+                        daily_data[day] = []
+                    daily_data[day].append(reading.total_power_watts)
+                
+                chart_data = {
+                    'labels': [],
+                    'power_watts': []
+                }
+                
+                # Create all 30 days
+                for i in range(30):
+                    target_date = datetime.utcnow() - timedelta(days=29-i)
+                    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+                    
+                    if target_date in daily_data:
+                        avg_power = sum(daily_data[target_date]) / len(daily_data[target_date])
+                        chart_data['power_watts'].append(round(avg_power, 1))
+                    else:
+                        chart_data['power_watts'].append(0)
+            
+            elif period == 'year':
+                # Get last 12 months of data, grouped by month
+                start_time = datetime.utcnow() - timedelta(days=365)
+                readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).all()
+                
+                # Group by month
+                monthly_data = {}
+                for reading in readings:
+                    month = reading.timestamp.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    if month not in monthly_data:
+                        monthly_data[month] = []
+                    monthly_data[month].append(reading.total_power_watts)
+                
+                chart_data = {
+                    'labels': [],
+                    'power_watts': []
+                }
+                
+                # Create all 12 months
+                for i in range(12):
+                    target_month = datetime.utcnow() - timedelta(days=365-30*i)
+                    target_month = target_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    chart_data['labels'].append(target_month.strftime('%Y-%m'))
+                    
+                    if target_month in monthly_data:
+                        avg_power = sum(monthly_data[target_month]) / len(monthly_data[target_month])
+                        chart_data['power_watts'].append(round(avg_power, 1))
+                    else:
+                        chart_data['power_watts'].append(0)
+            
             return jsonify({
                 'success': True,
-                'data': {
-                    'total_kwh': 0,
-                    'avg_power_watts': 0,
-                    'max_power_watts': 0,
-                    'min_power_watts': 0,
-                    'peak_hour': None
-                }
+                'data': chart_data,
+                'period': period,
+                'view_type': view_type
             })
         
-        # Calculate statistics
-        total_kwh = sum(item['total_kwh'] for item in data)
-        avg_power = sum(item['avg_power_watts'] for item in data) / len(data)
-        max_power = max(item['max_power_watts'] for item in data)
-        min_power = min(item['min_power_watts'] for item in data)
-        
-        # Find peak hour
-        peak_item = max(data, key=lambda x: x['total_kwh'])
-        peak_hour = peak_item['period_start'].strftime('%Y-%m-%d %H:%M')
-        
-        return jsonify({
-            'success': True,
-            'data': {
-                'total_kwh': round(total_kwh, 3),
-                'avg_power_watts': round(avg_power, 1),
-                'max_power_watts': round(max_power, 1),
-                'min_power_watts': round(min_power, 1),
-                'peak_hour': peak_hour
-            }
-        })
+        else:
+            # Get individual port data
+            ports = PDUPort.query.filter_by(pdu_id=pdu.id, is_active=True).order_by(PDUPort.port_number).all()
+            
+            if period == 'hour':
+                # Get last 24 hours of data for each port
+                now_utc = datetime.utcnow()
+                end_time = now_utc.replace(minute=(now_utc.minute // 15) * 15, second=0, microsecond=0)
+                start_time = end_time - timedelta(hours=24)
+                
+                chart_data = {
+                    'labels': [],
+                    'ports': []
+                }
+                
+                # Create all 15-minute intervals for the last 24 hours
+                for i in range(96):
+                    target_interval = start_time + timedelta(minutes=15*i)
+                    uk_time = target_interval.replace(tzinfo=timezone.utc).astimezone(ZoneInfo('Europe/London'))
+                    chart_data['labels'].append(uk_time.strftime('%H:%M'))
+                
+                # Get data for each port
+                for port in ports:
+                    port_readings = (
+                        PortPowerReading.query
+                        .filter(PortPowerReading.port_id == port.id,
+                               PortPowerReading.timestamp >= start_time,
+                               PortPowerReading.timestamp <= end_time)
+                        .all()
+                    )
+                    
+                    # Group by 15-minute intervals
+                    interval_data = {}
+                    for reading in port_readings:
+                        minutes = reading.timestamp.minute
+                        rounded_minutes = (minutes // 15) * 15
+                        interval = reading.timestamp.replace(minute=rounded_minutes, second=0, microsecond=0)
+                        
+                        if interval not in interval_data:
+                            interval_data[interval] = []
+                        interval_data[interval].append(reading.power_watts)
+                    
+                    # Create power data for this port
+                    port_power_data = []
+                    for i in range(96):
+                        target_interval = start_time + timedelta(minutes=15*i)
+                        if target_interval in interval_data:
+                            avg_power = sum(interval_data[target_interval]) / len(interval_data[target_interval])
+                            port_power_data.append(round(avg_power, 1))
+                        else:
+                            port_power_data.append(0)
+                    
+                    chart_data['ports'].append({
+                        'id': port.id,
+                        'name': port.name,
+                        'port_number': port.port_number,
+                        'power_watts': port_power_data
+                    })
+            
+            elif period == 'week':
+                # Get last 7 days of data for each port
+                start_time = datetime.utcnow() - timedelta(days=7)
+                
+                chart_data = {
+                    'labels': [],
+                    'ports': []
+                }
+                
+                # Create all 7 days
+                for i in range(7):
+                    target_date = datetime.utcnow() - timedelta(days=6-i)
+                    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+                
+                # Get data for each port
+                for port in ports:
+                    port_readings = (
+                        PortPowerReading.query
+                        .filter(PortPowerReading.port_id == port.id,
+                               PortPowerReading.timestamp >= start_time)
+                        .all()
+                    )
+                    
+                    # Group by day
+                    daily_data = {}
+                    for reading in port_readings:
+                        day = reading.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+                        if day not in daily_data:
+                            daily_data[day] = []
+                        daily_data[day].append(reading.power_watts)
+                    
+                    # Create power data for this port
+                    port_power_data = []
+                    for i in range(7):
+                        target_date = datetime.utcnow() - timedelta(days=6-i)
+                        target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                        if target_date in daily_data:
+                            avg_power = sum(daily_data[target_date]) / len(daily_data[target_date])
+                            port_power_data.append(round(avg_power, 1))
+                        else:
+                            port_power_data.append(0)
+                    
+                    chart_data['ports'].append({
+                        'id': port.id,
+                        'name': port.name,
+                        'port_number': port.port_number,
+                        'power_watts': port_power_data
+                    })
+            
+            elif period == 'month':
+                # Get last 30 days of data for each port
+                start_time = datetime.utcnow() - timedelta(days=30)
+                
+                chart_data = {
+                    'labels': [],
+                    'ports': []
+                }
+                
+                # Create all 30 days
+                for i in range(30):
+                    target_date = datetime.utcnow() - timedelta(days=29-i)
+                    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+                
+                # Get data for each port
+                for port in ports:
+                    port_readings = (
+                        PortPowerReading.query
+                        .filter(PortPowerReading.port_id == port.id,
+                               PortPowerReading.timestamp >= start_time)
+                        .all()
+                    )
+                    
+                    # Group by day
+                    daily_data = {}
+                    for reading in port_readings:
+                        day = reading.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+                        if day not in daily_data:
+                            daily_data[day] = []
+                        daily_data[day].append(reading.power_watts)
+                    
+                    # Create power data for this port
+                    port_power_data = []
+                    for i in range(30):
+                        target_date = datetime.utcnow() - timedelta(days=29-i)
+                        target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                        if target_date in daily_data:
+                            avg_power = sum(daily_data[target_date]) / len(daily_data[target_date])
+                            port_power_data.append(round(avg_power, 1))
+                        else:
+                            port_power_data.append(0)
+                    
+                    chart_data['ports'].append({
+                        'id': port.id,
+                        'name': port.name,
+                        'port_number': port.port_number,
+                        'power_watts': port_power_data
+                    })
+            
+            elif period == 'year':
+                # Get last 12 months of data for each port
+                start_time = datetime.utcnow() - timedelta(days=365)
+                
+                chart_data = {
+                    'labels': [],
+                    'ports': []
+                }
+                
+                # Create all 12 months
+                for i in range(12):
+                    target_month = datetime.utcnow() - timedelta(days=365-30*i)
+                    target_month = target_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    chart_data['labels'].append(target_month.strftime('%Y-%m'))
+                
+                # Get data for each port
+                for port in ports:
+                    port_readings = (
+                        PortPowerReading.query
+                        .filter(PortPowerReading.port_id == port.id,
+                               PortPowerReading.timestamp >= start_time)
+                        .all()
+                    )
+                    
+                    # Group by month
+                    monthly_data = {}
+                    for reading in port_readings:
+                        month = reading.timestamp.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                        if month not in monthly_data:
+                            monthly_data[month] = []
+                        monthly_data[month].append(reading.power_watts)
+                    
+                    # Create power data for this port
+                    port_power_data = []
+                    for i in range(12):
+                        target_month = datetime.utcnow() - timedelta(days=365-30*i)
+                        target_month = target_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                        if target_month in monthly_data:
+                            avg_power = sum(monthly_data[target_month]) / len(monthly_data[target_month])
+                            port_power_data.append(round(avg_power, 1))
+                        else:
+                            port_power_data.append(0)
+                    
+                    chart_data['ports'].append({
+                        'id': port.id,
+                        'name': port.name,
+                        'port_number': port.port_number,
+                        'power_watts': port_power_data
+                    })
+            
+            return jsonify({
+                'success': True,
+                'data': chart_data,
+                'period': period,
+                'view_type': view_type
+            })
         
     except Exception as e:
-        logger.error(f"Error getting statistics: {str(e)}")
+        logger.error(f"Error getting power data: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
 
-@app.route('/api/pdus')
-def get_pdus():
-    """API endpoint to get list of PDUs"""
+@app.route('/api/ports')
+def get_ports():
+    """API endpoint to get list of ports"""
     try:
-        pdus = PDU.query.all()
-        pdu_list = [{'id': pdu.id, 'name': pdu.name, 'ip': pdu.ip_address} for pdu in pdus]
+        pdu = PDU.query.first()
+        if not pdu:
+            return jsonify({'success': False, 'error': 'No PDU configured'}), 404
+        
+        ports = PDUPort.query.filter_by(pdu_id=pdu.id, is_active=True).order_by(PDUPort.port_number).all()
+        port_list = []
+        
+        for port in ports:
+            latest = PortPowerReading.query.filter_by(port_id=port.id).order_by(PortPowerReading.timestamp.desc()).first()
+            port_data = {
+                'id': port.id,
+                'port_number': port.port_number,
+                'name': port.name,
+                'description': port.description,
+                'is_active': port.is_active,
+                'current_power_watts': latest.power_watts if latest else 0,
+                'current_power_kw': latest.power_kw if latest else 0,
+                'current_amps': latest.current_amps if latest else 0,
+                'voltage': latest.voltage if latest else 0,
+                'power_factor': latest.power_factor if latest else 0,
+                'last_reading': latest.timestamp.isoformat() if latest else None
+            }
+            port_list.append(port_data)
         
         return jsonify({
             'success': True,
-            'data': pdu_list
+            'data': port_list
         })
         
     except Exception as e:
-        logger.error(f"Error getting PDUs: {str(e)}")
+        logger.error(f"Error getting ports: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/update-port-name', methods=['POST'])
+def update_port_name():
+    """API endpoint to update port name"""
+    try:
+        data = request.get_json()
+        port_id = data.get('port_id')
+        new_name = data.get('name')
+        
+        if not port_id or not new_name:
+            return jsonify({'success': False, 'error': 'Missing port_id or name'}), 400
+        
+        port = PDUPort.query.get(port_id)
+        if not port:
+            return jsonify({'success': False, 'error': 'Port not found'}), 404
+        
+        port.name = new_name
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Port {port.port_number} renamed to "{new_name}"'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating port name: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -558,104 +618,147 @@ def get_energy_data():
     """API endpoint to get energy consumption data"""
     try:
         period = request.args.get('period', 'day')
+        view_type = request.args.get('view', 'total')  # 'total' or 'ports'
         
-        # Get energy data for the specified period
-        if period == 'day':
-            # Get hourly energy consumption for today
-            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-            readings = PowerReading.query.filter(PowerReading.timestamp >= today_start).all()
-            
-            # Group by hour
-            hourly_data = {}
-            for reading in readings:
-                hour = reading.timestamp.replace(minute=0, second=0, microsecond=0)
-                if hour not in hourly_data:
-                    hourly_data[hour] = []
-                hourly_data[hour].append(reading.power_kw)
-            
-            chart_data = {
-                'labels': [],
-                'energy_kwh': []
-            }
-            
-            # Create all 24 hours for today
-            for i in range(24):
-                target_hour = today_start + timedelta(hours=i)
-                # Show hour labels (e.g., "9", "10", "11") for the x-axis
-                chart_data['labels'].append(target_hour.strftime('%H'))
+        pdu = PDU.query.first()
+        if not pdu:
+            return jsonify({'success': False, 'error': 'No PDU configured'}), 404
+        
+        if view_type == 'total':
+            # Get total PDU energy data
+            if period == 'day':
+                # Get hourly energy consumption for today
+                today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+                readings = PowerReading.query.filter(PowerReading.timestamp >= today_start).all()
                 
-                if target_hour in hourly_data:
-                    # Sum power readings and convert to kWh (assuming 1-minute intervals)
-                    energy_kwh = sum(hourly_data[target_hour]) / 60
-                    chart_data['energy_kwh'].append(round(energy_kwh, 3))
-                else:
-                    chart_data['energy_kwh'].append(0)  # Use 0 to show all bars
-        
-        elif period == 'week':
-            # Get daily energy consumption for the last 7 days
-            week_start = datetime.utcnow() - timedelta(days=7)
-            readings = PowerReading.query.filter(PowerReading.timestamp >= week_start).all()
-            
-            # Group by day
-            daily_data = {}
-            for reading in readings:
-                day = reading.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
-                if day not in daily_data:
-                    daily_data[day] = []
-                daily_data[day].append(reading.power_kw)
-            
-            chart_data = {
-                'labels': [],
-                'energy_kwh': []
-            }
-            
-            # Create all 7 days
-            for i in range(7):
-                target_date = datetime.utcnow() - timedelta(days=6-i)
-                target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+                # Group by hour
+                hourly_data = {}
+                for reading in readings:
+                    hour = reading.timestamp.replace(minute=0, second=0, microsecond=0)
+                    if hour not in hourly_data:
+                        hourly_data[hour] = []
+                    hourly_data[hour].append(reading.total_power_kw)
                 
-                if target_date in daily_data:
-                    energy_kwh = sum(daily_data[target_date]) / 60
-                    chart_data['energy_kwh'].append(round(energy_kwh, 3))
-                else:
-                    chart_data['energy_kwh'].append(0)  # Use 0 to show all bars
-        
-        elif period == 'month':
-            # Get daily energy consumption for the last 30 days
-            month_start = datetime.utcnow() - timedelta(days=30)
-            readings = PowerReading.query.filter(PowerReading.timestamp >= month_start).all()
-            
-            # Group by day
-            daily_data = {}
-            for reading in readings:
-                day = reading.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
-                if day not in daily_data:
-                    daily_data[day] = []
-                daily_data[day].append(reading.power_kw)
-            
-            chart_data = {
-                'labels': [],
-                'energy_kwh': []
-            }
-            
-            # Create all 30 days
-            for i in range(30):
-                target_date = datetime.utcnow() - timedelta(days=29-i)
-                target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+                chart_data = {
+                    'labels': [],
+                    'energy_kwh': []
+                }
                 
-                if target_date in daily_data:
-                    energy_kwh = sum(daily_data[target_date]) / 60
-                    chart_data['energy_kwh'].append(round(energy_kwh, 3))
-                else:
-                    chart_data['energy_kwh'].append(0)  # Use 0 to show all bars
+                # Create all 24 hours for today
+                for i in range(24):
+                    target_hour = today_start + timedelta(hours=i)
+                    chart_data['labels'].append(target_hour.strftime('%H'))
+                    
+                    if target_hour in hourly_data:
+                        energy_kwh = sum(hourly_data[target_hour]) / 60
+                        chart_data['energy_kwh'].append(round(energy_kwh, 3))
+                    else:
+                        chart_data['energy_kwh'].append(0)
+            
+            elif period == 'week':
+                # Get daily energy consumption for the last 7 days
+                week_start = datetime.utcnow() - timedelta(days=7)
+                readings = PowerReading.query.filter(PowerReading.timestamp >= week_start).all()
+                
+                # Group by day
+                daily_data = {}
+                for reading in readings:
+                    day = reading.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+                    if day not in daily_data:
+                        daily_data[day] = []
+                    daily_data[day].append(reading.total_power_kw)
+                
+                chart_data = {
+                    'labels': [],
+                    'energy_kwh': []
+                }
+                
+                # Create all 7 days
+                for i in range(7):
+                    target_date = datetime.utcnow() - timedelta(days=6-i)
+                    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+                    
+                    if target_date in daily_data:
+                        energy_kwh = sum(daily_data[target_date]) / 60
+                        chart_data['energy_kwh'].append(round(energy_kwh, 3))
+                    else:
+                        chart_data['energy_kwh'].append(0)
+            
+            elif period == 'month':
+                # Get daily energy consumption for the last 30 days
+                month_start = datetime.utcnow() - timedelta(days=30)
+                readings = PowerReading.query.filter(PowerReading.timestamp >= month_start).all()
+                
+                # Group by day
+                daily_data = {}
+                for reading in readings:
+                    day = reading.timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+                    if day not in daily_data:
+                        daily_data[day] = []
+                    daily_data[day].append(reading.total_power_kw)
+                
+                chart_data = {
+                    'labels': [],
+                    'energy_kwh': []
+                }
+                
+                # Create all 30 days
+                for i in range(30):
+                    target_date = datetime.utcnow() - timedelta(days=29-i)
+                    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+                    
+                    if target_date in daily_data:
+                        energy_kwh = sum(daily_data[target_date]) / 60
+                        chart_data['energy_kwh'].append(round(energy_kwh, 3))
+                    else:
+                        chart_data['energy_kwh'].append(0)
+            
+            elif period == 'year':
+                # Get monthly energy consumption for the last 12 months
+                year_start = datetime.utcnow() - timedelta(days=365)
+                readings = PowerReading.query.filter(PowerReading.timestamp >= year_start).all()
+                
+                # Group by month
+                monthly_data = {}
+                for reading in readings:
+                    month = reading.timestamp.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    if month not in monthly_data:
+                        monthly_data[month] = []
+                    monthly_data[month].append(reading.total_power_kw)
+                
+                chart_data = {
+                    'labels': [],
+                    'energy_kwh': []
+                }
+                
+                # Create all 12 months
+                for i in range(12):
+                    target_month = datetime.utcnow() - timedelta(days=365-30*i)
+                    target_month = target_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    chart_data['labels'].append(target_month.strftime('%Y-%m'))
+                    
+                    if target_month in monthly_data:
+                        energy_kwh = sum(monthly_data[target_month]) / 60
+                        chart_data['energy_kwh'].append(round(energy_kwh, 3))
+                    else:
+                        chart_data['energy_kwh'].append(0)
+            
+            return jsonify({
+                'success': True,
+                'data': chart_data,
+                'period': period,
+                'view_type': view_type
+            })
         
-        return jsonify({
-            'success': True,
-            'data': chart_data,
-            'period': period
-        })
+        else:
+            # Get individual port energy data (similar structure to power data)
+            # This would be implemented similarly to the power data endpoint
+            return jsonify({
+                'success': False,
+                'error': 'Port energy data not yet implemented'
+            }), 501
         
     except Exception as e:
         logger.error(f"Error getting energy data: {str(e)}")
@@ -672,6 +775,10 @@ def export_data():
         format_type = request.args.get('format', 'csv')
         
         if format_type == 'csv':
+            pdu = PDU.query.first()
+            if not pdu:
+                return jsonify({'success': False, 'error': 'No PDU configured'}), 404
+            
             # Get power readings for the specified period
             if period == 'day':
                 start_time = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -682,21 +789,57 @@ def export_data():
             else:
                 start_time = datetime.utcnow() - timedelta(days=1)
             
-            readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).order_by(PowerReading.timestamp).all()
+            # Get total PDU readings
+            total_readings = PowerReading.query.filter(PowerReading.timestamp >= start_time).order_by(PowerReading.timestamp).all()
+            
+            # Get port readings
+            ports = PDUPort.query.filter_by(pdu_id=pdu.id, is_active=True).order_by(PDUPort.port_number).all()
+            port_readings = {}
+            for port in ports:
+                readings = PortPowerReading.query.filter(
+                    PortPowerReading.port_id == port.id,
+                    PortPowerReading.timestamp >= start_time
+                ).order_by(PortPowerReading.timestamp).all()
+                port_readings[port.id] = readings
             
             # Create CSV content
-            csv_content = "Timestamp,PDU,Power (Watts),Power (kW)\n"
+            csv_content = "Timestamp,Total Power (Watts),Total Power (kW)"
+            for port in ports:
+                csv_content += f",{port.name} (Watts),{port.name} (kW)"
+            csv_content += "\n"
             
-            for reading in readings:
-                pdu = PDU.query.get(reading.pdu_id)
-                pdu_name = pdu.name if pdu else f"PDU-{reading.pdu_id}"
-                csv_content += f"{reading.timestamp},{pdu_name},{reading.power_watts},{reading.power_kw}\n"
+            # Combine all timestamps and create rows
+            all_timestamps = set()
+            for reading in total_readings:
+                all_timestamps.add(reading.timestamp)
+            for port_id, readings in port_readings.items():
+                for reading in readings:
+                    all_timestamps.add(reading.timestamp)
+            
+            all_timestamps = sorted(list(all_timestamps))
+            
+            for timestamp in all_timestamps:
+                # Find total reading for this timestamp
+                total_reading = next((r for r in total_readings if r.timestamp == timestamp), None)
+                total_watts = total_reading.total_power_watts if total_reading else 0
+                total_kw = total_reading.total_power_kw if total_reading else 0
+                
+                csv_content += f"{timestamp},{total_watts},{total_kw}"
+                
+                # Add port readings for this timestamp
+                for port in ports:
+                    port_reading = next((r for r in port_readings[port.id] if r.timestamp == timestamp), None)
+                    port_watts = port_reading.power_watts if port_reading else 0
+                    port_kw = port_reading.power_kw if port_reading else 0
+                    csv_content += f",{port_watts},{port_kw}"
+                
+                csv_content += "\n"
             
             from flask import Response
             return Response(
                 csv_content,
                 mimetype='text/csv',
-                headers={'Content-Disposition': f'attachment; filename=pdu-power-data-{period}-{datetime.now().strftime("%Y%m%d-%H%M%S")}.csv'}
+                headers={'Content-Disposition': f'attachment; filename=raritan-pdu-data-{period}-{datetime.now().strftime("%Y%m%d-%H%M%S")}.csv'}
             )
         
         return jsonify({
@@ -706,515 +849,6 @@ def export_data():
         
     except Exception as e:
         logger.error(f"Error exporting data: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/api/alerts')
-def get_alerts():
-    """API endpoint to get current alerts"""
-    try:
-        # Get all PDUs
-        pdus = PDU.query.all()
-        alerts = []
-        
-        for pdu in pdus:
-            latest = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).first()
-            
-            if latest:
-                # Check for various alert conditions
-                time_diff = datetime.utcnow() - latest.timestamp
-                
-                # Offline alert (no reading in last X minutes)
-                if time_diff.total_seconds() > ALERT_CONFIG['offline_timeout_minutes'] * 60:
-                    alerts.append({
-                        'type': 'offline',
-                        'severity': 'high',
-                        'message': f'{pdu.name} is offline (last reading: {time_diff.total_seconds()/60:.1f} minutes ago)',
-                        'pdu_id': pdu.id,
-                        'timestamp': latest.timestamp.isoformat()
-                    })
-                
-                # Sustained high power alert (over threshold for sustained period)
-                sustained_high, duration = check_sustained_high_power(
-                    pdu.id, 
-                    pdu.name, 
-                    latest.power_watts
-                )
-                
-                if sustained_high:
-                    alerts.append({
-                        'type': 'sustained_high_power',
-                        'severity': 'medium',
-                        'message': f'{pdu.name} sustained high power: {latest.power_watts:.1f}W for {duration:.1f} minutes',
-                        'pdu_id': pdu.id,
-                        'timestamp': latest.timestamp.isoformat(),
-                        'duration_minutes': duration
-                    })
-                
-                # Zero power alert (for any PDU showing 0W for sustained period)
-                if latest.power_watts == 0:
-                    # Check if this is a sustained zero reading
-                    recent_readings = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).limit(ALERT_CONFIG['zero_power_sustained_readings'] + 1).all()
-                    if len(recent_readings) >= ALERT_CONFIG['zero_power_sustained_readings']:
-                        # Check if last few readings are also zero
-                        if all(r.power_watts == 0 for r in recent_readings[:ALERT_CONFIG['zero_power_sustained_readings']]):
-                            alerts.append({
-                                'type': 'sustained_zero_power',
-                                'severity': 'medium',
-                                'message': f'{pdu.name} shows sustained zero power consumption',
-                                'pdu_id': pdu.id,
-                                'timestamp': latest.timestamp.isoformat()
-                            })
-                
-                # Power spike alert (check for sustained increase)
-                recent_readings = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).limit(5).all()
-                if len(recent_readings) >= 3:
-                    current_power = recent_readings[0].power_watts
-                    previous_power = recent_readings[1].power_watts
-                    if previous_power > 0:
-                        power_increase = ((current_power - previous_power) / previous_power) * 100
-                        if power_increase > ALERT_CONFIG['power_spike_threshold_percent']:
-                            # Check if this spike is sustained (not just a momentary blip)
-                            sustained_spike = True
-                            for i in range(1, min(3, len(recent_readings))):
-                                if recent_readings[i].power_watts > 0:
-                                    spike_increase = ((recent_readings[i-1].power_watts - recent_readings[i].power_watts) / recent_readings[i].power_watts) * 100
-                                    if spike_increase < ALERT_CONFIG['power_spike_sustained_threshold']:
-                                        sustained_spike = False
-                                        break
-                            
-                            if sustained_spike:
-                                alerts.append({
-                                    'type': 'sustained_power_spike',
-                                    'severity': 'medium',
-                                    'message': f'{pdu.name} sustained power spike: {power_increase:.1f}% increase ({previous_power:.1f}W → {current_power:.1f}W)',
-                                    'pdu_id': pdu.id,
-                                    'timestamp': latest.timestamp.isoformat()
-                                })
-                
-                # Efficiency alert (low power factor)
-                estimated_power_factor = 0.95  # Default assumption
-                if latest.power_watts > 0:
-                    # Calculate apparent power (V * I)
-                    apparent_power = 240 * (latest.power_watts / 240 / 0.95)  # Reverse calculate current
-                    if apparent_power > 0:
-                        estimated_power_factor = latest.power_watts / apparent_power
-                        if estimated_power_factor < ALERT_CONFIG['low_efficiency_threshold']:
-                            alerts.append({
-                                'type': 'low_efficiency',
-                                'severity': 'low',
-                                'message': f'{pdu.name} low power factor: {estimated_power_factor:.2f} (should be >{ALERT_CONFIG["low_efficiency_threshold"]})',
-                                'pdu_id': pdu.id,
-                                'timestamp': latest.timestamp.isoformat()
-                            })
-                
-                # Trend alert (sustained high usage >80% of typical for 1 hour)
-                # Get readings from last hour
-                hour_ago = datetime.utcnow() - timedelta(hours=1)
-                hourly_readings = PowerReading.query.filter(
-                    PowerReading.pdu_id == pdu.id,
-                    PowerReading.timestamp >= hour_ago
-                ).all()
-                
-                if len(hourly_readings) >= 10:  # At least 10 readings in the hour
-                    avg_power = sum(r.power_watts for r in hourly_readings) / len(hourly_readings)
-                    # Assume typical usage is around 1000W (adjust as needed)
-                    typical_usage = 1000
-                    if avg_power > typical_usage * 0.8:  # 80% of 1000W = 800W threshold
-                        alerts.append({
-                            'type': 'sustained_high',
-                            'severity': 'medium',
-                            'message': f'{pdu.name} sustained high usage: {avg_power:.1f}W average over 1 hour',
-                            'pdu_id': pdu.id,
-                            'timestamp': latest.timestamp.isoformat()
-                        })
-        
-        # Get cleared alerts from database
-        cleared_alerts = set(get_cleared_alerts())
-        
-        # Send Discord notifications for new alerts only
-        for alert in alerts:
-            # Create a unique key for this alert
-            alert_key = f"{alert['pdu_id']}_{alert['type']}"
-            
-            # Check if this alert has been permanently cleared
-            if alert_key in cleared_alerts:
-                continue  # Skip this alert entirely - it's been permanently cleared
-            
-            # Check if this alert is new
-            if alert_key not in alert_states:
-                # This is a new alert, send Discord notification
-                send_discord_alert(alert)
-                alert_states[alert_key] = {
-                    'timestamp': alert['timestamp'],
-                    'message': alert['message']
-                }
-            else:
-                # Update existing alert timestamp
-                alert_states[alert_key]['timestamp'] = alert['timestamp']
-        
-        # Clean up resolved alerts from state tracking
-        current_alert_keys = {f"{alert['pdu_id']}_{alert['type']}" for alert in alerts}
-        resolved_keys = set(alert_states.keys()) - current_alert_keys
-        for key in resolved_keys:
-            del alert_states[key]
-        
-        # Filter out permanently cleared alerts from the final result
-        filtered_alerts = []
-        for alert in alerts:
-            alert_key = f"{alert['pdu_id']}_{alert['type']}"
-            if alert_key not in cleared_alerts:
-                filtered_alerts.append(alert)
-        
-        return jsonify({
-            'success': True,
-            'alerts': filtered_alerts,
-            'count': len(filtered_alerts)
-        })
-        
-    except Exception as e:
-        logger.error(f"Error getting alerts: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/api/clear-high-usage-alerts', methods=['POST'])
-def clear_high_usage_alerts():
-    """Clear high usage alerts by resetting the sustained power tracking and marking as permanently cleared"""
-    try:
-        # Get the request data to see what type of alerts to clear
-        try:
-            data = request.get_json() or {}
-        except:
-            data = {}
-        alert_types = data.get('alert_types', ['sustained_high_power', 'sustained_high', 'sustained_power_spike'])
-        
-        # Clear all sustained power tracking data
-        sustained_power_tracking.clear()
-        
-        # Get current cleared alerts from database
-        cleared_alerts = set(get_cleared_alerts())
-        
-        # Mark specified alert types as permanently cleared
-        # This will prevent them from appearing again even if conditions are met
-        cleared_count = 0
-        
-        # Clear all high usage related alerts from alert_states
-        for alert_key in list(alert_states.keys()):
-            if any(alert_type in alert_key for alert_type in alert_types):
-                cleared_alerts.add(alert_key)
-                del alert_states[alert_key]
-                cleared_count += 1
-        
-        # Save updated cleared alerts to database
-        set_cleared_alerts(cleared_alerts)
-        
-        logger.info(f"Cleared {cleared_count} high usage alerts - sustained power tracking reset and alerts marked as permanently cleared")
-        
-        return jsonify({
-            'success': True,
-            'message': f'High usage alerts cleared successfully and will not reappear ({cleared_count} alerts cleared)'
-        })
-        
-    except Exception as e:
-        logger.error(f"Error clearing high usage alerts: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/api/power-summary')
-def get_power_summary():
-    """API endpoint to get detailed power summary"""
-    try:
-        # Get current readings
-        pdus = PDU.query.all()
-        summary = {
-            'total_power_watts': 0,
-            'total_power_kw': 0,
-            'online_pdus': 0,
-            'total_pdus': len(pdus),
-            'pdus': []
-        }
-        
-        for pdu in pdus:
-            latest = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).first()
-            
-            if latest:
-                time_diff = datetime.utcnow() - latest.timestamp
-                online = time_diff.total_seconds() < 300
-                
-                if online:
-                    summary['total_power_watts'] += latest.power_watts
-                    summary['total_power_kw'] += latest.power_kw
-                    summary['online_pdus'] += 1
-                
-                summary['pdus'].append({
-                    'id': pdu.id,
-                    'name': pdu.name,
-                    'ip_address': pdu.ip_address,
-                    'online': online,
-                    'current_power_watts': latest.power_watts,
-                    'current_power_kw': latest.power_kw,
-                    'last_reading': latest.timestamp.isoformat(),
-                    'uptime_minutes': (datetime.utcnow() - latest.timestamp).total_seconds() / 60
-                })
-        
-        # Calculate efficiency metrics
-        if summary['online_pdus'] > 0:
-            summary['avg_power_per_pdu'] = summary['total_power_watts'] / summary['online_pdus']
-        else:
-            summary['avg_power_per_pdu'] = 0
-        
-        return jsonify({
-            'success': True,
-            'summary': summary
-        })
-        
-    except Exception as e:
-        logger.error(f"Error getting power summary: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/api/clear-peak-power', methods=['POST'])
-def clear_peak_power():
-    """Clear peak power today by setting reset time to current time"""
-    try:
-        # Set the reset time to now - this will make peak power calculations
-        # only consider readings from this point forward
-        reset_time = datetime.utcnow()
-        set_peak_power_reset_time(reset_time)
-        
-        # Get the stored reset time to verify it was saved
-        stored_reset_time = get_peak_power_reset_time()
-        
-        # Get some recent readings to verify the logic
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        recent_readings = PowerReading.query.filter(PowerReading.timestamp >= today_start).order_by(PowerReading.timestamp.desc()).limit(5).all()
-        
-        logger.info(f"Peak power tracking reset at {reset_time}")
-        logger.info(f"Stored reset time verified: {stored_reset_time}")
-        logger.info(f"Recent readings timestamps: {[r.timestamp.isoformat() for r in recent_readings]}")
-        
-        return jsonify({
-            'success': True,
-            'message': f'Peak power tracking reset successfully at {reset_time.strftime("%H:%M:%S")}',
-            'reset_time': reset_time.isoformat(),
-            'stored_time': stored_reset_time.isoformat() if stored_reset_time else None,
-            'recent_readings': [{'timestamp': r.timestamp.isoformat(), 'power': r.power_watts} for r in recent_readings]
-        })
-        
-    except Exception as e:
-        logger.error(f"Error clearing peak power: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/api/debug-alerts')
-def debug_alerts():
-    """Debug endpoint to check alert status"""
-    try:
-        return jsonify({
-            'success': True,
-            'debug_info': {
-                'alert_states': alert_states,
-                'cleared_alerts': list(get_cleared_alerts()),
-                'sustained_power_tracking': sustained_power_tracking,
-                'peak_power_reset_time': get_peak_power_reset_time().isoformat() if get_peak_power_reset_time() else None,
-                'alert_states_count': len(alert_states),
-                'cleared_alerts_count': len(get_cleared_alerts())
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Error in debug alerts endpoint: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/api/debug-peak-power')
-def debug_peak_power():
-    """Debug endpoint to check peak power calculation"""
-    try:
-        # Check if system_settings table exists and has data
-        try:
-            all_settings = SystemSettings.query.all()
-            settings_data = {s.key: s.value for s in all_settings}
-            logger.info(f"All system settings: {settings_data}")
-        except Exception as table_error:
-            logger.error(f"Error accessing system_settings table: {table_error}")
-            settings_data = {"error": str(table_error)}
-        
-        peak_power_reset_time = get_peak_power_reset_time()
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_readings = PowerReading.query.filter(PowerReading.timestamp >= today_start).all()
-        
-        debug_info = {
-            'reset_time': peak_power_reset_time.isoformat() if peak_power_reset_time else None,
-            'total_readings_today': len(today_readings),
-            'current_time': datetime.utcnow().isoformat(),
-            'all_system_settings': settings_data
-        }
-        
-        if peak_power_reset_time and today_readings:
-            reset_time_naive = peak_power_reset_time.replace(tzinfo=None) if peak_power_reset_time.tzinfo else peak_power_reset_time
-            filtered_readings = [r for r in today_readings if r.timestamp > reset_time_naive]
-            debug_info['filtered_readings_count'] = len(filtered_readings)
-            debug_info['sample_filtered_timestamps'] = [r.timestamp.isoformat() for r in filtered_readings[:3]]
-            if filtered_readings:
-                debug_info['peak_power'] = max(reading.power_watts for reading in filtered_readings)
-            else:
-                debug_info['peak_power'] = 0
-        else:
-            debug_info['peak_power'] = max(reading.power_watts for reading in today_readings) if today_readings else 0
-        
-        return jsonify({
-            'success': True,
-            'debug_info': debug_info
-        })
-        
-    except Exception as e:
-        logger.error(f"Error in debug peak power endpoint: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/api/fix-database')
-def fix_database():
-    """Fix database by creating missing tables"""
-    try:
-        # Try to create the system_settings table if it doesn't exist
-        try:
-            # Check if table exists by trying to query it
-            SystemSettings.query.first()
-            return jsonify({
-                'success': True,
-                'message': 'system_settings table already exists'
-            })
-        except Exception as table_error:
-            # Table doesn't exist, create it
-            logger.info("Creating system_settings table...")
-            
-            # Create the table using raw SQL
-            with db.engine.connect() as conn:
-                conn.execute(db.text("""
-                    CREATE TABLE IF NOT EXISTS system_settings (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        key TEXT UNIQUE NOT NULL,
-                        value TEXT,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """))
-                conn.commit()
-            
-            logger.info("system_settings table created successfully")
-            
-            return jsonify({
-                'success': True,
-                'message': 'system_settings table created successfully'
-            })
-            
-    except Exception as e:
-        logger.error(f"Error fixing database: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/api/debug-database')
-def debug_database():
-    """Debug endpoint to check database status"""
-    try:
-        # Get basic database info
-        pdus = PDU.query.all()
-        total_readings = PowerReading.query.count()
-        
-        # Get latest readings
-        latest_readings = []
-        for pdu in pdus:
-            latest = PowerReading.query.filter_by(pdu_id=pdu.id).order_by(PowerReading.timestamp.desc()).first()
-            if latest:
-                latest_readings.append({
-                    'pdu_name': pdu.name,
-                    'pdu_ip': pdu.ip_address,
-                    'latest_timestamp': latest.timestamp.isoformat(),
-                    'latest_power_watts': latest.power_watts,
-                    'time_diff_minutes': (datetime.utcnow() - latest.timestamp).total_seconds() / 60
-                })
-            else:
-                latest_readings.append({
-                    'pdu_name': pdu.name,
-                    'pdu_ip': pdu.ip_address,
-                    'latest_timestamp': None,
-                    'latest_power_watts': None,
-                    'time_diff_minutes': None
-                })
-        
-        # Get reading count by time periods
-        now = datetime.utcnow()
-        last_hour = PowerReading.query.filter(PowerReading.timestamp >= now - timedelta(hours=1)).count()
-        last_24h = PowerReading.query.filter(PowerReading.timestamp >= now - timedelta(hours=24)).count()
-        last_7d = PowerReading.query.filter(PowerReading.timestamp >= now - timedelta(days=7)).count()
-        
-        # Get oldest and newest readings
-        oldest = PowerReading.query.order_by(PowerReading.timestamp.asc()).first()
-        newest = PowerReading.query.order_by(PowerReading.timestamp.desc()).first()
-        
-        # Get recent readings for debugging
-        recent_readings = []
-        if newest:
-            recent_readings = PowerReading.query.order_by(PowerReading.timestamp.desc()).limit(10).all()
-            recent_readings = [{
-                'timestamp': r.timestamp.isoformat(),
-                'pdu_id': r.pdu_id,
-                'power_watts': r.power_watts
-            } for r in recent_readings]
-        
-        # Get peak power reset time and calculate current peak power
-        peak_power_reset_time = get_peak_power_reset_time()
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_readings = PowerReading.query.filter(PowerReading.timestamp >= today_start).all()
-        
-        current_peak_power = 0
-        if today_readings:
-            if peak_power_reset_time:
-                filtered_readings = [r for r in today_readings if r.timestamp > peak_power_reset_time]
-                if filtered_readings:
-                    current_peak_power = max(reading.power_watts for reading in filtered_readings)
-            else:
-                current_peak_power = max(reading.power_watts for reading in today_readings)
-        
-        debug_info = {
-            'total_pdus': len(pdus),
-            'total_readings': total_readings,
-            'readings_last_hour': last_hour,
-            'readings_last_24h': last_24h,
-            'readings_last_7d': last_7d,
-            'oldest_reading': oldest.timestamp.isoformat() if oldest else None,
-            'newest_reading': newest.timestamp.isoformat() if newest else None,
-            'pdu_status': latest_readings,
-            'recent_readings': recent_readings,
-            'current_time_utc': datetime.utcnow().isoformat(),
-            'peak_power_reset_time': peak_power_reset_time.isoformat() if peak_power_reset_time else None,
-            'current_peak_power': current_peak_power,
-            'today_readings_count': len(today_readings)
-        }
-        
-        return jsonify({
-            'success': True,
-            'debug_info': debug_info
-        })
-        
-    except Exception as e:
-        logger.error(f"Error in debug endpoint: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -1232,17 +866,7 @@ def create_app():
     """Application factory function"""
     with app.app_context():
         init_db()
-        
-        # Ensure SystemSettings table exists
-        try:
-            # Try to create a test setting to verify the table works
-            SystemSettings.set_setting('_test_setting', 'test_value')
-            SystemSettings.query.filter_by(key='_test_setting').delete()
-            db.session.commit()
-            logger.info("SystemSettings table verified successfully")
-        except Exception as e:
-            logger.error(f"SystemSettings table issue: {str(e)}")
-            logger.info("Database initialized successfully")
+        logger.info("Database initialized successfully")
     
     return app
 
