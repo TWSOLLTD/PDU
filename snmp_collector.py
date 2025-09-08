@@ -152,9 +152,9 @@ class RaritanPDUCollector:
                     timestamp=datetime.utcnow(),
                     power_watts=power_watts,
                     power_kw=power_kw,
-                    current_amps=current_amps if current_amps > 0 else None,
-                    voltage=voltage if voltage > 0 else None,
-                    power_factor=power_factor if power_factor > 0 else None
+                    current_amps=current_amps if current_amps and current_amps > 0 else None,
+                    voltage=voltage if voltage and voltage > 0 else None,
+                    power_factor=power_factor if power_factor and power_factor > 0 else None
                 )
                 db.session.add(port_reading)
                 db.session.commit()
