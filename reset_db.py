@@ -6,6 +6,7 @@ Resets the database and recreates it with 36 outlets and new features
 
 import os
 import sys
+from flask import Flask
 from models import db, PDU, PDUPort, OutletGroup, init_db
 
 def reset_database():
@@ -17,12 +18,24 @@ def reset_database():
             os.remove(db_file)
             print(f"Removed existing database: {db_file}")
         
-        # Initialize new database
-        print("Initializing new database with 36 outlets...")
-        init_db()
+        # Create Flask app for database operations
+        app = Flask(__name__)
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///pdu_monitor.db'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         
-        # Verify the setup
-        with db.app.app_context():
+        # Initialize database
+        db.init_app(app)
+        
+        with app.app_context():
+            # Create all tables
+            db.create_all()
+            print("Created all database tables")
+            
+            # Initialize with default data
+            init_db()
+            print("Database initialization completed")
+            
+            # Verify the setup
             pdu = PDU.query.first()
             if pdu:
                 outlets = PDUPort.query.filter_by(pdu_id=pdu.id).all()
