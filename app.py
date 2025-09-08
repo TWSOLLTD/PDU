@@ -13,8 +13,8 @@ import logging
 import requests
 from sqlalchemy import func, and_
 
-from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG, RARITAN_CONFIG
-from models import db, PDU, PDUPort, PowerReading, PortPowerReading, PowerAggregation, SystemSettings, init_db
+from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG, RARITAN_CONFIG, GROUP_MANAGEMENT_PASSWORD
+from models import db, PDU, PDUPort, PowerReading, PortPowerReading, PowerAggregation, SystemSettings, OutletGroup, init_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -767,6 +767,464 @@ def get_energy_data():
             'error': str(e)
         }), 500
 
+@app.route('/api/groups')
+def get_groups():
+    """API endpoint to get all outlet groups"""
+    try:
+        groups = OutletGroup.query.order_by(OutletGroup.name).all()
+        group_list = []
+        
+        for group in groups:
+            group_data = {
+                'id': group.id,
+                'name': group.name,
+                'description': group.description,
+                'outlet_ids': group.get_outlet_ids(),
+                'color': group.color,
+                'created_at': group.created_at.isoformat(),
+                'updated_at': group.updated_at.isoformat()
+            }
+            group_list.append(group_data)
+        
+        return jsonify({
+            'success': True,
+            'data': group_list
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting groups: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/groups', methods=['POST'])
+def create_group():
+    """API endpoint to create a new outlet group"""
+    try:
+        data = request.get_json()
+        password = data.get('password')
+        
+        if password != GROUP_MANAGEMENT_PASSWORD:
+            return jsonify({'success': False, 'error': 'Invalid password'}), 401
+        
+        name = data.get('name')
+        description = data.get('description', '')
+        outlet_ids = data.get('outlet_ids', [])
+        color = data.get('color', '#6366f1')
+        
+        if not name:
+            return jsonify({'success': False, 'error': 'Group name is required'}), 400
+        
+        # Check if group name already exists
+        existing_group = OutletGroup.query.filter_by(name=name).first()
+        if existing_group:
+            return jsonify({'success': False, 'error': 'Group name already exists'}), 400
+        
+        group = OutletGroup(
+            name=name,
+            description=description,
+            color=color
+        )
+        group.set_outlet_ids(outlet_ids)
+        
+        db.session.add(group)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Group "{name}" created successfully',
+            'data': {
+                'id': group.id,
+                'name': group.name,
+                'description': group.description,
+                'outlet_ids': group.get_outlet_ids(),
+                'color': group.color
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error creating group: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/groups/<int:group_id>', methods=['PUT'])
+def update_group(group_id):
+    """API endpoint to update an outlet group"""
+    try:
+        data = request.get_json()
+        password = data.get('password')
+        
+        if password != GROUP_MANAGEMENT_PASSWORD:
+            return jsonify({'success': False, 'error': 'Invalid password'}), 401
+        
+        group = OutletGroup.query.get(group_id)
+        if not group:
+            return jsonify({'success': False, 'error': 'Group not found'}), 404
+        
+        name = data.get('name')
+        description = data.get('description')
+        outlet_ids = data.get('outlet_ids')
+        color = data.get('color')
+        
+        if name and name != group.name:
+            # Check if new name already exists
+            existing_group = OutletGroup.query.filter_by(name=name).first()
+            if existing_group and existing_group.id != group_id:
+                return jsonify({'success': False, 'error': 'Group name already exists'}), 400
+            group.name = name
+        
+        if description is not None:
+            group.description = description
+        
+        if outlet_ids is not None:
+            group.set_outlet_ids(outlet_ids)
+        
+        if color is not None:
+            group.color = color
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Group "{group.name}" updated successfully',
+            'data': {
+                'id': group.id,
+                'name': group.name,
+                'description': group.description,
+                'outlet_ids': group.get_outlet_ids(),
+                'color': group.color
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating group: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/groups/<int:group_id>', methods=['DELETE'])
+def delete_group(group_id):
+    """API endpoint to delete an outlet group"""
+    try:
+        data = request.get_json()
+        password = data.get('password')
+        
+        if password != GROUP_MANAGEMENT_PASSWORD:
+            return jsonify({'success': False, 'error': 'Invalid password'}), 401
+        
+        group = OutletGroup.query.get(group_id)
+        if not group:
+            return jsonify({'success': False, 'error': 'Group not found'}), 404
+        
+        group_name = group.name
+        db.session.delete(group)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Group "{group_name}" deleted successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error deleting group: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/group-power-data')
+def get_group_power_data():
+    """API endpoint to get power consumption data for groups"""
+    try:
+        period = request.args.get('period', 'hour')
+        group_ids = request.args.getlist('group_ids')  # List of group IDs
+        
+        pdu = PDU.query.first()
+        if not pdu:
+            return jsonify({'success': False, 'error': 'No PDU configured'}), 404
+        
+        if not group_ids:
+            return jsonify({'success': False, 'error': 'No groups specified'}), 400
+        
+        # Get groups
+        groups = OutletGroup.query.filter(OutletGroup.id.in_(group_ids)).all()
+        if not groups:
+            return jsonify({'success': False, 'error': 'No valid groups found'}), 404
+        
+        # Calculate time range based on period
+        now_utc = datetime.utcnow()
+        if period == 'hour':
+            end_time = now_utc.replace(minute=(now_utc.minute // 15) * 15, second=0, microsecond=0)
+            start_time = end_time - timedelta(hours=24)
+        elif period == 'week':
+            start_time = now_utc - timedelta(days=7)
+            end_time = now_utc
+        elif period == 'month':
+            start_time = now_utc - timedelta(days=30)
+            end_time = now_utc
+        elif period == 'year':
+            start_time = now_utc - timedelta(days=365)
+            end_time = now_utc
+        else:
+            start_time = now_utc - timedelta(hours=24)
+            end_time = now_utc
+        
+        chart_data = {
+            'labels': [],
+            'groups': []
+        }
+        
+        # Create time labels
+        if period == 'hour':
+            for i in range(96):  # 24 hours * 4 intervals per hour
+                target_interval = start_time + timedelta(minutes=15*i)
+                uk_time = target_interval.replace(tzinfo=timezone.utc).astimezone(ZoneInfo('Europe/London'))
+                chart_data['labels'].append(uk_time.strftime('%H:%M'))
+        elif period in ['week', 'month']:
+            for i in range(7 if period == 'week' else 30):
+                target_date = now_utc - timedelta(days=(6-i) if period == 'week' else (29-i))
+                target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+        elif period == 'year':
+            for i in range(12):
+                target_month = now_utc - timedelta(days=365-30*i)
+                target_month = target_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                chart_data['labels'].append(target_month.strftime('%Y-%m'))
+        
+        # Calculate power for each group
+        for group in groups:
+            outlet_ids = group.get_outlet_ids()
+            if not outlet_ids:
+                continue
+            
+            # Get ports for this group
+            ports = PDUPort.query.filter(PDUPort.id.in_(outlet_ids)).all()
+            if not ports:
+                continue
+            
+            group_power_data = []
+            
+            if period == 'hour':
+                # 15-minute intervals
+                for i in range(96):
+                    target_interval = start_time + timedelta(minutes=15*i)
+                    
+                    # Get readings for this interval
+                    total_power = 0
+                    for port in ports:
+                        readings = PortPowerReading.query.filter(
+                            PortPowerReading.port_id == port.id,
+                            PortPowerReading.timestamp >= target_interval,
+                            PortPowerReading.timestamp < target_interval + timedelta(minutes=15)
+                        ).all()
+                        
+                        if readings:
+                            avg_power = sum(r.power_watts for r in readings) / len(readings)
+                            total_power += avg_power
+                    
+                    group_power_data.append(round(total_power, 1))
+            
+            elif period in ['week', 'month']:
+                # Daily intervals
+                for i in range(7 if period == 'week' else 30):
+                    target_date = now_utc - timedelta(days=(6-i) if period == 'week' else (29-i))
+                    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    next_date = target_date + timedelta(days=1)
+                    
+                    total_power = 0
+                    for port in ports:
+                        readings = PortPowerReading.query.filter(
+                            PortPowerReading.port_id == port.id,
+                            PortPowerReading.timestamp >= target_date,
+                            PortPowerReading.timestamp < next_date
+                        ).all()
+                        
+                        if readings:
+                            avg_power = sum(r.power_watts for r in readings) / len(readings)
+                            total_power += avg_power
+                    
+                    group_power_data.append(round(total_power, 1))
+            
+            elif period == 'year':
+                # Monthly intervals
+                for i in range(12):
+                    target_month = now_utc - timedelta(days=365-30*i)
+                    target_month = target_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    next_month = target_month + timedelta(days=30)
+                    
+                    total_power = 0
+                    for port in ports:
+                        readings = PortPowerReading.query.filter(
+                            PortPowerReading.port_id == port.id,
+                            PortPowerReading.timestamp >= target_month,
+                            PortPowerReading.timestamp < next_month
+                        ).all()
+                        
+                        if readings:
+                            avg_power = sum(r.power_watts for r in readings) / len(readings)
+                            total_power += avg_power
+                    
+                    group_power_data.append(round(total_power, 1))
+            
+            chart_data['groups'].append({
+                'id': group.id,
+                'name': group.name,
+                'color': group.color,
+                'power_watts': group_power_data
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': chart_data,
+            'period': period
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting group power data: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/custom-power-data')
+def get_custom_power_data():
+    """API endpoint to get power consumption data for custom outlet selection"""
+    try:
+        period = request.args.get('period', 'hour')
+        outlet_ids = request.args.getlist('outlet_ids')  # List of outlet IDs
+        
+        pdu = PDU.query.first()
+        if not pdu:
+            return jsonify({'success': False, 'error': 'No PDU configured'}), 404
+        
+        if not outlet_ids:
+            return jsonify({'success': False, 'error': 'No outlets specified'}), 400
+        
+        # Get ports
+        ports = PDUPort.query.filter(PDUPort.id.in_(outlet_ids)).all()
+        if not ports:
+            return jsonify({'success': False, 'error': 'No valid outlets found'}), 404
+        
+        # Calculate time range based on period
+        now_utc = datetime.utcnow()
+        if period == 'hour':
+            end_time = now_utc.replace(minute=(now_utc.minute // 15) * 15, second=0, microsecond=0)
+            start_time = end_time - timedelta(hours=24)
+        elif period == 'week':
+            start_time = now_utc - timedelta(days=7)
+            end_time = now_utc
+        elif period == 'month':
+            start_time = now_utc - timedelta(days=30)
+            end_time = now_utc
+        elif period == 'year':
+            start_time = now_utc - timedelta(days=365)
+            end_time = now_utc
+        else:
+            start_time = now_utc - timedelta(hours=24)
+            end_time = now_utc
+        
+        chart_data = {
+            'labels': [],
+            'outlets': []
+        }
+        
+        # Create time labels (same logic as group power data)
+        if period == 'hour':
+            for i in range(96):
+                target_interval = start_time + timedelta(minutes=15*i)
+                uk_time = target_interval.replace(tzinfo=timezone.utc).astimezone(ZoneInfo('Europe/London'))
+                chart_data['labels'].append(uk_time.strftime('%H:%M'))
+        elif period in ['week', 'month']:
+            for i in range(7 if period == 'week' else 30):
+                target_date = now_utc - timedelta(days=(6-i) if period == 'week' else (29-i))
+                target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                chart_data['labels'].append(target_date.strftime('%Y-%m-%d'))
+        elif period == 'year':
+            for i in range(12):
+                target_month = now_utc - timedelta(days=365-30*i)
+                target_month = target_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                chart_data['labels'].append(target_month.strftime('%Y-%m'))
+        
+        # Calculate power for each outlet
+        for port in ports:
+            outlet_power_data = []
+            
+            if period == 'hour':
+                for i in range(96):
+                    target_interval = start_time + timedelta(minutes=15*i)
+                    
+                    readings = PortPowerReading.query.filter(
+                        PortPowerReading.port_id == port.id,
+                        PortPowerReading.timestamp >= target_interval,
+                        PortPowerReading.timestamp < target_interval + timedelta(minutes=15)
+                    ).all()
+                    
+                    if readings:
+                        avg_power = sum(r.power_watts for r in readings) / len(readings)
+                        outlet_power_data.append(round(avg_power, 1))
+                    else:
+                        outlet_power_data.append(0)
+            
+            elif period in ['week', 'month']:
+                for i in range(7 if period == 'week' else 30):
+                    target_date = now_utc - timedelta(days=(6-i) if period == 'week' else (29-i))
+                    target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    next_date = target_date + timedelta(days=1)
+                    
+                    readings = PortPowerReading.query.filter(
+                        PortPowerReading.port_id == port.id,
+                        PortPowerReading.timestamp >= target_date,
+                        PortPowerReading.timestamp < next_date
+                    ).all()
+                    
+                    if readings:
+                        avg_power = sum(r.power_watts for r in readings) / len(readings)
+                        outlet_power_data.append(round(avg_power, 1))
+                    else:
+                        outlet_power_data.append(0)
+            
+            elif period == 'year':
+                for i in range(12):
+                    target_month = now_utc - timedelta(days=365-30*i)
+                    target_month = target_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    next_month = target_month + timedelta(days=30)
+                    
+                    readings = PortPowerReading.query.filter(
+                        PortPowerReading.port_id == port.id,
+                        PortPowerReading.timestamp >= target_month,
+                        PortPowerReading.timestamp < next_month
+                    ).all()
+                    
+                    if readings:
+                        avg_power = sum(r.power_watts for r in readings) / len(readings)
+                        outlet_power_data.append(round(avg_power, 1))
+                    else:
+                        outlet_power_data.append(0)
+            
+            chart_data['outlets'].append({
+                'id': port.id,
+                'name': port.name,
+                'port_number': port.port_number,
+                'power_watts': outlet_power_data
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': chart_data,
+            'period': period
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting custom power data: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/export-data')
 def export_data():
     """API endpoint to export power data as CSV"""
@@ -853,6 +1311,7 @@ def export_data():
             'success': False,
             'error': str(e)
         }), 500
+
 
 @app.errorhandler(404)
 def not_found(error):

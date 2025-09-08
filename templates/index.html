@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Raritan PDU Power Monitor</title>
+    <title>Raritan PX3-5892 Outlet Monitor</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
@@ -551,6 +551,184 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--text-muted);
         }
+
+        /* Outlet Selection Styles */
+        .outlet-selection-panel,
+        .group-selection-panel {
+            margin-bottom: 2rem;
+        }
+
+        .outlet-grid,
+        .group-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 1rem;
+            background: rgba(51, 65, 85, 0.3);
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+        }
+
+        .outlet-checkbox-item,
+        .group-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .outlet-checkbox-item:hover,
+        .group-checkbox-item:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--primary-color);
+        }
+
+        .outlet-checkbox-item input[type="checkbox"],
+        .group-checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
+        }
+
+        .outlet-info,
+        .group-info {
+            flex: 1;
+        }
+
+        .outlet-name,
+        .group-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .outlet-status,
+        .group-count {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        .outlet-power {
+            font-size: 0.875rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Modal Styles */
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .modal-title {
+            color: var(--text-primary);
+        }
+
+        .btn-close {
+            filter: invert(1);
+        }
+
+        .form-control {
+            background: rgba(51, 65, 85, 0.3);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+        }
+
+        .form-control:focus {
+            background: rgba(51, 65, 85, 0.5);
+            border-color: var(--primary-color);
+            color: var(--text-primary);
+            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+        }
+
+        .form-label {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .groups-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .group-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(51, 65, 85, 0.3);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .group-item-info {
+            flex: 1;
+        }
+
+        .group-item-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .group-item-description {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        .group-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+        }
+
+        .outlet-selection-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 8px;
+            background: rgba(51, 65, 85, 0.3);
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+        }
+
+        .outlet-selection-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .outlet-selection-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary-color);
+        }
     </style>
 </head>
 <body>
@@ -574,7 +752,7 @@
             <!-- Dashboard Header -->
             <div class="dashboard-header">
                 <div>
-                    <h1 class="dashboard-title">Power Consumption Dashboard</h1>
+                    <h1 class="dashboard-title">Raritan PX3-5892 Outlet Monitor</h1>
                     <div class="dashboard-subtitle">
                         <i class="fas fa-clock"></i>
                         Last updated: <span id="last-updated-time">Loading...</span>
@@ -583,7 +761,9 @@
                 <div class="control-panel">
                     <div class="view-toggle">
                         <button class="view-btn active" data-view="total">Total Power</button>
-                        <button class="view-btn" data-view="ports">Per Port</button>
+                        <button class="view-btn" data-view="outlets">Per Outlet</button>
+                        <button class="view-btn" data-view="groups">Groups</button>
+                        <button class="view-btn" data-view="custom">Custom Selection</button>
                     </div>
                     <button class="btn btn-modern" id="refresh-btn" onclick="dashboard.refreshAll()">
                         <i class="fas fa-sync-alt"></i>
@@ -592,6 +772,10 @@
                     <button class="btn btn-modern btn-secondary" onclick="dashboard.exportData()">
                         <i class="fas fa-download"></i>
                         Export
+                    </button>
+                    <button class="btn btn-modern btn-secondary" onclick="dashboard.showGroupManagement()">
+                        <i class="fas fa-cog"></i>
+                        Manage Groups
                     </button>
                 </div>
             </div>
@@ -698,11 +882,107 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Outlet Selection Panel -->
+            <div class="outlet-selection-panel" id="outlet-selection-panel" style="display: none;">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Select Outlets for Custom View</h3>
+                        <button class="btn btn-modern" onclick="dashboard.applyCustomSelection()">
+                            <i class="fas fa-chart-line"></i>
+                            Apply Selection
+                        </button>
+                    </div>
+                    <div class="outlet-grid" id="outlet-selection-grid">
+                        <!-- Outlet checkboxes will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Group Selection Panel -->
+            <div class="group-selection-panel" id="group-selection-panel" style="display: none;">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Select Groups for Comparison</h3>
+                        <button class="btn btn-modern" onclick="dashboard.applyGroupSelection()">
+                            <i class="fas fa-chart-line"></i>
+                            Apply Selection
+                        </button>
+                    </div>
+                    <div class="group-grid" id="group-selection-grid">
+                        <!-- Group checkboxes will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Group Management Modal -->
+        <div class="modal fade" id="groupManagementModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Outlet Group Management</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="password-section mb-4">
+                            <label for="groupPassword" class="form-label">Password Required</label>
+                            <input type="password" class="form-control" id="groupPassword" placeholder="Enter password for group management">
+                        </div>
+                        
+                        <div class="group-management-content" id="group-management-content" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6>Existing Groups</h6>
+                                <button class="btn btn-primary btn-sm" onclick="dashboard.showCreateGroupForm()">
+                                    <i class="fas fa-plus"></i> Create New Group
+                                </button>
+                            </div>
+                            
+                            <div class="groups-list" id="groups-list">
+                                <!-- Groups will be populated here -->
+                            </div>
+                            
+                            <div class="create-group-form" id="create-group-form" style="display: none;">
+                                <hr>
+                                <h6>Create New Group</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label for="newGroupName" class="form-label">Group Name</label>
+                                        <input type="text" class="form-control" id="newGroupName" placeholder="Enter group name">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="newGroupColor" class="form-label">Color</label>
+                                        <input type="color" class="form-control" id="newGroupColor" value="#6366f1">
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <label for="newGroupDescription" class="form-label">Description</label>
+                                    <input type="text" class="form-control" id="newGroupDescription" placeholder="Optional description">
+                                </div>
+                                <div class="mt-3">
+                                    <label class="form-label">Select Outlets</label>
+                                    <div class="outlet-selection-grid" id="create-group-outlets">
+                                        <!-- Outlet checkboxes for group creation -->
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <button class="btn btn-success" onclick="dashboard.createGroup()">
+                                        <i class="fas fa-save"></i> Create Group
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="dashboard.cancelCreateGroup()">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Footer -->
         <div class="footer">
-            <p>&copy; 2024 Raritan PDU Power Monitoring System | Real-time per-port power monitoring</p>
+            <p>&copy; 2024 Raritan PX3-5892 Outlet Monitoring System | Real-time outlet power monitoring with grouping</p>
         </div>
     </div>
 
@@ -710,7 +990,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        class RaritanPDUDashboard {
+        class RaritanOutletDashboard {
             constructor() {
                 this.currentPeriod = 'hour';
                 this.currentEnergyPeriod = 'day';
@@ -718,16 +998,22 @@
                 this.autoRefreshInterval = null;
                 this.autoRefreshEnabled = true;
                 this.lastUpdateTime = new Date();
-                                 this.portColors = [
-                     '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-                     '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6',
-                     '#f43f5e', '#a855f7', '#22c55e', '#eab308', '#3b82f6',
-                     '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6',
-                     '#f43f5e', '#a855f7', '#22c55e', '#eab308', '#3b82f6',
-                     '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6',
-                     '#f43f5e', '#a855f7', '#22c55e', '#eab308', '#3b82f6',
-                     '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6'
-                 ];
+                this.outlets = [];
+                this.groups = [];
+                this.selectedOutlets = [];
+                this.selectedGroups = [];
+                this.groupPassword = '';
+                
+                this.outletColors = [
+                    '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                    '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6',
+                    '#f43f5e', '#a855f7', '#22c55e', '#eab308', '#3b82f6',
+                    '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6',
+                    '#f43f5e', '#a855f7', '#22c55e', '#eab308', '#3b82f6',
+                    '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6',
+                    '#f43f5e', '#a855f7', '#22c55e', '#eab308', '#3b82f6',
+                    '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#14b8a6'
+                ];
                 
                 this.initializeEventListeners();
                 this.loadInitialData();
@@ -758,6 +1044,14 @@
                         this.setEnergyPeriod(period);
                     });
                 });
+
+                // Group management password
+                document.getElementById('groupPassword').addEventListener('input', (e) => {
+                    this.groupPassword = e.target.value;
+                    if (this.groupPassword.length > 0) {
+                        this.checkGroupPassword();
+                    }
+                });
             }
             
             setupAutoRefresh() {
@@ -771,6 +1065,7 @@
             async loadInitialData() {
                 await Promise.all([
                     this.loadCurrentStatus(),
+                    this.loadGroups(),
                     this.loadPowerData(),
                     this.loadEnergyData()
                 ]);
@@ -808,6 +1103,9 @@
             renderPortStatus(ports) {
                 const container = document.getElementById('ports-grid');
                 container.innerHTML = '';
+                
+                // Store outlets data for use in other methods
+                this.outlets = ports;
                 
                 ports.forEach((port, index) => {
                     const statusClass = port.online ? 'online' : 'offline';
@@ -904,9 +1202,10 @@
             renderPowerChart(chartData) {
                 if (this.currentView === 'total') {
                     this.renderTotalPowerChart(chartData);
-                } else {
+                } else if (this.currentView === 'outlets') {
                     this.renderPortPowerChart(chartData);
                 }
+                // Groups and custom views are handled by their respective methods
             }
             
             renderTotalPowerChart(chartData) {
@@ -1104,6 +1403,17 @@
                 });
                 document.querySelector(`[data-view="${view}"]`).classList.add('active');
                 
+                // Show/hide selection panels
+                document.getElementById('outlet-selection-panel').style.display = 'none';
+                document.getElementById('group-selection-panel').style.display = 'none';
+                
+                if (view === 'custom') {
+                    document.getElementById('outlet-selection-panel').style.display = 'block';
+                    this.renderOutletSelection();
+                } else if (view === 'groups') {
+                    document.getElementById('group-selection-panel').style.display = 'block';
+                }
+                
                 this.loadPowerData();
             }
             
@@ -1226,12 +1536,424 @@
                     }
                 }
             }
+
+            // Group Management Methods
+            async loadGroups() {
+                try {
+                    const response = await fetch('/api/groups');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.groups = data.data;
+                        this.renderGroupSelection();
+                    }
+                } catch (error) {
+                    console.error('Error loading groups:', error);
+                }
+            }
+
+            async checkGroupPassword() {
+                // Simple password check - in production, this should be more secure
+                if (this.groupPassword === 'admin123') {
+                    document.getElementById('group-management-content').style.display = 'block';
+                    this.renderGroupsList();
+                    this.renderCreateGroupOutlets();
+                } else {
+                    document.getElementById('group-management-content').style.display = 'none';
+                }
+            }
+
+            showGroupManagement() {
+                const modal = new bootstrap.Modal(document.getElementById('groupManagementModal'));
+                modal.show();
+            }
+
+            renderGroupsList() {
+                const container = document.getElementById('groups-list');
+                container.innerHTML = '';
+
+                this.groups.forEach(group => {
+                    const groupItem = document.createElement('div');
+                    groupItem.className = 'group-item';
+                    groupItem.innerHTML = `
+                        <div class="group-item-info">
+                            <div class="group-item-name" style="color: ${group.color}">${group.name}</div>
+                            <div class="group-item-description">${group.description || 'No description'}</div>
+                        </div>
+                        <div class="group-item-actions">
+                            <button class="btn btn-warning btn-sm" onclick="dashboard.editGroup(${group.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="dashboard.deleteGroup(${group.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(groupItem);
+                });
+            }
+
+            renderGroupSelection() {
+                const container = document.getElementById('group-selection-grid');
+                container.innerHTML = '';
+
+                this.groups.forEach(group => {
+                    const groupItem = document.createElement('div');
+                    groupItem.className = 'group-checkbox-item';
+                    groupItem.innerHTML = `
+                        <input type="checkbox" id="group-${group.id}" value="${group.id}" 
+                               onchange="dashboard.toggleGroupSelection(${group.id})">
+                        <div class="group-info">
+                            <div class="group-name" style="color: ${group.color}">${group.name}</div>
+                            <div class="group-count">${group.outlet_ids.length} outlets</div>
+                        </div>
+                    `;
+                    container.appendChild(groupItem);
+                });
+            }
+
+            renderCreateGroupOutlets() {
+                const container = document.getElementById('create-group-outlets');
+                container.innerHTML = '';
+
+                this.outlets.forEach(outlet => {
+                    const outletItem = document.createElement('div');
+                    outletItem.className = 'outlet-selection-item';
+                    outletItem.innerHTML = `
+                        <input type="checkbox" id="create-outlet-${outlet.id}" value="${outlet.id}">
+                        <label for="create-outlet-${outlet.id}">${outlet.name}</label>
+                    `;
+                    container.appendChild(outletItem);
+                });
+            }
+
+            toggleGroupSelection(groupId) {
+                const checkbox = document.getElementById(`group-${groupId}`);
+                if (checkbox.checked) {
+                    if (!this.selectedGroups.includes(groupId)) {
+                        this.selectedGroups.push(groupId);
+                    }
+                } else {
+                    this.selectedGroups = this.selectedGroups.filter(id => id !== groupId);
+                }
+            }
+
+            async applyGroupSelection() {
+                if (this.selectedGroups.length === 0) {
+                    alert('Please select at least one group');
+                    return;
+                }
+
+                try {
+                    this.showChartLoading('chart-loading');
+                    
+                    const params = new URLSearchParams();
+                    this.selectedGroups.forEach(groupId => {
+                        params.append('group_ids', groupId);
+                    });
+                    params.append('period', this.currentPeriod);
+
+                    const response = await fetch(`/api/group-power-data?${params}`);
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.renderGroupPowerChart(data.data);
+                    } else {
+                        this.showChartError('power-chart', 'No group data available');
+                    }
+                } catch (error) {
+                    console.error('Error loading group power data:', error);
+                    this.showChartError('power-chart', 'Error loading group data');
+                } finally {
+                    this.hideChartLoading('chart-loading');
+                }
+            }
+
+            renderGroupPowerChart(chartData) {
+                if (chartData.groups.length === 0) {
+                    this.showChartError('power-chart', 'No group data available');
+                    return;
+                }
+
+                const traces = chartData.groups.map(group => ({
+                    x: chartData.labels,
+                    y: group.power_watts,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: group.name,
+                    line: { 
+                        color: group.color, 
+                        width: 3, 
+                        connectgaps: false 
+                    },
+                    marker: { 
+                        size: 6, 
+                        color: group.color 
+                    }
+                }));
+
+                const layout = {
+                    title: {
+                        text: `Group Power Consumption - ${this.getPeriodDisplayName(this.currentPeriod)}`,
+                        font: { size: 18, color: '#f8fafc' }
+                    },
+                    xaxis: {
+                        title: this.getXAxisTitle(this.currentPeriod),
+                        gridcolor: '#334155',
+                        zeroline: false,
+                        color: '#cbd5e1'
+                    },
+                    yaxis: {
+                        title: 'Power (Watts)',
+                        gridcolor: '#334155',
+                        zeroline: false,
+                        color: '#cbd5e1'
+                    },
+                    hovermode: 'x unified',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#f8fafc' },
+                    margin: { t: 60, b: 60, l: 60, r: 60 },
+                    showlegend: true,
+                    legend: {
+                        bgcolor: 'rgba(30, 41, 59, 0.8)',
+                        bordercolor: '#334155',
+                        borderwidth: 1,
+                        font: { color: '#f8fafc' }
+                    }
+                };
+
+                const config = {
+                    responsive: true,
+                    displayModeBar: false,
+                    displaylogo: false
+                };
+
+                Plotly.newPlot('power-chart', traces, layout, config);
+            }
+
+            // Custom Outlet Selection Methods
+            renderOutletSelection() {
+                const container = document.getElementById('outlet-selection-grid');
+                container.innerHTML = '';
+
+                this.outlets.forEach(outlet => {
+                    const outletItem = document.createElement('div');
+                    outletItem.className = 'outlet-checkbox-item';
+                    outletItem.innerHTML = `
+                        <input type="checkbox" id="outlet-${outlet.id}" value="${outlet.id}" 
+                               onchange="dashboard.toggleOutletSelection(${outlet.id})">
+                        <div class="outlet-info">
+                            <div class="outlet-name">${outlet.name}</div>
+                            <div class="outlet-status">${outlet.online ? 'Online' : 'Offline'}</div>
+                        </div>
+                        <div class="outlet-power">${outlet.current_power_watts.toFixed(1)}W</div>
+                    `;
+                    container.appendChild(outletItem);
+                });
+            }
+
+            toggleOutletSelection(outletId) {
+                const checkbox = document.getElementById(`outlet-${outletId}`);
+                if (checkbox.checked) {
+                    if (!this.selectedOutlets.includes(outletId)) {
+                        this.selectedOutlets.push(outletId);
+                    }
+                } else {
+                    this.selectedOutlets = this.selectedOutlets.filter(id => id !== outletId);
+                }
+            }
+
+            async applyCustomSelection() {
+                if (this.selectedOutlets.length === 0) {
+                    alert('Please select at least one outlet');
+                    return;
+                }
+
+                try {
+                    this.showChartLoading('chart-loading');
+                    
+                    const params = new URLSearchParams();
+                    this.selectedOutlets.forEach(outletId => {
+                        params.append('outlet_ids', outletId);
+                    });
+                    params.append('period', this.currentPeriod);
+
+                    const response = await fetch(`/api/custom-power-data?${params}`);
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.renderCustomPowerChart(data.data);
+                    } else {
+                        this.showChartError('power-chart', 'No custom data available');
+                    }
+                } catch (error) {
+                    console.error('Error loading custom power data:', error);
+                    this.showChartError('power-chart', 'Error loading custom data');
+                } finally {
+                    this.hideChartLoading('chart-loading');
+                }
+            }
+
+            renderCustomPowerChart(chartData) {
+                if (chartData.outlets.length === 0) {
+                    this.showChartError('power-chart', 'No outlet data available');
+                    return;
+                }
+
+                const traces = chartData.outlets.map((outlet, index) => ({
+                    x: chartData.labels,
+                    y: outlet.power_watts,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: outlet.name,
+                    line: { 
+                        color: this.outletColors[index % this.outletColors.length], 
+                        width: 2, 
+                        connectgaps: false 
+                    },
+                    marker: { 
+                        size: 4, 
+                        color: this.outletColors[index % this.outletColors.length] 
+                    }
+                }));
+
+                const layout = {
+                    title: {
+                        text: `Custom Outlet Selection - ${this.getPeriodDisplayName(this.currentPeriod)}`,
+                        font: { size: 18, color: '#f8fafc' }
+                    },
+                    xaxis: {
+                        title: this.getXAxisTitle(this.currentPeriod),
+                        gridcolor: '#334155',
+                        zeroline: false,
+                        color: '#cbd5e1'
+                    },
+                    yaxis: {
+                        title: 'Power (Watts)',
+                        gridcolor: '#334155',
+                        zeroline: false,
+                        color: '#cbd5e1'
+                    },
+                    hovermode: 'x unified',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#f8fafc' },
+                    margin: { t: 60, b: 60, l: 60, r: 60 },
+                    showlegend: true,
+                    legend: {
+                        bgcolor: 'rgba(30, 41, 59, 0.8)',
+                        bordercolor: '#334155',
+                        borderwidth: 1,
+                        font: { color: '#f8fafc' }
+                    }
+                };
+
+                const config = {
+                    responsive: true,
+                    displayModeBar: false,
+                    displaylogo: false
+                };
+
+                Plotly.newPlot('power-chart', traces, layout, config);
+            }
+
+            // Group CRUD Operations
+            showCreateGroupForm() {
+                document.getElementById('create-group-form').style.display = 'block';
+            }
+
+            cancelCreateGroup() {
+                document.getElementById('create-group-form').style.display = 'none';
+                document.getElementById('newGroupName').value = '';
+                document.getElementById('newGroupDescription').value = '';
+                document.getElementById('newGroupColor').value = '#6366f1';
+                document.querySelectorAll('#create-group-outlets input[type="checkbox"]').forEach(cb => cb.checked = false);
+            }
+
+            async createGroup() {
+                const name = document.getElementById('newGroupName').value.trim();
+                const description = document.getElementById('newGroupDescription').value.trim();
+                const color = document.getElementById('newGroupColor').value;
+                
+                if (!name) {
+                    alert('Group name is required');
+                    return;
+                }
+
+                const selectedOutlets = [];
+                document.querySelectorAll('#create-group-outlets input[type="checkbox"]:checked').forEach(cb => {
+                    selectedOutlets.push(parseInt(cb.value));
+                });
+
+                if (selectedOutlets.length === 0) {
+                    alert('Please select at least one outlet');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/groups', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            password: this.groupPassword,
+                            name: name,
+                            description: description,
+                            outlet_ids: selectedOutlets,
+                            color: color
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Group created successfully');
+                        this.cancelCreateGroup();
+                        await this.loadGroups();
+                    } else {
+                        alert('Error creating group: ' + data.error);
+                    }
+                } catch (error) {
+                    console.error('Error creating group:', error);
+                    alert('Error creating group. Please try again.');
+                }
+            }
+
+            async deleteGroup(groupId) {
+                if (!confirm('Are you sure you want to delete this group?')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/groups/${groupId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            password: this.groupPassword
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Group deleted successfully');
+                        await this.loadGroups();
+                    } else {
+                        alert('Error deleting group: ' + data.error);
+                    }
+                } catch (error) {
+                    console.error('Error deleting group:', error);
+                    alert('Error deleting group. Please try again.');
+                }
+            }
         }
 
         // Initialize dashboard when page loads
         let dashboard;
         document.addEventListener('DOMContentLoaded', () => {
-            dashboard = new RaritanPDUDashboard();
+            dashboard = new RaritanOutletDashboard();
         });
     </script>
 </body>

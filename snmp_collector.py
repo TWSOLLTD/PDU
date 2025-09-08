@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 from easysnmp import Session
 from config import RARITAN_CONFIG, RARITAN_OIDS, COLLECTION_INTERVAL
-from models import db, PDU, PDUPort, PowerReading, PortPowerReading, init_db
+from models import db, PDU, PDUPort, PowerReading, PortPowerReading, OutletGroup, init_db
 
 # Configure logging
 logging.basicConfig(
@@ -100,19 +100,23 @@ class RaritanPDUCollector:
             return 0.0
     
     def collect_port_power(self, port):
-        """Collect power consumption for a specific port"""
+        """Collect power consumption and status for a specific port/outlet"""
         try:
-            # Get port power data
-            power_watts = self.get_snmp_value(RARITAN_OIDS['port_power_watts'], port.port_number)
+            # Get port power data using outlet OIDs
+            power_watts = self.get_snmp_value(RARITAN_OIDS['outlet_power_watts'], port.port_number)
             power_kw = power_watts / 1000.0
-            current_amps = self.get_snmp_value(RARITAN_OIDS['port_current'], port.port_number)
-            voltage = self.get_snmp_value(RARITAN_OIDS['port_voltage'], port.port_number)
-            power_factor = self.get_snmp_value(RARITAN_OIDS['port_power_factor'], port.port_number)
+            current_amps = self.get_snmp_value(RARITAN_OIDS['outlet_current'], port.port_number)
+            voltage = self.get_snmp_value(RARITAN_OIDS['outlet_voltage'], port.port_number)
+            power_factor = self.get_snmp_value(RARITAN_OIDS['outlet_power_factor'], port.port_number)
             
-            # Get port name from PDU (if available)
-            port_name = self.get_snmp_value(RARITAN_OIDS['port_name'], port.port_number)
-            if port_name and port_name != port.name:
-                port.name = str(port_name)
+            # Get outlet status (on/off)
+            outlet_status = self.get_snmp_value(RARITAN_OIDS['outlet_status'], port.port_number)
+            is_on = outlet_status > 0 if outlet_status is not None else False
+            
+            # Get outlet name from PDU (if available)
+            outlet_name = self.get_snmp_value(RARITAN_OIDS['outlet_name'], port.port_number)
+            if outlet_name and outlet_name != port.name:
+                port.name = str(outlet_name)
                 db.session.commit()
             
             # Create port power reading record
@@ -129,11 +133,12 @@ class RaritanPDUCollector:
                 db.session.add(port_reading)
                 db.session.commit()
                 
-            logger.info(f"Port {port.port_number} ({port.name}): {power_watts:.1f}W")
+            status_text = "ON" if is_on else "OFF"
+            logger.info(f"Outlet {port.port_number} ({port.name}): {power_watts:.1f}W - {status_text}")
             return power_watts
             
         except Exception as e:
-            logger.error(f"Error collecting power for port {port.port_number}: {str(e)}")
+            logger.error(f"Error collecting power for outlet {port.port_number}: {str(e)}")
             return 0.0
     
     def collect_all_data(self):

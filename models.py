@@ -84,6 +84,45 @@ class PowerAggregation(db.Model):
     def __repr__(self):
         return f'<PowerAggregation {self.period_type} {self.total_kwh}kWh>'
 
+class OutletGroup(db.Model):
+    __tablename__ = 'outlet_groups'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(200), nullable=True)
+    outlet_ids = db.Column(db.Text, nullable=False)  # JSON string of outlet IDs
+    color = db.Column(db.String(7), nullable=True)  # Hex color code for charts
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<OutletGroup {self.name}>'
+    
+    def get_outlet_ids(self):
+        """Get outlet IDs as a list"""
+        try:
+            return json.loads(self.outlet_ids)
+        except (json.JSONDecodeError, TypeError):
+            return []
+    
+    def set_outlet_ids(self, outlet_ids):
+        """Set outlet IDs from a list"""
+        self.outlet_ids = json.dumps(outlet_ids)
+    
+    def add_outlet(self, outlet_id):
+        """Add an outlet to this group"""
+        current_ids = self.get_outlet_ids()
+        if outlet_id not in current_ids:
+            current_ids.append(outlet_id)
+            self.set_outlet_ids(current_ids)
+    
+    def remove_outlet(self, outlet_id):
+        """Remove an outlet from this group"""
+        current_ids = self.get_outlet_ids()
+        if outlet_id in current_ids:
+            current_ids.remove(outlet_id)
+            self.set_outlet_ids(current_ids)
+
 class SystemSettings(db.Model):
     __tablename__ = 'system_settings'
     
@@ -183,19 +222,19 @@ def init_db():
     if not existing_pdu:
         pdu = PDU(
             name='Raritan PX3-5892',
-            ip_address='192.168.1.100',  # Default IP, will be updated via config
+            ip_address='172.0.250.9',  # Updated IP address
             model='Raritan PX3-5892'
         )
         db.session.add(pdu)
         db.session.flush()  # Get the ID
         
-        # Create 36 ports for the PX3-5892
+        # Create 36 outlets for the PX3-5892
         for port_num in range(1, 37):
             port = PDUPort(
                 pdu_id=pdu.id,
                 port_number=port_num,
-                name=f'Port {port_num}',
-                description=f'Port {port_num} on Raritan PX3-5892',
+                name=f'Outlet {port_num}',
+                description=f'Outlet {port_num} on Raritan PX3-5892',
                 is_active=True
             )
             db.session.add(port)
