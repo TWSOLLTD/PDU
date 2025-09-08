@@ -7,8 +7,9 @@ Collects power consumption data from Raritan PDU PX3-5892 via SNMP
 import time
 import logging
 from datetime import datetime
+from flask import Flask
 from easysnmp import Session
-from config import RARITAN_CONFIG, RARITAN_OIDS, COLLECTION_INTERVAL
+from config import RARITAN_CONFIG, RARITAN_OIDS, COLLECTION_INTERVAL, DATABASE_URI
 from models import db, PDU, PDUPort, PowerReading, PortPowerReading, OutletGroup, init_db
 
 # Configure logging
@@ -27,14 +28,21 @@ class RaritanPDUCollector:
         self.session = None
         self.pdu = None
         self.ports = []
+        self.app = None
         self.setup_database()
         self.setup_snmp_session()
         
     def setup_database(self):
         """Initialize database connection"""
         try:
-            db.init_app(None)  # We'll handle the app context manually
-            with db.app.app_context():
+            # Create Flask app for database context
+            self.app = Flask(__name__)
+            self.app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
+            self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+            
+            db.init_app(self.app)
+            
+            with self.app.app_context():
                 init_db()
                 self.pdu = PDU.query.first()
                 if self.pdu:
@@ -82,7 +90,7 @@ class RaritanPDUCollector:
             total_power_kw = total_power_watts / 1000.0
             
             # Create power reading record
-            with db.app.app_context():
+            with self.app.app_context():
                 power_reading = PowerReading(
                     pdu_id=self.pdu.id,
                     timestamp=datetime.utcnow(),
@@ -116,11 +124,12 @@ class RaritanPDUCollector:
             # Get outlet name from PDU (if available)
             outlet_name = self.get_snmp_value(RARITAN_OIDS['outlet_name'], port.port_number)
             if outlet_name and outlet_name != port.name:
-                port.name = str(outlet_name)
-                db.session.commit()
+                with self.app.app_context():
+                    port.name = str(outlet_name)
+                    db.session.commit()
             
             # Create port power reading record
-            with db.app.app_context():
+            with self.app.app_context():
                 port_reading = PortPowerReading(
                     port_id=port.id,
                     timestamp=datetime.utcnow(),
