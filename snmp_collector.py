@@ -69,7 +69,7 @@ class RaritanPDUCollector:
             logger.error(f"Error setting up SNMP session: {str(e)}")
             raise
     
-    def get_snmp_value(self, oid, port_number=None):
+    def get_snmp_value(self, oid, port_number=None, as_string=False):
         """Get SNMP value with optional port number substitution"""
         try:
             if port_number:
@@ -80,7 +80,12 @@ class RaritanPDUCollector:
                 # Handle NOSUCHINSTANCE gracefully
                 if str(result.value) == 'NOSUCHINSTANCE':
                     return None
-                return float(result.value)
+                
+                # Return as string for names, float for numeric values
+                if as_string:
+                    return str(result.value)
+                else:
+                    return float(result.value)
             return None
         except Exception as e:
             logger.warning(f"Error getting SNMP value for OID {oid}: {str(e)}")
@@ -90,6 +95,8 @@ class RaritanPDUCollector:
         """Collect total PDU power consumption"""
         try:
             total_power_watts = self.get_snmp_value(RARITAN_OIDS['total_power_watts'])
+            if total_power_watts is None:
+                total_power_watts = 0.0
             total_power_kw = total_power_watts / 1000.0
             
             # Create power reading record
@@ -132,10 +139,10 @@ class RaritanPDUCollector:
             is_on = outlet_status > 0 if outlet_status is not None else False
             
             # Get outlet name from PDU (if available)
-            outlet_name = self.get_snmp_value(RARITAN_OIDS['outlet_name'], port.port_number)
+            outlet_name = self.get_snmp_value(RARITAN_OIDS['outlet_name'], port.port_number, as_string=True)
             if outlet_name and outlet_name != port.name:
                 with self.app.app_context():
-                    port.name = str(outlet_name)
+                    port.name = outlet_name
                     db.session.commit()
             
             # Create port power reading record
