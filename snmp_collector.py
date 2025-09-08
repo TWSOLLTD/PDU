@@ -117,6 +117,72 @@ class RaritanPDUCollector:
             logger.error(f"Error collecting total power: {str(e)}")
             return 0.0
     
+    def discover_outlets(self):
+        """Discover which outlets actually exist on the PDU"""
+        existing_outlets = []
+        
+        # Try multiple OID patterns to find all outlets
+        oid_patterns = [
+            '1.3.6.1.4.1.13742.6.3.3.4.1.9.1.1',  # Outlet status
+            '1.3.6.1.4.1.13742.6.3.3.4.1.7.1.1',  # Outlet power
+            '1.3.6.1.4.1.13742.6.3.3.4.1.8.1.1',  # Outlet current
+            '1.3.6.1.4.1.13742.6.3.3.3.1.2.1',    # Outlet names
+        ]
+        
+        for pattern in oid_patterns:
+            try:
+                logger.info(f"Walking OID pattern: {pattern}")
+                results = self.session.walk(pattern)
+                
+                for result in results:
+                    # Extract outlet number from OID
+                    oid_parts = result.oid.split('.')
+                    if len(oid_parts) >= 2:
+                        outlet_num = int(oid_parts[-1])
+                        if outlet_num not in existing_outlets:
+                            existing_outlets.append(outlet_num)
+                            
+                logger.info(f"Found {len(existing_outlets)} outlets from pattern {pattern}: {sorted(existing_outlets)}")
+                
+            except Exception as e:
+                logger.warning(f"Error walking pattern {pattern}: {e}")
+                continue
+        
+        if not existing_outlets:
+            logger.warning("No outlets found via SNMP walk, falling back to individual check")
+            return self.check_outlets_individually()
+            
+        logger.info(f"Total discovered outlets: {len(existing_outlets)} - {sorted(existing_outlets)}")
+        return sorted(existing_outlets)
+
+    def check_outlets_individually(self):
+        """Fallback method to check outlets 1-36 individually"""
+        existing_outlets = []
+        
+        # Check outlets 1-36 individually using multiple OID types
+        for outlet_num in range(1, 37):
+            found = False
+            
+            # Try different OID types for this outlet
+            oid_types = ['outlet_status', 'outlet_power_watts', 'outlet_current', 'outlet_name']
+            
+            for oid_type in oid_types:
+                try:
+                    oid = RARITAN_OIDS[oid_type].format(outlet=outlet_num)
+                    result = self.session.get(oid)
+                    if result.value != 'No Such Instance' and result.value is not None:
+                        existing_outlets.append(outlet_num)
+                        found = True
+                        break
+                except Exception:
+                    continue
+            
+            if not found:
+                logger.debug(f"Outlet {outlet_num} not found")
+                
+        logger.info(f"Found {len(existing_outlets)} outlets via individual check: {existing_outlets}")
+        return existing_outlets
+
     def collect_port_power(self, port):
         """Collect power consumption and status for a specific port/outlet"""
         try:
@@ -172,21 +238,27 @@ class RaritanPDUCollector:
         try:
             logger.info("Starting data collection...")
             
+            # Discover which outlets actually exist on the PDU
+            existing_outlets = self.discover_outlets()
+            
             # Collect total PDU power
             total_power = self.collect_total_power()
             
-            # Collect individual port power
+            # Collect individual port power only for existing outlets
             port_powers = []
             for port in self.ports:
-                port_power = self.collect_port_power(port)
-                port_powers.append(port_power)
+                if port.port_number in existing_outlets:
+                    port_power = self.collect_port_power(port)
+                    port_powers.append(port_power)
+                else:
+                    logger.debug(f"Skipping outlet {port.port_number} - not found on PDU")
             
             # Verify total matches sum of ports (with some tolerance)
             sum_port_powers = sum(port_powers)
             if total_power > 0 and abs(total_power - sum_port_powers) > total_power * 0.1:  # 10% tolerance
                 logger.warning(f"Total power ({total_power:.1f}W) doesn't match sum of ports ({sum_port_powers:.1f}W)")
             
-            logger.info(f"Data collection completed. Total: {total_power:.1f}W, Ports: {len(port_powers)}")
+            logger.info(f"Data collection completed. Total: {total_power:.1f}W, Active Ports: {len(port_powers)}/{len(existing_outlets)}")
             
         except Exception as e:
             logger.error(f"Error in data collection: {str(e)}")
