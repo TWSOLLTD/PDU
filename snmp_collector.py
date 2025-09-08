@@ -73,7 +73,7 @@ class RaritanPDUCollector:
         """Get SNMP value with optional port number substitution"""
         try:
             if port_number:
-                oid = oid.format(port=port_number)
+                oid = oid.format(outlet=port_number)
             
             result = self.session.get(oid)
             if result and result.value:
