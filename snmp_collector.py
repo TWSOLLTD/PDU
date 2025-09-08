@@ -77,11 +77,14 @@ class RaritanPDUCollector:
             
             result = self.session.get(oid)
             if result and result.value:
+                # Handle NOSUCHINSTANCE gracefully
+                if str(result.value) == 'NOSUCHINSTANCE':
+                    return None
                 return float(result.value)
-            return 0.0
+            return None
         except Exception as e:
             logger.warning(f"Error getting SNMP value for OID {oid}: {str(e)}")
-            return 0.0
+            return None
     
     def collect_total_power(self):
         """Collect total PDU power consumption"""
@@ -112,10 +115,17 @@ class RaritanPDUCollector:
         try:
             # Get port power data using outlet OIDs
             power_watts = self.get_snmp_value(RARITAN_OIDS['outlet_power_watts'], port.port_number)
+            if power_watts is None:
+                power_watts = 0.0
             power_kw = power_watts / 1000.0
+            
             current_amps = self.get_snmp_value(RARITAN_OIDS['outlet_current'], port.port_number)
-            voltage = self.get_snmp_value(RARITAN_OIDS['outlet_voltage'], port.port_number)
-            power_factor = self.get_snmp_value(RARITAN_OIDS['outlet_power_factor'], port.port_number)
+            if current_amps is None:
+                current_amps = 0.0
+                
+            # Note: voltage and power_factor OIDs not available on this PDU model
+            voltage = None
+            power_factor = None
             
             # Get outlet status (on/off)
             outlet_status = self.get_snmp_value(RARITAN_OIDS['outlet_status'], port.port_number)
