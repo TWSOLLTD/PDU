@@ -209,13 +209,7 @@ def check_database_integrity():
 
 def init_db():
     """Initialize the database and create tables"""
-    # Check database integrity before initializing
-    if check_database_integrity():
-        print("Database already exists with data. Skipping initialization.")
-        return
-    
     print("Initializing new database...")
-    db.create_all()
     
     # Create single PDU record for Raritan PX3-5892
     existing_pdu = PDU.query.first()
