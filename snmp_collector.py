@@ -204,12 +204,30 @@ class RaritanPDUCollector:
             outlet_status = self.get_snmp_value(RARITAN_OIDS['outlet_status'], port.port_number)
             is_on = outlet_status > 0 if outlet_status is not None else False
             
-            # Get outlet name from PDU (if available)
-            outlet_name = self.get_snmp_value(RARITAN_OIDS['outlet_name'], port.port_number, as_string=True)
-            if outlet_name and outlet_name != port.name:
+            # Get outlet name from PDU (try multiple OID patterns)
+            outlet_name = None
+            name_oid_patterns = [
+                '1.3.6.1.4.1.13742.6.3.3.3.1.2.1.{outlet}',  # Standard outlet name
+                '1.3.6.1.4.1.13742.6.3.3.3.1.3.1.{outlet}',  # Alternative outlet name
+                '1.3.6.1.4.1.13742.6.3.3.3.1.4.1.{outlet}',  # Another pattern
+            ]
+            
+            for pattern in name_oid_patterns:
+                try:
+                    name_oid = pattern.format(outlet=port.port_number)
+                    result = self.session.get(name_oid)
+                    if result.value != 'No Such Instance' and result.value and result.value.strip():
+                        outlet_name = str(result.value).strip()
+                        break
+                except Exception:
+                    continue
+            
+            # Update port name if we found a different name
+            if outlet_name and outlet_name != port.name and outlet_name != f'Outlet {port.port_number}':
                 with self.app.app_context():
                     port.name = outlet_name
                     db.session.commit()
+                    logger.info(f"Updated outlet {port.port_number} name to: {outlet_name}")
             
             # Create port power reading record
             with self.app.app_context():
@@ -226,7 +244,7 @@ class RaritanPDUCollector:
                 db.session.commit()
                 
             status_text = "ON" if is_on else "OFF"
-            logger.info(f"Outlet {port.port_number} ({port.name}): {power_watts:.1f}W - {status_text}")
+            logger.info(f"Outlet {port.port_number} ({port.name}): {power_watts:.1f}W - {status_text} (Status: {outlet_status})")
             return power_watts
             
         except Exception as e:
