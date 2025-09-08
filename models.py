@@ -222,16 +222,16 @@ def init_db():
         db.session.add(pdu)
         db.session.flush()  # Get the ID
         
-                # Create 36 outlets for the PX3-5892
-                for port_num in range(1, 37):
-                    port = PDUPort(
-                        pdu_id=pdu.id,
-                        port_number=port_num,
-                        name=f'Outlet {port_num}',
-                        description=f'Outlet {port_num} on Raritan PX3-5892',
-                        is_active=True
-                    )
-                    db.session.add(port)
+        # Create 36 outlets for the PX3-5892
+        for port_num in range(1, 37):
+            port = PDUPort(
+                pdu_id=pdu.id,
+                port_number=port_num,
+                name=f'Outlet {port_num}',
+                description=f'Outlet {port_num} on Raritan PX3-5892',
+                is_active=True
+            )
+            db.session.add(port)
     
     db.session.commit()
     print("Database initialization completed.")
