@@ -28,24 +28,17 @@ RARITAN_OIDS = {
     'total_current': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.1.3',      # Total current
     
     # Per-outlet power (replace {outlet} with outlet number 1-36)
-    'outlet_power_watts': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{outlet}.1',  # Outlet power in watts
-    'outlet_power_va': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{outlet}.2',     # Outlet apparent power
-    'outlet_current': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{outlet}.3',      # Outlet current
-    'outlet_voltage': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{outlet}.4',      # Outlet voltage
-    'outlet_power_factor': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{outlet}.5', # Outlet power factor
-    
-    # Outlet status and names
-    'outlet_status': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{outlet}.6',       # Outlet status (on/off)
-    'outlet_name': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{outlet}.7',         # Outlet name/label
+    # Based on SNMP walk: 1.3.6.1.4.1.13742.6.3.3.4.1.7.1.1.{outlet} = power watts
+    'outlet_power_watts': '1.3.6.1.4.1.13742.6.3.3.4.1.7.1.1.{outlet}',  # Outlet power in watts
+    'outlet_current': '1.3.6.1.4.1.13742.6.3.3.4.1.8.1.1.{outlet}',      # Outlet current
+    'outlet_status': '1.3.6.1.4.1.13742.6.3.3.4.1.9.1.1.{outlet}',       # Outlet status (on/off)
+    'outlet_name': '1.3.6.1.4.1.13742.6.3.3.3.1.2.1.{outlet}',          # Outlet name/label
     
     # Legacy port OIDs (for backward compatibility)
-    'port_power_watts': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.1',  # Port power in watts
-    'port_power_va': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.2',     # Port apparent power
-    'port_current': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.3',      # Port current
-    'port_voltage': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.4',      # Port voltage
-    'port_power_factor': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.5', # Port power factor
-    'port_status': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.6',       # Port status (on/off)
-    'port_name': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.{port}.7',         # Port name/label
+    'port_power_watts': '1.3.6.1.4.1.13742.6.3.3.4.1.7.1.1.{port}',  # Port power in watts
+    'port_current': '1.3.6.1.4.1.13742.6.3.3.4.1.8.1.1.{port}',      # Port current
+    'port_status': '1.3.6.1.4.1.13742.6.3.3.4.1.9.1.1.{port}',       # Port status (on/off)
+    'port_name': '1.3.6.1.4.1.13742.6.3.3.3.1.2.1.{port}',          # Port name/label
 }
 
 # Data Collection Settings
