@@ -74,8 +74,8 @@
         /* Header */
         .header {
             background: var(--primary-gradient);
-            padding: 2rem 0;
-            margin-bottom: 2rem;
+            padding: 1rem 0;
+            margin-bottom: 1.5rem;
             position: relative;
             overflow: hidden;
         }
@@ -156,6 +156,75 @@
             color: var(--accent-color);
             font-weight: 600;
             font-size: 1.1rem;
+        }
+        
+        /* Toggle Switch */
+        .filter-controls {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .toggle-input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 0.5rem 0;
+        }
+        
+        .toggle-label::before {
+            content: '';
+            width: 44px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            position: relative;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .toggle-label::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            position: absolute;
+            left: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-input:checked + .toggle-label::before {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
+        .toggle-input:checked + .toggle-label::after {
+            background: white;
+            transform: translateY(-50%) translateX(20px);
+        }
+        
+        .toggle-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-left: 0.5rem;
         }
         
         .card-title {
@@ -531,14 +600,14 @@
                         </div>
             </div>
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="showUnnamedOutlets">
-                                <label class="form-check-label" for="showUnnamedOutlets">
-                                    Show outlets without names
+                        <div class="filter-controls mb-3">
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="showUnnamedOutlets" class="toggle-input">
+                                <label for="showUnnamedOutlets" class="toggle-label">
+                                    <span class="toggle-text">Show unnamed outlets</span>
                                 </label>
-                    </div>
-                </div>
+                            </div>
+                        </div>
                         <div class="outlet-list" id="outletList">
                             <div class="loading">
                                 <div class="spinner"></div>
