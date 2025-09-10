@@ -751,11 +751,10 @@
 
             // Create group button
             document.getElementById('createGroupBtn').addEventListener('click', function() {
-                if (selectedOutlets.size === 0) return;
                 showPasswordModal(() => {
                     showGroupModal();
-                    });
                 });
+            });
                 
             // Save group button
             document.getElementById('saveGroupBtn').addEventListener('click', function() {
