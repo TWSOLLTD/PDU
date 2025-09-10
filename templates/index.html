@@ -744,11 +744,14 @@
         // Load outlets from API
         async function loadOutlets() {
             try {
-                const response = await fetch('/api/outlets');
+                // Add cache-busting parameter to ensure fresh data
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/api/outlets?t=${timestamp}`);
                 const data = await response.json();
                 if (data.success) {
                     outlets = data.data;
                     renderOutlets();
+                    console.log('Outlets loaded:', outlets.length, 'outlets');
                 }
             } catch (error) {
                 console.error('Error loading outlets:', error);
@@ -778,6 +781,12 @@
             if (!showUnnamed) {
                 filteredOutlets = outlets.filter(outlet => outlet.name && outlet.name.trim() !== '');
             }
+
+            // Debug logging
+            console.log('Rendering outlets:', filteredOutlets.length, 'outlets');
+            filteredOutlets.forEach(outlet => {
+                console.log(`Outlet ${outlet.port_number}: name="${outlet.name}", status="${outlet.status}", power=${outlet.power_watts}W`);
+            });
 
             outletList.innerHTML = filteredOutlets.map(outlet => `
                 <div class="outlet-item ${selectedOutlets.has(outlet.id) ? 'selected' : ''}" 

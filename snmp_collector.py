@@ -60,10 +60,13 @@ class RaritanPDUCollector:
                 # Extract the value from the SNMP response
                 # Format: "SNMPv2-SMI::enterprises.13742.6.5.2.3.1.4.1.1.5 = INTEGER: 1234"
                 # Format: "SNMPv2-SMI::enterprises.13742.6.5.4.3.1.4.1.35.5 = Gauge32: 43"
+                # Format: "SNMPv2-SMI::enterprises.13742.6.3.5.3.1.3.1.1 = STRING: "Server 1""
+                logger.debug(f"SNMP command output: {result.stdout.strip()}")
                 lines = result.stdout.strip().split('\n')
                 for line in lines:
                     if '=' in line:
                         value_part = line.split('=')[1].strip()
+                        logger.debug(f"Parsing value part: '{value_part}'")
                         # Handle different SNMP data types
                         if 'INTEGER:' in value_part:
                             return int(value_part.split('INTEGER:')[1].strip())
@@ -72,7 +75,9 @@ class RaritanPDUCollector:
                         elif 'Counter32:' in value_part:
                             return int(value_part.split('Counter32:')[1].strip())
                         elif 'STRING:' in value_part:
-                            return value_part.split('STRING:')[1].strip().strip('"')
+                            name_value = value_part.split('STRING:')[1].strip().strip('"')
+                            logger.debug(f"Extracted STRING value: '{name_value}'")
+                            return name_value
                         elif 'Hex-STRING:' in value_part:
                             return value_part.split('Hex-STRING:')[1].strip()
                         else:
@@ -191,6 +196,7 @@ class RaritanPDUCollector:
             
             # Get outlet name from PDU using correct OIDs (works for all 36 outlets)
             outlet_name = self.get_snmp_value(RARITAN_OIDS['outlet_name'], port.port_number, as_string=True)
+            logger.debug(f"Outlet {port.port_number} name from SNMP: '{outlet_name}' (type: {type(outlet_name)})")
             
             # Update port name if we found a different name
             if outlet_name and outlet_name != port.name and outlet_name != f'Outlet {port.port_number}':
@@ -198,6 +204,8 @@ class RaritanPDUCollector:
                     port.name = outlet_name
                     db.session.commit()
                     logger.info(f"Updated outlet {port.port_number} name to: {outlet_name}")
+            elif outlet_name == '' or outlet_name is None:
+                logger.debug(f"Outlet {port.port_number} has no custom name, keeping default")
             
             # Log the outlet status with correct name
             logger.info(f"Outlet {port.port_number} ({outlet_name}): {power_watts}W - {'ON' if is_on else 'OFF'}")
