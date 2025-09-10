@@ -1094,6 +1094,14 @@
                 // Parse the UTC timestamp
                 const utcDate = new Date(utcTimestamp);
                 
+                // Debug logging
+                console.log('Converting timezone:', {
+                    original: utcTimestamp,
+                    utcDate: utcDate.toISOString(),
+                    userTimezone: userTimezone,
+                    localTime: utcDate.toLocaleString('en-GB', {timeZone: userTimezone})
+                });
+                
                 // Convert to local timezone with DST handling
                 const localDate = new Date(utcDate.toLocaleString("en-US", {timeZone: userTimezone}));
                 

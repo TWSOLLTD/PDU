@@ -32,6 +32,13 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 # Security check on startup
+logger.info("=== ENVIRONMENT VARIABLE DEBUG ===")
+logger.info(f"GROUP_MANAGEMENT_PASSWORD: '{GROUP_MANAGEMENT_PASSWORD}' (type: {type(GROUP_MANAGEMENT_PASSWORD)})")
+logger.info(f"SNMP_USERNAME: '{RARITAN_CONFIG['snmp_username']}'")
+logger.info(f"SNMP_AUTH_PASSWORD: '{RARITAN_CONFIG['snmp_auth_password']}'")
+logger.info(f"SNMP_PRIV_PASSWORD: '{RARITAN_CONFIG['snmp_priv_password']}'")
+logger.info(f"DISCORD_WEBHOOK_URL: '{DISCORD_WEBHOOK_URL}'")
+
 if not GROUP_MANAGEMENT_PASSWORD:
     logger.warning("⚠️  SECURITY WARNING: GROUP_MANAGEMENT_PASSWORD not set!")
     logger.warning("⚠️  Group management will be DISABLED until password is configured.")
@@ -58,16 +65,26 @@ def verify_password(password):
     # Get password from environment variable
     correct_password = GROUP_MANAGEMENT_PASSWORD
     
+    # Debug logging
+    logger.info(f"Password verification attempt:")
+    logger.info(f"  Provided password: '{password}' (length: {len(password) if password else 0})")
+    logger.info(f"  Correct password: '{correct_password}' (length: {len(correct_password) if correct_password else 0})")
+    logger.info(f"  Password is None: {correct_password is None}")
+    logger.info(f"  Password is empty: {correct_password == '' if correct_password else 'N/A'}")
+    
     # Security check: ensure password is actually set
-    if not correct_password or correct_password.strip() == '':
+    if not correct_password:
         logger.error("GROUP_MANAGEMENT_PASSWORD not set in environment variables!")
         return False
     
     # Security check: ensure provided password is not empty
     if not password or password.strip() == '':
+        logger.info("Empty password provided - rejected")
         return False
     
-    return password == correct_password
+    result = password == correct_password
+    logger.info(f"Password verification result: {result}")
+    return result
 
 @app.route('/')
 def index():
@@ -90,16 +107,24 @@ def get_power_data():
         
         # Calculate time range and aggregation based on period
         import calendar
-        now = datetime.utcnow()
+        from zoneinfo import ZoneInfo
         
         # Get user timezone from request headers (sent by frontend)
         user_timezone = request.headers.get('X-User-Timezone', 'Europe/London')
         logger.info(f"User timezone: {user_timezone}")
         
+        # Convert UTC now to user's timezone for proper time range calculation
+        utc_now = datetime.utcnow()
+        user_tz = ZoneInfo(user_timezone)
+        now = utc_now.replace(tzinfo=timezone.utc).astimezone(user_tz)
+        logger.info(f"UTC time: {utc_now}, User time: {now}")
+        
         if period == 'day':
             # Day hourly: 00:00 to 23:00 (24 hours)
             labels = [f"{i:02d}:00" for i in range(24)]
             start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            # Convert back to UTC for database queries
+            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
             interval_minutes = 60
         elif period == 'day-10min':
             # Day 10-minute: 00:00 to 23:50 (144 intervals)
@@ -108,6 +133,7 @@ def get_power_data():
                 for minute in range(0, 60, 10):
                     labels.append(f"{hour:02d}:{minute:02d}")
             start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
             interval_minutes = 10
         elif period == 'week-10min':
             # Week 10-minute: Monday 00:00 to Sunday 23:50 (1008 intervals)
@@ -120,6 +146,7 @@ def get_power_data():
             # Get start of current week (Monday)
             days_since_monday = now.weekday()
             start_time = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
+            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
             interval_minutes = 10
         elif period == 'week':
             # Week daily: Monday to Sunday
@@ -127,12 +154,14 @@ def get_power_data():
             # Get start of current week (Monday)
             days_since_monday = now.weekday()
             start_time = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
+            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
             interval_minutes = 1440  # Daily
         elif period == 'month':
             # Month daily: 1st to last day of current month
             last_day = calendar.monthrange(now.year, now.month)[1]
             labels = [f"{day:02d}" for day in range(1, last_day + 1)]
             start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
             interval_minutes = 1440  # Daily
         elif period == 'year-weekly':
             # Year weekly: Show date ranges for each week
@@ -156,17 +185,20 @@ def get_power_data():
                 labels.append(f"{month_name} {start_day}-{end_day}")
             
             start_time = current_date
+            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
             interval_minutes = 10080  # Weekly
         elif period == 'year-monthly':
             # Year monthly: January to December
             labels = ['January', 'February', 'March', 'April', 'May', 'June',
                      'July', 'August', 'September', 'October', 'November', 'December']
             start_time = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
             interval_minutes = 43200  # Monthly
         else:
             # Default to day hourly
             labels = [f"{i:02d}:00" for i in range(24)]
             start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
             interval_minutes = 60
         
         # Get power data for selected outlets
@@ -178,7 +210,7 @@ def get_power_data():
                     # Get readings for this outlet
                     readings = PortPowerReading.query.filter(
                         PortPowerReading.port_id == outlet_id,
-                        PortPowerReading.timestamp >= start_time
+                        PortPowerReading.timestamp >= start_time_utc
                     ).order_by(PortPowerReading.timestamp).all()
                     
                     # Aggregate data by time intervals
@@ -187,10 +219,14 @@ def get_power_data():
                         interval_start = start_time + timedelta(minutes=i * interval_minutes)
                         interval_end = interval_start + timedelta(minutes=interval_minutes)
                         
+                        # Convert interval times to UTC for database comparison
+                        interval_start_utc = interval_start.astimezone(timezone.utc).replace(tzinfo=None)
+                        interval_end_utc = interval_end.astimezone(timezone.utc).replace(tzinfo=None)
+                        
                         # Find readings in this interval
                         interval_readings = [
                             r for r in readings 
-                            if interval_start <= r.timestamp < interval_end
+                            if interval_start_utc <= r.timestamp < interval_end_utc
                         ]
                         
                         if interval_readings:
@@ -215,7 +251,8 @@ def get_power_data():
                 },
                 'period': period,
                 'start_time': start_time.isoformat(),
-                'end_time': now.isoformat()
+                'end_time': now.isoformat(),
+                'user_timezone': user_timezone
             })
         else:
             # No outlets selected
@@ -227,7 +264,8 @@ def get_power_data():
                 },
                 'period': period,
                 'start_time': start_time.isoformat(),
-                'end_time': now.isoformat()
+                'end_time': now.isoformat(),
+                'user_timezone': user_timezone
             })
         
     except Exception as e:
