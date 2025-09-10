@@ -1134,20 +1134,24 @@
         function renderIndividualChart(data) {
             const traces = data.outlets.map(outlet => ({
                 x: data.labels,
-                    y: outlet.power_watts,
-                    type: 'scatter',
-                    mode: 'lines+markers',
+                y: outlet.power_watts,
+                type: 'scatter',
+                mode: 'lines+markers',
                 name: outlet.name || `Outlet ${outlet.port_number}`,
-                    line: { 
+                line: {
                     width: 3,
                     shape: 'linear'
-                    },
-                    marker: { 
+                },
+                marker: {
                     size: 6
                 },
                 connectgaps: false,
-                fill: 'none'
-                }));
+                fill: 'none',
+                hovertemplate: '<b>%{fullData.name}</b><br>' +
+                              'Time: %{x}<br>' +
+                              'Power: %{y} Watts<br>' +
+                              '<extra></extra>'
+            }));
 
                 const layout = {
                     title: {
@@ -1175,7 +1179,10 @@
                 hovermode: 'closest'
             };
 
-            Plotly.newPlot('individualChart', traces, layout, {responsive: true});
+            Plotly.newPlot('individualChart', traces, layout, {
+                responsive: true,
+                displayModeBar: false
+            });
         }
 
         // Render total consumption chart
@@ -1195,7 +1202,11 @@
                         color: 'rgba(102, 126, 234, 1)',
                         width: 1
                     }
-                }
+                },
+                hovertemplate: '<b>Total Consumption</b><br>' +
+                              'Time: %{x}<br>' +
+                              'Power: %{y} Watts<br>' +
+                              '<extra></extra>'
             };
 
             const layout = {
@@ -1218,7 +1229,10 @@
                 font: { color: '#ffffff' }
             };
 
-            Plotly.newPlot('totalChart', [trace], layout, {responsive: true});
+            Plotly.newPlot('totalChart', [trace], layout, {
+                responsive: true,
+                displayModeBar: false
+            });
         }
 
         // Start data refresh
