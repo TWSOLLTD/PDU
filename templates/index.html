@@ -253,9 +253,9 @@
             }
             
             .main-card {
-                margin-bottom: 1rem;
-            }
-            
+            margin-bottom: 1rem;
+        }
+        
             .card-header {
                 padding: 1rem;
                 flex-direction: column;
@@ -299,16 +299,16 @@
             }
             
             .chart-container {
-                margin-bottom: 1rem;
-            }
-            
+            margin-bottom: 1rem;
+        }
+        
             .chart-title {
                 font-size: 1.1rem;
                 padding: 0.75rem;
             }
             
             #individualChart, #totalChart {
-                height: 350px !important;
+                height: 500px !important;
                 width: 100% !important;
             }
             
@@ -388,7 +388,7 @@
             }
             
             .group-name {
-                font-size: 1rem;
+            font-size: 1rem;
             }
             
             .group-outlets {
@@ -406,7 +406,7 @@
             }
             
             .card-header {
-                padding: 0.75rem;
+            padding: 0.75rem;
             }
             
             .card-title {
@@ -418,7 +418,7 @@
             }
             
             .wattage-value {
-                font-size: 1rem;
+            font-size: 1rem;
             }
             
             #individualChart, #totalChart {
@@ -544,7 +544,7 @@
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
-            padding: 1rem;
+                padding: 1rem;
             margin-bottom: 1rem;
             transition: var(--transition);
         }
@@ -833,8 +833,8 @@
                         <div class="total-wattage-display">
                             <span class="wattage-label">Total Power:</span>
                             <span class="wattage-value" id="totalWattageDisplay">0W</span>
-                        </div>
             </div>
+                    </div>
                     <div class="card-body">
                         <div class="filter-controls mb-3">
                             <div class="toggle-switch">
@@ -842,15 +842,15 @@
                                 <label for="showUnnamedOutlets" class="toggle-label">
                                     <span class="toggle-text">Show unnamed outlets</span>
                                 </label>
-                            </div>
-                        </div>
+                </div>
+                    </div>
                         <div class="outlet-list" id="outletList">
                             <div class="loading">
                                 <div class="spinner"></div>
+                </div>
             </div>
                         </div>
                         </div>
-                    </div>
                 </div>
                 
             <!-- Group Management Panel -->
@@ -883,8 +883,8 @@
                 Individual Outlet Consumption
             </h3>
             <div id="individualChart" style="height: 500px;"></div>
-                        </div>
-
+                </div>
+                
         <!-- Time Period Selector -->
         <div class="time-selector">
             <!-- Desktop Buttons -->
@@ -896,7 +896,7 @@
                 <button class="time-btn" data-period="month">Month (Daily)</button>
                 <button class="time-btn" data-period="year-weekly">Year (Weekly)</button>
                 <button class="time-btn" data-period="year-monthly">Year (Monthly)</button>
-            </div>
+                        </div>
             
             <!-- Mobile Buttons -->
             <div class="mobile-buttons">
@@ -907,7 +907,7 @@
                 <button class="time-btn" data-period="month">Month (Daily)</button>
                 <button class="time-btn" data-period="year-weekly">Year (Weekly)</button>
                 <button class="time-btn" data-period="year-monthly">Year (Monthly)</button>
-            </div>
+                        </div>
             
             <!-- Mobile Dropdown (Hidden) -->
             <div class="mobile-dropdown">
@@ -924,9 +924,9 @@
                         <li><a class="dropdown-item" href="#" data-period="year-weekly">Year (Weekly)</a></li>
                         <li><a class="dropdown-item" href="#" data-period="year-monthly">Year (Monthly)</a></li>
                     </ul>
+                    </div>
                 </div>
             </div>
-        </div>
 
         <!-- Total Consumption Chart -->
         <div class="chart-container">
@@ -948,27 +948,27 @@
                         Create New Group
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
+                        </div>
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="groupName" class="form-label">Group Name</label>
                                 <input type="text" class="form-control" id="groupName" placeholder="Enter group name">
-                        </div>
+                    </div>
                             <div class="mb-3">
                                 <label for="groupDescription" class="form-label">Description (Optional)</label>
                                 <input type="text" class="form-control" id="groupDescription" placeholder="Enter description">
-                    </div>
                         </div>
+                    </div>
                         <div class="col-md-6">
                             <label class="form-label">Available Outlets</label>
                             <div id="createGroupOutlets" class="form-control" style="min-height: 200px; overflow-y: auto;">
                                 <!-- Outlet checkboxes will be populated here -->
-                    </div>
                 </div>
                         </div>
                     </div>
+                        </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" id="saveGroupBtn">Create Group</button>
@@ -1086,7 +1086,7 @@
                     updateCharts();
                     });
                 });
-            
+                
             // Time period dropdown (mobile)
             document.querySelectorAll('.dropdown-item').forEach(item => {
                 item.addEventListener('click', function(e) {
@@ -1101,8 +1101,8 @@
                     document.getElementById('selectedTimePeriod').textContent = this.textContent;
                     // Update charts
                     updateCharts();
+                    });
                 });
-            });
                 
             // Show unnamed outlets checkbox
             document.getElementById('showUnnamedOutlets').addEventListener('change', function() {
@@ -1113,9 +1113,9 @@
             document.getElementById('createGroupBtn').addEventListener('click', function() {
                 showPasswordModal(() => {
                     showGroupModal();
+                    });
                 });
-            });
-                
+
             // Save group button
             document.getElementById('saveGroupBtn').addEventListener('click', function() {
                 createGroup();
@@ -1161,13 +1161,13 @@
                 // Add cache-busting parameter to ensure fresh data
                 const timestamp = new Date().getTime();
                 const response = await fetch(`/api/outlets?t=${timestamp}`);
-                const data = await response.json();
-                if (data.success) {
+                    const data = await response.json();
+                    if (data.success) {
                     outlets = data.data;
                     renderOutlets();
                     console.log('Outlets loaded:', outlets.length, 'outlets');
-                }
-            } catch (error) {
+                    }
+                } catch (error) {
                 console.error('Error loading outlets:', error);
             }
         }
@@ -1488,7 +1488,7 @@
                     if (data.success) {
                     bootstrap.Modal.getInstance(document.getElementById('editGroupModal')).hide();
                     loadGroups();
-                    } else {
+                } else {
                     alert('Error updating group: ' + data.error);
                     }
                 } catch (error) {
@@ -1512,14 +1512,14 @@
                     })
                 });
 
-                const data = await response.json();
-                if (data.success) {
+                    const data = await response.json();
+                    if (data.success) {
                     bootstrap.Modal.getInstance(document.getElementById('editGroupModal')).hide();
                     loadGroups();
-                } else {
+                    } else {
                     alert('Error deleting group: ' + data.error);
-                }
-            } catch (error) {
+                    }
+                } catch (error) {
                 console.error('Error deleting group:', error);
                 alert('Error deleting group');
             }
@@ -1552,14 +1552,14 @@
             const traces = data.outlets.map(outlet => ({
                 x: data.labels,
                 y: outlet.power_watts,
-                type: 'scatter',
-                mode: 'lines+markers',
+                    type: 'scatter',
+                    mode: 'lines+markers',
                 name: outlet.name || `Outlet ${outlet.port_number}`,
-                line: {
-                    width: 3,
+                    line: { 
+                        width: 3, 
                     shape: 'linear'
-                },
-                marker: {
+                    },
+                    marker: { 
                     size: 6
                 },
                 connectgaps: false,
@@ -1568,10 +1568,10 @@
                               'Time: %{x}<br>' +
                               'Power: %{y} Watts<br>' +
                               '<extra></extra>'
-            }));
+                }));
 
                 const layout = {
-                    margin: { t: window.innerWidth < 768 ? 120 : 20, b: 100, l: 50, r: window.innerWidth < 768 ? 20 : 100 },
+                    margin: { t: 20, b: 100, l: 50, r: window.innerWidth < 768 ? 80 : 100 },
                     xaxis: {
                     title: { text: 'Time', font: { color: '#ffffff' }, standoff: 0 },
                     titlepad: 80,
@@ -1589,13 +1589,13 @@
                     paper_bgcolor: 'rgba(0,0,0,0)',
                 font: { color: '#ffffff' },
                     legend: {
-                    font: { color: '#ffffff', size: window.innerWidth < 768 ? 10 : 12 },
+                    font: { color: '#ffffff', size: window.innerWidth < 768 ? 9 : 12 },
                     visible: true,
-                    x: window.innerWidth < 768 ? 0.5 : 1.02,
-                    y: window.innerWidth < 768 ? 1.25 : 1,
-                    xanchor: window.innerWidth < 768 ? 'center' : 'left',
-                    yanchor: 'top',
-                    orientation: window.innerWidth < 768 ? 'h' : 'v',
+                    x: window.innerWidth < 768 ? 1.05 : 1.02,
+                    y: window.innerWidth < 768 ? 0.5 : 1,
+                    xanchor: 'left',
+                    yanchor: 'middle',
+                    orientation: 'v',
                     bgcolor: 'rgba(0,0,0,0)',
                     bordercolor: 'rgba(255,255,255,0)',
                     borderwidth: 0
@@ -1605,8 +1605,8 @@
             };
 
             Plotly.newPlot('individualChart', traces, layout, {
-                responsive: true,
-                displayModeBar: false,
+                    responsive: true,
+                    displayModeBar: false,
                 staticPlot: false
             });
         }
@@ -1622,7 +1622,7 @@
                 y: totalPower,
                 type: 'bar',
                 name: 'Total Consumption',
-                marker: {
+                    marker: { 
                     color: 'rgba(102, 126, 234, 0.8)',
                     line: {
                         color: 'rgba(102, 126, 234, 1)',
@@ -1635,27 +1635,27 @@
                               '<extra></extra>'
             };
 
-            const layout = {
+                const layout = {
                 margin: { t: 20, b: 100, l: 50, r: window.innerWidth < 768 ? 20 : 50 },
-                xaxis: {
+                    xaxis: {
                     title: { text: 'Time', font: { color: '#ffffff' }, standoff: 0 },
                     titlepad: 80,
                     tickfont: { color: '#a0aec0' },
                     gridcolor: 'rgba(255,255,255,0.1)'
-                },
-                yaxis: {
+                    },
+                    yaxis: {
                     title: { text: 'Total Power (Watts)', font: { color: '#ffffff' } },
                     tickfont: { color: '#a0aec0' },
                     gridcolor: 'rgba(255,255,255,0.1)'
                 },
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    paper_bgcolor: 'rgba(0,0,0,0)',
                 font: { color: '#ffffff' }
             };
 
             Plotly.newPlot('totalChart', [trace], layout, {
-                responsive: true,
-                displayModeBar: false,
+                    responsive: true,
+                    displayModeBar: false,
                 staticPlot: false
             });
         }
