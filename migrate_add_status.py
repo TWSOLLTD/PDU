@@ -11,7 +11,7 @@ def migrate_database():
     """Add status column to port_power_readings table"""
     
     # Database file path
-    db_path = 'pdu_monitoring.db'
+    db_path = 'pdu_monitor.db'
     
     if not os.path.exists(db_path):
         print(f"Database file {db_path} not found!")
