@@ -252,8 +252,11 @@ class DiscordNotifier:
                 
                 if device_kwh >= 0:  # Include devices with 0 consumption too
                     # Format device name with port number
-                    # Check if outlet has a meaningful name (not empty string or None)
-                    if outlet.name and outlet.name.strip() and outlet.name.strip() != "":
+                    # Debug logging to see what we're dealing with
+                    logger.info(f"Outlet {outlet.port_number}: name='{outlet.name}', repr='{repr(outlet.name)}'")
+                    
+                    # Check if outlet has a meaningful name (not empty string, None, or literal "")
+                    if outlet.name and outlet.name.strip() and outlet.name.strip() != "" and outlet.name != '""':
                         device_name = f"{outlet.name} ({outlet.port_number})"
                     else:
                         device_name = f"Outlet {outlet.port_number}"
