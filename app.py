@@ -479,6 +479,81 @@ def refresh_outlets():
             'error': str(e)
         }), 500
 
+@app.route('/api/debug-outlets')
+def debug_outlets():
+    """Debug endpoint to see what's actually in the database"""
+    try:
+        outlets = PDUPort.query.filter_by(is_active=True).order_by(PDUPort.port_number).all()
+        
+        debug_data = []
+        for outlet in outlets:
+            debug_data.append({
+                'id': outlet.id,
+                'port_number': outlet.port_number,
+                'name': outlet.name,
+                'description': outlet.description,
+                'created_at': outlet.created_at.isoformat() if outlet.created_at else None,
+                'updated_at': outlet.updated_at.isoformat() if outlet.updated_at else None
+            })
+        
+        logger.info("=== DATABASE DEBUG INFO ===")
+        for outlet in debug_data:
+            logger.info(f"Port {outlet['port_number']}: name='{outlet['name']}', updated={outlet['updated_at']}")
+        
+        return jsonify({
+            'success': True,
+            'data': debug_data,
+            'message': 'Database debug info'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting debug info: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/test-update/<int:port_number>')
+def test_update(port_number):
+    """Test updating a port name manually"""
+    try:
+        port = PDUPort.query.filter_by(port_number=port_number, is_active=True).first()
+        if not port:
+            return jsonify({
+                'success': False,
+                'error': f'Port {port_number} not found'
+            }), 404
+        
+        old_name = port.name
+        new_name = f"TEST-{port_number}-{datetime.utcnow().strftime('%H%M%S')}"
+        
+        port.name = new_name
+        port.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        # Verify the update
+        updated_port = PDUPort.query.get(port.id)
+        
+        logger.info(f"TEST UPDATE: Port {port_number} name changed from '{old_name}' to '{updated_port.name}'")
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'port_number': port_number,
+                'old_name': old_name,
+                'new_name': updated_port.name,
+                'updated_at': updated_port.updated_at.isoformat()
+            },
+            'message': 'Test update successful'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error testing update: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 def start_data_collection():
     """Start background data collection every minute"""
     def collect_data():
