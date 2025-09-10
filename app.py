@@ -73,6 +73,12 @@ def verify_password(password):
     logger.info(f"  Password is None: {correct_password is None}")
     logger.info(f"  Password is empty: {correct_password == '' if correct_password else 'N/A'}")
     
+    # Character-by-character comparison
+    if password and correct_password:
+        logger.info(f"  Provided chars: {[ord(c) for c in password]}")
+        logger.info(f"  Correct chars: {[ord(c) for c in correct_password]}")
+        logger.info(f"  Character match: {[password[i] == correct_password[i] for i in range(min(len(password), len(correct_password)))]}")
+    
     # Security check: ensure password is actually set
     if not correct_password:
         logger.error("GROUP_MANAGEMENT_PASSWORD not set in environment variables!")
@@ -611,15 +617,19 @@ def debug_password():
         # Get the actual password from environment
         correct_password = GROUP_MANAGEMENT_PASSWORD
         
+        # Test the verification
+        verification_result = verify_password(test_password)
+        
         result = {
             'provided_password': test_password,
             'correct_password': correct_password,
             'password_length': len(correct_password) if correct_password else 0,
             'password_is_none': correct_password is None,
             'password_is_empty': correct_password == '' if correct_password else 'N/A',
-            'verification_result': verify_password(test_password),
+            'verification_result': verification_result,
             'env_file_exists': os.path.exists('.env'),
-            'working_directory': os.getcwd()
+            'working_directory': os.getcwd(),
+            'direct_comparison': test_password == correct_password if test_password and correct_password else False
         }
         
         return jsonify({
