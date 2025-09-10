@@ -59,16 +59,30 @@ class RaritanPDUCollector:
             if result.returncode == 0:
                 # Extract the value from the SNMP response
                 # Format: "SNMPv2-SMI::enterprises.13742.6.5.2.3.1.4.1.1.5 = INTEGER: 1234"
+                # Format: "SNMPv2-SMI::enterprises.13742.6.5.4.3.1.4.1.35.5 = Gauge32: 43"
                 lines = result.stdout.strip().split('\n')
                 for line in lines:
                     if '=' in line:
                         value_part = line.split('=')[1].strip()
+                        # Handle different SNMP data types
                         if 'INTEGER:' in value_part:
                             return int(value_part.split('INTEGER:')[1].strip())
+                        elif 'Gauge32:' in value_part:
+                            return int(value_part.split('Gauge32:')[1].strip())
+                        elif 'Counter32:' in value_part:
+                            return int(value_part.split('Counter32:')[1].strip())
                         elif 'STRING:' in value_part:
                             return value_part.split('STRING:')[1].strip().strip('"')
+                        elif 'Hex-STRING:' in value_part:
+                            return value_part.split('Hex-STRING:')[1].strip()
                         else:
-                            return value_part
+                            # Try to extract numeric value from the end
+                            parts = value_part.split()
+                            if parts:
+                                try:
+                                    return int(parts[-1])
+                                except ValueError:
+                                    return value_part
                 return None
             else:
                 logger.warning(f"SNMP command failed: {result.stderr}")
