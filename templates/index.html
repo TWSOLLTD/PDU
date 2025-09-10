@@ -553,7 +553,7 @@
                 <i class="fas fa-chart-line"></i>
                 Individual Outlet Consumption
             </h3>
-            <div id="individualChart" style="height: 500px;"></div>
+            <div id="individualChart" style="height: 600px;"></div>
                         </div>
 
         <!-- Time Period Selector -->
@@ -573,7 +573,7 @@
                 <i class="fas fa-chart-bar"></i>
                 Total Combined Consumption
             </h3>
-            <div id="totalChart" style="height: 400px;"></div>
+            <div id="totalChart" style="height: 500px;"></div>
                 </div>
             </div>
 
@@ -694,6 +694,9 @@
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
+            // Scroll to top of page
+            window.scrollTo(0, 0);
+            
             loadOutlets();
             loadGroups();
             setupEventListeners();
@@ -1174,8 +1177,10 @@
                     paper_bgcolor: 'rgba(0,0,0,0)',
                 font: { color: '#ffffff' },
                     legend: {
-                    font: { color: '#ffffff' }
+                    font: { color: '#ffffff' },
+                    visible: true
                 },
+                showlegend: true,
                 hovermode: 'closest'
             };
 
