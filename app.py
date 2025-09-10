@@ -437,6 +437,48 @@ def get_stats():
             'error': str(e)
         }), 500
 
+@app.route('/api/refresh-outlets')
+def refresh_outlets():
+    """Manually trigger outlet data refresh"""
+    try:
+        logger.info("Manual outlet refresh triggered")
+        collect_power_data()
+        
+        # Get updated outlet data
+        outlets = PDUPort.query.filter_by(is_active=True).all()
+        outlet_data = []
+        for outlet in outlets:
+            latest_reading = PortPowerReading.query.filter_by(
+                port_id=outlet.id
+            ).order_by(PortPowerReading.timestamp.desc()).first()
+            
+            power_watts = latest_reading.power_watts if latest_reading else 0
+            status = 'ON' if power_watts > 5 else 'OFF'
+            
+            outlet_data.append({
+                'id': outlet.id,
+                'name': outlet.name,
+                'port_number': outlet.port_number,
+                'description': outlet.description,
+                'power_watts': power_watts,
+                'status': status,
+                'last_updated': latest_reading.timestamp.isoformat() if latest_reading else None
+            })
+        
+        logger.info(f"Manual refresh completed - {len(outlet_data)} outlets")
+        return jsonify({
+            'success': True,
+            'data': outlet_data,
+            'message': 'Outlet data refreshed successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error refreshing outlets: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 def start_data_collection():
     """Start background data collection every minute"""
     def collect_data():

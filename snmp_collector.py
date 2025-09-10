@@ -201,9 +201,15 @@ class RaritanPDUCollector:
             # Update port name if we found a different name
             if outlet_name and outlet_name != port.name and outlet_name != f'Outlet {port.port_number}':
                 with self.app.app_context():
+                    old_name = port.name
                     port.name = outlet_name
+                    port.updated_at = datetime.utcnow()
                     db.session.commit()
-                    logger.info(f"Updated outlet {port.port_number} name to: {outlet_name}")
+                    logger.info(f"Updated outlet {port.port_number} name from '{old_name}' to: '{outlet_name}'")
+                    
+                    # Verify the update worked
+                    updated_port = PDUPort.query.get(port.id)
+                    logger.info(f"Verification - outlet {port.port_number} name in DB: '{updated_port.name}'")
             elif outlet_name == '' or outlet_name is None:
                 logger.debug(f"Outlet {port.port_number} has no custom name, keeping default")
             
