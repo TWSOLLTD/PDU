@@ -1766,7 +1766,7 @@
                     fill: 'none',
                     hovertemplate: '<b>%{fullData.name}</b><br>' +
                                   'Time: %{x}<br>' +
-                                  'Power: %{y} Watts<br>' +
+                                  'Energy: %{y:.3f} kWh<br>' +
                                   '<extra></extra>'
                 };
             });
@@ -1814,35 +1814,25 @@
 
         // Render total consumption chart
         function renderTotalChart(data) {
+            // Filter outlets to only include selected ones
+            const selectedOutletIds = Array.from(selectedOutlets);
+            const selectedOutletsData = data.outlets.filter(outlet => selectedOutletIds.includes(outlet.id));
+            
             const totalPowerKWh = data.labels.map((_, index) => {
-                const totalWatts = data.outlets.reduce((sum, outlet) => sum + (outlet.power_watts[index] || 0), 0);
+                // Backend provides actual KWh consumption for each interval
+                const totalKWh = selectedOutletsData.reduce((sum, outlet) => sum + (outlet.energy_kwh[index] || 0), 0);
                 
                 // Debug logging for first few data points
                 if (index < 3) {
-                    console.log(`Hour ${index} (${data.labels[index]}):`, {
-                        totalWatts: totalWatts,
-                        outletCount: data.outlets.length,
-                        outletPowers: data.outlets.map(o => ({name: o.name, power: o.power_watts[index] || 0}))
+                    console.log(`Interval ${index} (${data.labels[index]}):`, {
+                        totalKWh: totalKWh,
+                        selectedOutletCount: selectedOutletsData.length,
+                        totalOutletCount: data.outlets.length,
+                        selectedOutletKWh: selectedOutletsData.map(o => ({name: o.name, kwh: o.energy_kwh[index] || 0}))
                     });
                 }
                 
-                // The backend provides average power for each time interval
-                // Convert to energy consumption by multiplying by time duration
-                let conversionFactor;
-                if (currentTimePeriod === 'day-10min' || currentTimePeriod === 'week-10min') {
-                    conversionFactor = 10 / 60; // 10 minutes = 10/60 hours
-                } else if (currentTimePeriod === 'day') {
-                    conversionFactor = 1; // 1 hour
-                } else if (currentTimePeriod === 'week' || currentTimePeriod === 'month') {
-                    conversionFactor = 24; // 1 day = 24 hours
-                } else if (currentTimePeriod === 'year-weekly') {
-                    conversionFactor = 24 * 7; // 1 week = 168 hours
-                } else if (currentTimePeriod === 'year-monthly') {
-                    conversionFactor = 24 * 30; // Approximate 1 month = 720 hours
-                } else {
-                    conversionFactor = 1; // Default to 1 hour
-                }
-                return (totalWatts * conversionFactor) / 1000; // Convert to KWh
+                return totalKWh; // Backend provides actual KWh values calculated from minute-by-minute data
             });
 
             const trace = {

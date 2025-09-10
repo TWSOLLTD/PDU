@@ -197,6 +197,7 @@ def get_power_data():
                     
                     # Aggregate data by time intervals
                     power_values = []
+                    energy_values = []
                     for i, label in enumerate(labels):
                         interval_start = start_time + timedelta(minutes=i * interval_minutes)
                         interval_end = interval_start + timedelta(minutes=interval_minutes)
@@ -212,17 +213,35 @@ def get_power_data():
                         ]
                         
                         if interval_readings:
-                            # Calculate average power for this interval
+                            # Calculate average power for line graph (Watts)
                             avg_power = sum(r.power_watts for r in interval_readings) / len(interval_readings)
                             power_values.append(round(avg_power, 1))
+                            
+                            # Calculate actual energy consumption for bar graph (KWh)
+                            # Sum all power readings and convert to KWh based on reading frequency
+                            total_power_watts = sum(r.power_watts for r in interval_readings)
+                            
+                            # Calculate time duration between readings (assuming 1-minute intervals)
+                            if len(interval_readings) > 1:
+                                time_diff = (interval_readings[-1].timestamp - interval_readings[0].timestamp).total_seconds() / 3600  # Convert to hours
+                                if time_diff == 0:
+                                    time_diff = len(interval_readings) / 60  # Assume 1-minute intervals if no time difference
+                            else:
+                                time_diff = 1 / 60  # Single reading, assume 1 minute
+                            
+                            # Convert to KWh: (total_power_watts * time_in_hours) / 1000
+                            energy_kwh = (total_power_watts * time_diff) / 1000
+                            energy_values.append(round(energy_kwh, 3))
                         else:
                             power_values.append(0)  # Use 0 for missing data to show all time slots
+                            energy_values.append(0)
                     
                     outlets_data.append({
                         'id': outlet.id,
                         'name': outlet.name,
                         'port_number': outlet.port_number,
-                        'power_watts': power_values
+                        'power_watts': power_values,  # For line graph (power over time)
+                        'energy_kwh': energy_values  # For bar graph (energy consumption)
                     })
             
             return jsonify({
