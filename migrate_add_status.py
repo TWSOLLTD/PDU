@@ -10,11 +10,15 @@ from datetime import datetime
 def migrate_database():
     """Add status column to port_power_readings table"""
     
-    # Database file path
-    db_path = 'pdu_monitor.db'
+    # Database file path (Flask uses instance folder)
+    db_path = 'instance/pdu_monitor.db'
     
     if not os.path.exists(db_path):
         print(f"Database file {db_path} not found!")
+        print("This usually means the application hasn't been run yet to create the database.")
+        print("You can either:")
+        print("1. Run the application first to create the database, then run this migration")
+        print("2. Or the migration will be applied automatically when the app starts")
         return False
     
     try:
