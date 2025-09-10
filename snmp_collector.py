@@ -6,9 +6,9 @@ Collects power consumption data from Raritan PDU PX3-5892 via SNMP
 
 import time
 import logging
+import subprocess
 from datetime import datetime
 from flask import Flask
-from easysnmp import Session
 from config import RARITAN_CONFIG, RARITAN_OIDS, COLLECTION_INTERVAL, DATABASE_URI
 from models import db, PDU, PDUPort, PowerReading, PortPowerReading, OutletGroup, init_db
 
@@ -25,12 +25,10 @@ logger = logging.getLogger(__name__)
 
 class RaritanPDUCollector:
     def __init__(self):
-        self.session = None
         self.pdu = None
         self.ports = []
         self.app = None
         self.setup_database()
-        self.setup_snmp_session()
         
     def setup_database(self):
         """Initialize database connection"""
@@ -54,46 +52,52 @@ class RaritanPDUCollector:
             logger.error(f"Error setting up database: {str(e)}")
             raise
     
-    def setup_snmp_session(self):
-        """Setup SNMP v3 session for Raritan PDU"""
+    def execute_snmp_command(self, command):
+        """Execute exact SNMP command and return the result"""
         try:
-            self.session = Session(
-                hostname=RARITAN_CONFIG['ip'],
-                security_username=RARITAN_CONFIG['snmp_username'],
-                auth_protocol=RARITAN_CONFIG['snmp_auth_protocol'],
-                auth_password=RARITAN_CONFIG['snmp_auth_password'],
-                privacy_protocol=RARITAN_CONFIG['snmp_priv_protocol'],
-                privacy_password=RARITAN_CONFIG['snmp_priv_password'],
-                version=3,
-                timeout=RARITAN_CONFIG['snmp_timeout'],
-                retries=RARITAN_CONFIG['snmp_retries']
-            )
-            logger.info(f"SNMP v3 session established with {RARITAN_CONFIG['ip']} using user: {RARITAN_CONFIG['snmp_username']}")
+            result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                # Extract the value from the SNMP response
+                # Format: "SNMPv2-SMI::enterprises.13742.6.5.2.3.1.4.1.1.5 = INTEGER: 1234"
+                lines = result.stdout.strip().split('\n')
+                for line in lines:
+                    if '=' in line:
+                        value_part = line.split('=')[1].strip()
+                        if 'INTEGER:' in value_part:
+                            return int(value_part.split('INTEGER:')[1].strip())
+                        elif 'STRING:' in value_part:
+                            return value_part.split('STRING:')[1].strip().strip('"')
+                        else:
+                            return value_part
+                return None
+            else:
+                logger.warning(f"SNMP command failed: {result.stderr}")
+                return None
+        except subprocess.TimeoutExpired:
+            logger.warning(f"SNMP command timed out: {command}")
+            return None
         except Exception as e:
-            logger.error(f"Error setting up SNMP v3 session: {str(e)}")
-            raise
+            logger.warning(f"Error executing SNMP command: {str(e)}")
+            return None
     
-    def get_snmp_value(self, oid, port_number=None, as_string=False):
-        """Get SNMP value with optional port number substitution"""
+    def get_snmp_value(self, oid_template, port_number=None, as_string=False):
+        """Get SNMP value using exact command from your working commands"""
         try:
+            # Build the exact command from your working commands
             if port_number:
-                oid = oid.format(outlet=port_number)
+                oid = oid_template.format(outlet=port_number)
+            else:
+                oid = oid_template
             
-            # Remove leading dot if present - easysnmp doesn't use it
-            if oid.startswith('.'):
-                oid = oid[1:]
+            # Use the EXACT command format from your working commands
+            command = f'snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 {oid}'
             
-            result = self.session.get(oid)
-            if result and result.value:
-                # Handle NOSUCHINSTANCE gracefully
-                if str(result.value) == 'NOSUCHINSTANCE':
-                    return None
-                
-                # Return as string for names, float for numeric values
+            result = self.execute_snmp_command(command)
+            if result is not None:
                 if as_string:
-                    return str(result.value)
+                    return str(result)
                 else:
-                    return float(result.value)
+                    return float(result)
             return None
         except Exception as e:
             logger.warning(f"Error getting SNMP value for OID {oid}: {str(e)}")
@@ -126,50 +130,9 @@ class RaritanPDUCollector:
             return 0.0
     
     def discover_outlets(self):
-        """Discover which outlets actually exist on the PDU"""
-        existing_outlets = []
-        
-        # Try multiple OID patterns to find all outlets - using correct OIDs
-        oid_patterns = [
-            '1.3.6.1.4.1.13742.6.3.5.3.1.3.1',      # Outlet names (all 36 outlets)
-            '1.3.6.1.4.1.13742.6.3.3.4.1.9.1.1',    # Outlet status (7 outlets)
-            '1.3.6.1.4.1.13742.6.3.3.4.1.7.1.1',    # Outlet power (7 outlets)
-            '1.3.6.1.4.1.13742.6.3.3.4.1.8.1.1',    # Outlet current (7 outlets)
-        ]
-        
-        for pattern in oid_patterns:
-            try:
-                logger.info(f"Walking OID pattern: {pattern}")
-                results = self.session.walk(pattern)
-                
-                for result in results:
-                    # Extract outlet number from OID
-                    oid_parts = result.oid.split('.')
-                    if len(oid_parts) >= 2:
-                        try:
-                            outlet_num = int(oid_parts[-1])
-                            # Only consider outlets 1-36
-                            if 1 <= outlet_num <= 36 and outlet_num not in existing_outlets:
-                                existing_outlets.append(outlet_num)
-                                logger.debug(f"Found outlet {outlet_num} via {pattern}")
-                        except ValueError:
-                            continue
-                            
-                logger.info(f"Found {len(existing_outlets)} outlets from pattern {pattern}: {sorted(existing_outlets)}")
-                
-            except Exception as e:
-                logger.warning(f"Error walking pattern {pattern}: {e}")
-                continue
-        
-        # Since we know from the PDU config that all 36 outlets exist (1-36),
-        # force individual check if we don't find all of them
-        if len(existing_outlets) < 36:
-            logger.warning(f"Only found {len(existing_outlets)} outlets via SNMP walk, but PDU config shows 36 outlets exist")
-            logger.info("Forcing individual check for all outlets 1-36")
-            return self.check_outlets_individually()
-            
-        logger.info(f"Total discovered outlets: {len(existing_outlets)} - {sorted(existing_outlets)}")
-        return sorted(existing_outlets)
+        """All 36 outlets exist - we'll check them individually using exact commands"""
+        logger.info("Using exact SNMP commands to check all 36 outlets")
+        return self.check_outlets_individually()
 
     def check_outlets_individually(self):
         """Fallback method to check outlets 1-36 individually"""
