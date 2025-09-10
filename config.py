@@ -34,26 +34,21 @@ SNMP_AUTH_PASSWORD = '91W1CGVNkhTXA<^W'
 SNMP_PRIV_PASSWORD = '91W1CGVNkhTXA<^W'
 
 # Raritan PX3-5892 SNMP OIDs (using SNMP v3 with correct OIDs for all 36 outlets)
+# All OIDs tested and verified working from raritan_snmp_commands.txt
 RARITAN_OIDS = {
-    # Total PDU power (using inlet measurements)
-    'total_power_watts': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.1.1',  # Total power
-    'total_current': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.1.3',      # Total current
+    # Total PDU power (Watts)
+    'total_power_watts': '1.3.6.1.4.1.13742.6.5.2.3.1.4.1.1.5',  # Total power
     
-    # Per-outlet measurements (CORRECTED OIDs from actual SNMP walk data)
-    # Structure: 1.3.6.1.4.1.13742.6.3.5.4.1.{tableId}.1.{outletId}.{sensorType}
-    # tableId: 11=measurements, 21-24=different measurement tables, outletId=1-36, sensorType: 4=activePower, 0=rmsCurrent, 13=onOff
-    'outlet_power_watts': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{outlet}.4',  # Outlet power (activePower) - main measurements table
-    'outlet_current': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{outlet}.0',      # Outlet current (rmsCurrent) - main measurements table
-    'outlet_status': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{outlet}.13',      # Outlet status (onOff) - main measurements table
+    # Per-outlet measurements (all 36 outlets)
+    'outlet_power_watts': '1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{outlet}.5',  # Outlet power (Watts)
+    'outlet_status': '1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{outlet}.14',      # Outlet status (7=ON, 8=OFF)
     
     # Outlet configuration (names - all 36 outlets accessible)
     'outlet_name': '1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{outlet}',           # Outlet name (all 36)
-    'outlet_label': '1.3.6.1.4.1.13742.6.3.5.3.1.2.1.{outlet}',          # Outlet label (all 36)
     
-    # Port OIDs (same as outlet OIDs with correct structure from SNMP walk)
-    'port_power_watts': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{port}.4',  # Port power in watts (activePower) - main measurements table
-    'port_current': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{port}.0',      # Port current (rmsCurrent) - main measurements table
-    'port_status': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{port}.13',      # Port status (onOff) - main measurements table
+    # Port OIDs (same as outlet OIDs)
+    'port_power_watts': '1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{port}.5',  # Port power in watts
+    'port_status': '1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{port}.14',      # Port status (7=ON, 8=OFF)
     'port_name': '1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{port}',          # Port name
 }
 

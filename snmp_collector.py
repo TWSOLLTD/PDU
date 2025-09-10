@@ -193,27 +193,23 @@ class RaritanPDUCollector:
                 power_watts = 0.0
             power_kw = power_watts / 1000.0
             
-            current_amps = self.get_snmp_value(RARITAN_OIDS['outlet_current'], port.port_number)
-            if current_amps is None:
-                current_amps = 0.0
+            # Current measurement not available in working OIDs
+            current_amps = None
                 
             # Note: voltage and power_factor OIDs not available on this PDU model
             voltage = None
             power_factor = None
             
-            # Get outlet status (on/off)
+            # Get outlet status (on/off) - 7=ON, 8=OFF
             outlet_status = self.get_snmp_value(RARITAN_OIDS['outlet_status'], port.port_number)
-            is_on = outlet_status > 0 if outlet_status is not None else False
+            is_on = outlet_status == 7 if outlet_status is not None else False
             
             # Log if we can't read data from this outlet
-            if power_watts == 0.0 and current_amps == 0.0 and outlet_status is None:
+            if power_watts == 0.0 and outlet_status is None:
                 logger.debug(f"Outlet {port.port_number} appears to be inaccessible via SNMP")
             
             # Get outlet name from PDU using correct OIDs (works for all 36 outlets)
             outlet_name = self.get_snmp_value(RARITAN_OIDS['outlet_name'], port.port_number, as_string=True)
-            if not outlet_name:
-                # Try outlet label as fallback
-                outlet_name = self.get_snmp_value(RARITAN_OIDS['outlet_label'], port.port_number, as_string=True)
             
             # Update port name if we found a different name
             if outlet_name and outlet_name != port.name and outlet_name != f'Outlet {port.port_number}':
