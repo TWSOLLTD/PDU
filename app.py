@@ -554,6 +554,57 @@ def test_update(port_number):
             'error': str(e)
         }), 500
 
+@app.route('/api/update-outlet-names')
+def update_outlet_names():
+    """Manually trigger SNMP name updates for all outlets"""
+    try:
+        logger.info("Manual outlet name update triggered")
+        
+        # Import the collector
+        from snmp_collector import RaritanPDUCollector
+        
+        # Create collector with the main app instance
+        collector = RaritanPDUCollector(app)
+        
+        # Get all ports and update their names
+        updated_count = 0
+        outlets = PDUPort.query.filter_by(is_active=True).all()
+        
+        for port in outlets:
+            try:
+                # Get outlet name from PDU
+                outlet_name = collector.get_snmp_value(RARITAN_OIDS['outlet_name'], port.port_number, as_string=True)
+                
+                if outlet_name and outlet_name != port.name and outlet_name != f'Outlet {port.port_number}':
+                    old_name = port.name
+                    port.name = outlet_name
+                    port.updated_at = datetime.utcnow()
+                    db.session.commit()
+                    
+                    logger.info(f"Updated outlet {port.port_number} name from '{old_name}' to: '{outlet_name}'")
+                    updated_count += 1
+                    
+            except Exception as e:
+                logger.error(f"Error updating outlet {port.port_number}: {str(e)}")
+        
+        logger.info(f"Manual name update completed - {updated_count} outlets updated")
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'updated_count': updated_count,
+                'total_outlets': len(outlets)
+            },
+            'message': f'Updated {updated_count} outlet names'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating outlet names: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 def start_data_collection():
     """Start background data collection every minute"""
     def collect_data():
