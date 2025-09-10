@@ -85,29 +85,6 @@ def get_power_data():
             days_since_monday = now.weekday()
             start_time = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
             interval_minutes = 10
-        elif period == 'month-10min':
-            # Month 10-minute: 1st 00:00 to last day 23:50 (varies by month)
-            last_day = calendar.monthrange(now.year, now.month)[1]
-            labels = []
-            for day in range(1, last_day + 1):
-                for hour in range(24):
-                    for minute in range(0, 60, 10):
-                        labels.append(f"{day:02d} {hour:02d}:{minute:02d}")
-            start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            interval_minutes = 10
-        elif period == 'year-10min':
-            # Year 10-minute: Jan 1 00:00 to Dec 31 23:50 (525,600 intervals)
-            labels = []
-            months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-            for month_idx in range(12):
-                month_num = month_idx + 1
-                last_day = calendar.monthrange(now.year, month_num)[1]
-                for day in range(1, last_day + 1):
-                    for hour in range(24):
-                        for minute in range(0, 60, 10):
-                            labels.append(f"{months[month_idx]} {day:02d} {hour:02d}:{minute:02d}")
-            start_time = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-            interval_minutes = 10
         elif period == 'week':
             # Week daily: Monday to Sunday
             labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
