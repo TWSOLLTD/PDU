@@ -442,7 +442,7 @@ def refresh_outlets():
     """Manually trigger outlet data refresh"""
     try:
         logger.info("Manual outlet refresh triggered")
-        collect_power_data()
+        collect_power_data(app)  # Pass the Flask app instance
         
         # Get updated outlet data
         outlets = PDUPort.query.filter_by(is_active=True).all()
@@ -560,7 +560,7 @@ def start_data_collection():
         while True:
             try:
                 print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Collecting power data...")
-                collect_power_data()
+                collect_power_data(app)  # Pass the Flask app instance
                 print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Power data collection completed.")
             except Exception as e:
                 print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Error collecting power data: {str(e)}")

@@ -24,12 +24,31 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class RaritanPDUCollector:
-    def __init__(self):
+    def __init__(self, app=None):
         self.pdu = None
         self.ports = []
-        self.app = None
-        self.setup_database()
+        self.app = app
+        if app:
+            self.setup_database_with_app(app)
+        else:
+            self.setup_database()
         
+    def setup_database_with_app(self, app):
+        """Initialize database connection using existing Flask app"""
+        try:
+            self.app = app
+            
+            with self.app.app_context():
+                self.pdu = PDU.query.first()
+                if self.pdu:
+                    self.ports = PDUPort.query.filter_by(pdu_id=self.pdu.id, is_active=True).order_by(PDUPort.port_number).all()
+                    logger.info(f"Found PDU: {self.pdu.name} with {len(self.ports)} active ports")
+                else:
+                    logger.error("No PDU found in database")
+        except Exception as e:
+            logger.error(f"Error setting up database with app: {str(e)}")
+            raise
+
     def setup_database(self):
         """Initialize database connection"""
         try:
@@ -285,10 +304,10 @@ class RaritanPDUCollector:
                 logger.error(f"Error in main loop: {str(e)}")
                 time.sleep(COLLECTION_INTERVAL)
 
-def collect_power_data():
+def collect_power_data(app=None):
     """Simple function to collect power data - called from main app"""
     try:
-        collector = RaritanPDUCollector()
+        collector = RaritanPDUCollector(app)
         collector.collect_all_data()
     except Exception as e:
         logger.error(f"Error collecting power data: {str(e)}")
