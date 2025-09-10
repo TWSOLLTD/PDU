@@ -14,7 +14,7 @@ import threading
 import time
 import hashlib
 
-from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG, RARITAN_CONFIG, GROUP_MANAGEMENT_PASSWORD
+from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG, RARITAN_CONFIG, GROUP_MANAGEMENT_PASSWORD, DISCORD_WEBHOOK_URL
 from models import db, PDU, PDUPort, PowerReading, PortPowerReading, PowerAggregation, SystemSettings, OutletGroup, init_db
 from snmp_collector import collect_power_data
 from discord_notifier import send_monthly_report, send_test_notification
@@ -32,12 +32,26 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 # Security check on startup
-if not GROUP_MANAGEMENT_PASSWORD or GROUP_MANAGEMENT_PASSWORD.strip() == '':
+if not GROUP_MANAGEMENT_PASSWORD:
     logger.warning("⚠️  SECURITY WARNING: GROUP_MANAGEMENT_PASSWORD not set!")
     logger.warning("⚠️  Group management will be DISABLED until password is configured.")
     logger.warning("⚠️  Set GROUP_MANAGEMENT_PASSWORD in your .env file.")
 else:
     logger.info("✅ Group management password configured securely")
+
+# Check SNMP credentials
+if not RARITAN_CONFIG['snmp_username'] or not RARITAN_CONFIG['snmp_auth_password'] or not RARITAN_CONFIG['snmp_priv_password']:
+    logger.warning("⚠️  SECURITY WARNING: SNMP credentials not fully configured!")
+    logger.warning("⚠️  Set SNMP_USERNAME, SNMP_AUTH_PASSWORD, SNMP_PRIV_PASSWORD in your .env file.")
+else:
+    logger.info("✅ SNMP credentials configured securely")
+
+# Check Discord webhook
+if not DISCORD_WEBHOOK_URL:
+    logger.warning("⚠️  Discord webhook not configured!")
+    logger.warning("⚠️  Set DISCORD_WEBHOOK_URL in your .env file.")
+else:
+    logger.info("✅ Discord webhook configured securely")
 
 def verify_password(password):
     """Verify password securely"""
@@ -77,6 +91,10 @@ def get_power_data():
         # Calculate time range and aggregation based on period
         import calendar
         now = datetime.utcnow()
+        
+        # Get user timezone from request headers (sent by frontend)
+        user_timezone = request.headers.get('X-User-Timezone', 'Europe/London')
+        logger.info(f"User timezone: {user_timezone}")
         
         if period == 'day':
             # Day hourly: 00:00 to 23:00 (24 hours)

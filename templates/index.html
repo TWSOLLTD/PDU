@@ -1104,6 +1104,20 @@
             }
         }
         
+        // Function to make API calls with timezone header
+        async function fetchWithTimezone(url, options = {}) {
+            const headers = {
+                'X-User-Timezone': userTimezone,
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+            
+            return fetch(url, {
+                ...options,
+                headers
+            });
+        }
+        
         // Function to format time for display
         function formatTimeForDisplay(date, format = 'time') {
             const localDate = convertToLocalTime(date);
@@ -1261,7 +1275,7 @@
             try {
                 // Add cache-busting parameter to ensure fresh data
                 const timestamp = new Date().getTime();
-                const response = await fetch(`/api/outlets?t=${timestamp}`);
+                const response = await fetchWithTimezone(`/api/outlets?t=${timestamp}`);
                     const data = await response.json();
                     if (data.success) {
                     outlets = data.data;
@@ -1660,7 +1674,7 @@
 
                 try {
                 const outletIds = Array.from(selectedOutlets);
-                const response = await fetch(`/api/power-data?period=${currentTimePeriod}&outlet_ids=${outletIds.join(',')}`);
+                const response = await fetchWithTimezone(`/api/power-data?period=${currentTimePeriod}&outlet_ids=${outletIds.join(',')}`);
                     const data = await response.json();
 
                     if (data.success) {

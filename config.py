@@ -14,11 +14,11 @@ RARITAN_CONFIG = {
     'snmp_timeout': 10,
     'snmp_retries': 5,
     # SNMP v3 Configuration - Now using environment variables
-    'snmp_username': os.getenv('SNMP_USERNAME', 'snmpuser'),
+    'snmp_username': os.getenv('SNMP_USERNAME'),
     'snmp_auth_protocol': 'SHA-256',
     'snmp_priv_protocol': 'AES-128',
-    'snmp_auth_password': os.getenv('SNMP_AUTH_PASSWORD', ''),
-    'snmp_priv_password': os.getenv('SNMP_PRIV_PASSWORD', '')
+    'snmp_auth_password': os.getenv('SNMP_AUTH_PASSWORD'),
+    'snmp_priv_password': os.getenv('SNMP_PRIV_PASSWORD')
 }
 
 # SNMP Configuration for Raritan PX3-5892
@@ -26,12 +26,12 @@ SNMP_PORT = 161
 SNMP_TIMEOUT = 10
 SNMP_RETRIES = 5
 
-# SNMP v3 Configuration
-SNMP_USERNAME = 'snmpuser'
+# SNMP v3 Configuration - Using environment variables
+SNMP_USERNAME = os.getenv('SNMP_USERNAME')
 SNMP_AUTH_PROTOCOL = 'SHA-256'
 SNMP_PRIV_PROTOCOL = 'AES-128'
-SNMP_AUTH_PASSWORD = '91W1CGVNkhTXA<^W'
-SNMP_PRIV_PASSWORD = '91W1CGVNkhTXA<^W'
+SNMP_AUTH_PASSWORD = os.getenv('SNMP_AUTH_PASSWORD')
+SNMP_PRIV_PASSWORD = os.getenv('SNMP_PRIV_PASSWORD')
 
 # Raritan PX3-5892 SNMP OIDs - EXACT COPY from raritan_snmp_commands.txt
 # These are the EXACT OIDs that were tested and verified working
@@ -82,7 +82,7 @@ WEBHOOK_SECRET = '83f94680ae1190173ed57c776bbfd1ad55da3dde6951e406f09003fabd7e93
 WEBHOOK_PORT = 5001
 
 # Group Management Configuration
-GROUP_MANAGEMENT_PASSWORD = os.getenv('GROUP_MANAGEMENT_PASSWORD', '')  # Secure password for group management
+GROUP_MANAGEMENT_PASSWORD = os.getenv('GROUP_MANAGEMENT_PASSWORD')  # Secure password for group management
 
 # Discord Webhook Configuration
 DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')  # Discord webhook URL for alerts
