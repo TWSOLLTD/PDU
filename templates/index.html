@@ -1816,22 +1816,33 @@
         function renderTotalChart(data) {
             const totalPowerKWh = data.labels.map((_, index) => {
                 const totalWatts = data.outlets.reduce((sum, outlet) => sum + (outlet.power_watts[index] || 0), 0);
-                // Convert Watts to KWh based on time period
-                let hoursPerInterval;
-                if (currentTimePeriod === 'day-10min' || currentTimePeriod === 'week-10min') {
-                    hoursPerInterval = 10 / 60; // 10 minutes = 10/60 hours
-                } else if (currentTimePeriod === 'day') {
-                    hoursPerInterval = 1; // 1 hour
-                } else if (currentTimePeriod === 'week' || currentTimePeriod === 'month') {
-                    hoursPerInterval = 24; // 1 day = 24 hours
-                } else if (currentTimePeriod === 'year-weekly') {
-                    hoursPerInterval = 24 * 7; // 1 week = 168 hours
-                } else if (currentTimePeriod === 'year-monthly') {
-                    hoursPerInterval = 24 * 30; // Approximate 1 month = 720 hours
-                } else {
-                    hoursPerInterval = 1; // Default to 1 hour
+                
+                // Debug logging for first few data points
+                if (index < 3) {
+                    console.log(`Hour ${index} (${data.labels[index]}):`, {
+                        totalWatts: totalWatts,
+                        outletCount: data.outlets.length,
+                        outletPowers: data.outlets.map(o => ({name: o.name, power: o.power_watts[index] || 0}))
+                    });
                 }
-                return (totalWatts * hoursPerInterval) / 1000; // Convert to KWh
+                
+                // The backend provides average power for each time interval
+                // Convert to energy consumption by multiplying by time duration
+                let conversionFactor;
+                if (currentTimePeriod === 'day-10min' || currentTimePeriod === 'week-10min') {
+                    conversionFactor = 10 / 60; // 10 minutes = 10/60 hours
+                } else if (currentTimePeriod === 'day') {
+                    conversionFactor = 1; // 1 hour
+                } else if (currentTimePeriod === 'week' || currentTimePeriod === 'month') {
+                    conversionFactor = 24; // 1 day = 24 hours
+                } else if (currentTimePeriod === 'year-weekly') {
+                    conversionFactor = 24 * 7; // 1 week = 168 hours
+                } else if (currentTimePeriod === 'year-monthly') {
+                    conversionFactor = 24 * 30; // Approximate 1 month = 720 hours
+                } else {
+                    conversionFactor = 1; // Default to 1 hour
+                }
+                return (totalWatts * conversionFactor) / 1000; // Convert to KWh
             });
 
             const trace = {
