@@ -21,8 +21,8 @@ nano .env
 Update the following values:
 ```
 SNMP_USERNAME=snmpuser
-SNMP_AUTH_PASSWORD=91W1CGVNkhTXA<^W
-SNMP_PRIV_PASSWORD=91W1CGVNkhTXA<^W
+SNMP_AUTH_PASSWORD=your_snmp_auth_password_here
+SNMP_PRIV_PASSWORD=your_snmp_priv_password_here
 PDU_IP=172.0.250.9
 GROUP_MANAGEMENT_PASSWORD=Ru5tyt1n#
 ```
