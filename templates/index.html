@@ -1489,7 +1489,7 @@
         let currentPassword = '';
 
         // Verify password
-        function verifyPassword() {
+        async function verifyPassword() {
             const password = document.getElementById('passwordInput').value;
             
             // Frontend validation - reject empty passwords
@@ -1498,22 +1498,47 @@
                 return;
             }
             
-            // Store password for API calls
-            currentPassword = password;
+            // Show loading state
+            const verifyBtn = document.querySelector('#passwordModal .btn-primary');
+            const originalText = verifyBtn.textContent;
+            verifyBtn.textContent = 'Verifying...';
+            verifyBtn.disabled = true;
             
-            // Debug logging
-            console.log('Password stored:', {
-                original: password,
-                stored: currentPassword,
-                length: currentPassword.length,
-                chars: currentPassword.split('').map(c => c.charCodeAt(0))
-            });
-            
-            document.getElementById('passwordInput').value = '';
-            bootstrap.Modal.getInstance(document.getElementById('passwordModal')).hide();
-            if (window.passwordCallback) {
-                window.passwordCallback();
-                window.passwordCallback = null;
+            try {
+                // Test password with backend
+                const response = await fetchWithTimezone(`/api/debug-password?password=${encodeURIComponent(password)}`);
+                const result = await response.json();
+                
+                if (result.success && result.data.verification_result) {
+                    // Password is correct - store it and proceed
+                    currentPassword = password;
+                    
+                    console.log('Password verified successfully:', {
+                        original: password,
+                        stored: currentPassword,
+                        length: currentPassword.length,
+                        chars: currentPassword.split('').map(c => c.charCodeAt(0))
+                    });
+                    
+                    document.getElementById('passwordInput').value = '';
+                    bootstrap.Modal.getInstance(document.getElementById('passwordModal')).hide();
+                    if (window.passwordCallback) {
+                        window.passwordCallback();
+                        window.passwordCallback = null;
+                    }
+                } else {
+                    // Password is incorrect
+                    alert('Invalid password! Please try again.');
+                    document.getElementById('passwordInput').value = '';
+                    document.getElementById('passwordInput').focus();
+                }
+            } catch (error) {
+                console.error('Password verification error:', error);
+                alert('Error verifying password. Please try again.');
+            } finally {
+                // Restore button state
+                verifyBtn.textContent = originalText;
+                verifyBtn.disabled = false;
             }
         }
 
