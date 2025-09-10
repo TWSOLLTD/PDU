@@ -760,6 +760,22 @@
             document.getElementById('saveGroupBtn').addEventListener('click', function() {
                 createGroup();
             });
+            
+            // Password modal event listeners (set up once)
+            const passwordInput = document.getElementById('passwordInput');
+            const passwordModal = document.getElementById('passwordModal');
+            
+            // Enter key support for password
+            passwordInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    verifyPassword();
+                }
+            });
+            
+            // Auto-focus when modal is shown
+            passwordModal.addEventListener('shown.bs.modal', function() {
+                passwordInput.focus();
+            });
 
             // Verify password button
             document.getElementById('verifyPasswordBtn').addEventListener('click', function() {
@@ -945,20 +961,6 @@
         function showPasswordModal(callback) {
             window.passwordCallback = callback;
             const modal = new bootstrap.Modal(document.getElementById('passwordModal'));
-            
-            // Add Enter key support
-            const passwordInput = document.getElementById('passwordInput');
-            passwordInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    verifyPassword();
-                }
-            });
-            
-            // Auto-focus when modal is fully shown
-            document.getElementById('passwordModal').addEventListener('shown.bs.modal', function() {
-                passwordInput.focus();
-            });
-            
             modal.show();
         }
 
