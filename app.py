@@ -57,6 +57,7 @@ def get_power_data():
             outlet_ids = []
         
         # Calculate time range and aggregation based on period
+        import calendar
         now = datetime.utcnow()
         
         if period == 'day':
@@ -72,6 +73,41 @@ def get_power_data():
                     labels.append(f"{hour:02d}:{minute:02d}")
             start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
             interval_minutes = 10
+        elif period == 'week-10min':
+            # Week 10-minute: Monday 00:00 to Sunday 23:50 (1008 intervals)
+            labels = []
+            days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+            for day_idx in range(7):
+                for hour in range(24):
+                    for minute in range(0, 60, 10):
+                        labels.append(f"{days[day_idx]} {hour:02d}:{minute:02d}")
+            # Get start of current week (Monday)
+            days_since_monday = now.weekday()
+            start_time = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
+            interval_minutes = 10
+        elif period == 'month-10min':
+            # Month 10-minute: 1st 00:00 to last day 23:50 (varies by month)
+            last_day = calendar.monthrange(now.year, now.month)[1]
+            labels = []
+            for day in range(1, last_day + 1):
+                for hour in range(24):
+                    for minute in range(0, 60, 10):
+                        labels.append(f"{day:02d} {hour:02d}:{minute:02d}")
+            start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            interval_minutes = 10
+        elif period == 'year-10min':
+            # Year 10-minute: Jan 1 00:00 to Dec 31 23:50 (525,600 intervals)
+            labels = []
+            months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            for month_idx in range(12):
+                month_num = month_idx + 1
+                last_day = calendar.monthrange(now.year, month_num)[1]
+                for day in range(1, last_day + 1):
+                    for hour in range(24):
+                        for minute in range(0, 60, 10):
+                            labels.append(f"{months[month_idx]} {day:02d} {hour:02d}:{minute:02d}")
+            start_time = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            interval_minutes = 10
         elif period == 'week':
             # Week daily: Monday to Sunday
             labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -81,7 +117,6 @@ def get_power_data():
             interval_minutes = 1440  # Daily
         elif period == 'month':
             # Month daily: 1st to last day of current month
-            import calendar
             last_day = calendar.monthrange(now.year, now.month)[1]
             labels = [f"{day:02d}" for day in range(1, last_day + 1)]
             start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
