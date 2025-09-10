@@ -112,16 +112,12 @@ def get_power_data():
                 week_start = current_date + timedelta(weeks=week)
                 week_end = week_start + timedelta(days=6)
                 
-                # Format: "8th-14th Sep" or "8th-14th September" for longer months
+                # Format: "Jan 6-12" (much shorter)
                 start_day = week_start.day
                 end_day = week_end.day
                 month_name = week_start.strftime('%b')  # Short month name
                 
-                # Add ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
-                def ordinal(n):
-                    return "%d%s" % (n, "th" if 4 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th"))
-                
-                labels.append(f"{ordinal(start_day)}-{ordinal(end_day)} {month_name}")
+                labels.append(f"{month_name} {start_day}-{end_day}")
             
             start_time = current_date
             interval_minutes = 10080  # Weekly
