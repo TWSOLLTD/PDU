@@ -136,6 +136,26 @@
             border-bottom: 1px solid var(--card-border);
             border-radius: var(--border-radius) var(--border-radius) 0 0;
             padding: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .total-wattage-display {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .wattage-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .wattage-value {
+            color: var(--accent-color);
+            font-weight: 600;
+            font-size: 1.1rem;
         }
         
         .card-title {
@@ -505,6 +525,10 @@
                             <i class="fas fa-plug"></i>
                             Outlet Selection
                         </h3>
+                        <div class="total-wattage-display">
+                            <span class="wattage-label">Total Power:</span>
+                            <span class="wattage-value" id="totalWattageDisplay">0W</span>
+                        </div>
             </div>
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -514,9 +538,6 @@
                                     Show outlets without names
                                 </label>
                     </div>
-                            <button class="btn btn-primary" id="createGroupBtn" disabled>
-                                <i class="fas fa-plus"></i> Create Group
-                    </button>
                 </div>
                         <div class="outlet-list" id="outletList">
                             <div class="loading">
@@ -535,6 +556,9 @@
                             <i class="fas fa-layer-group"></i>
                             Group Management
                         </h3>
+                        <button class="btn btn-primary btn-sm" id="createGroupBtn">
+                            <i class="fas fa-plus"></i> Create Group
+                        </button>
                         </div>
                     <div class="card-body">
                         <div id="groupList">
@@ -846,6 +870,16 @@
                 }).join('');
 
             updateCreateGroupButton();
+            updateTotalWattageDisplay();
+        }
+        
+        // Update total wattage display
+        function updateTotalWattageDisplay() {
+            const totalWattage = outlets.reduce((sum, outlet) => sum + (outlet.power_watts || 0), 0);
+            const totalWattageDisplay = document.getElementById('totalWattageDisplay');
+            if (totalWattageDisplay) {
+                totalWattageDisplay.textContent = `${totalWattage}W`;
+            }
         }
 
         // Toggle outlet selection
@@ -859,10 +893,10 @@
             updateCharts();
         }
 
-        // Update create group button state
+        // Update create group button state (always enabled now)
         function updateCreateGroupButton() {
             const btn = document.getElementById('createGroupBtn');
-            btn.disabled = selectedOutlets.size === 0;
+            btn.disabled = false; // Always enabled
         }
 
         // Render groups list
@@ -914,13 +948,18 @@
             const modal = new bootstrap.Modal(document.getElementById('passwordModal'));
             modal.show();
             
-            // Add Enter key support
+            // Add Enter key support and auto-focus
             const passwordInput = document.getElementById('passwordInput');
             passwordInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     verifyPassword();
                 }
             });
+            
+            // Auto-focus the password input
+            setTimeout(() => {
+                passwordInput.focus();
+            }, 100);
         }
 
         // Verify password
