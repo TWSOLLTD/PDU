@@ -42,12 +42,10 @@ class PDUMonitoringService:
         
     def create_app(self):
         """Create Flask app"""
-        app = Flask(__name__)
-        app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
-        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        # Import the main app with all routes
+        from app import app
         
-        db.init_app(app)
-        
+        # Initialize database
         with app.app_context():
             init_db()
             logger.info("Database initialized successfully")
