@@ -251,8 +251,14 @@ class DiscordNotifier:
                         device_kwh += energy_kwh
                 
                 if device_kwh >= 0:  # Include devices with 0 consumption too
+                    # Format device name with port number
+                    if outlet.name and outlet.name.strip():
+                        device_name = f"{outlet.name} ({outlet.port_number})"
+                    else:
+                        device_name = f"Outlet {outlet.port_number}"
+                    
                     devices.append({
-                        'name': outlet.name or f'Outlet {outlet.port_number}',
+                        'name': device_name,
                         'port_number': outlet.port_number,
                         'kwh': device_kwh
                     })
