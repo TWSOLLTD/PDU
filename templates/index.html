@@ -945,9 +945,8 @@
         function showPasswordModal(callback) {
             window.passwordCallback = callback;
             const modal = new bootstrap.Modal(document.getElementById('passwordModal'));
-            modal.show();
             
-            // Add Enter key support and auto-focus
+            // Add Enter key support
             const passwordInput = document.getElementById('passwordInput');
             passwordInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
@@ -955,10 +954,12 @@
                 }
             });
             
-            // Auto-focus the password input
-            setTimeout(() => {
+            // Auto-focus when modal is fully shown
+            document.getElementById('passwordModal').addEventListener('shown.bs.modal', function() {
                 passwordInput.focus();
-            }, 100);
+            });
+            
+            modal.show();
         }
 
         // Verify password
