@@ -1183,6 +1183,19 @@
                 timezoneDisplay.textContent = `${timeString} ${offset}`;
             }
         }
+        
+        // Debug password function
+        async function debugPassword(testPassword) {
+            try {
+                const response = await fetchWithTimezone(`/api/debug-password?password=${encodeURIComponent(testPassword)}`);
+                const result = await response.json();
+                console.log('Password debug result:', result);
+                return result;
+            } catch (error) {
+                console.error('Password debug error:', error);
+                return null;
+            }
+        }
 
         // Setup event listeners
         function setupEventListeners() {

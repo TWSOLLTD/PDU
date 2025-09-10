@@ -13,6 +13,7 @@ import logging
 import threading
 import time
 import hashlib
+import os
 
 from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG, RARITAN_CONFIG, GROUP_MANAGEMENT_PASSWORD, DISCORD_WEBHOOK_URL
 from models import db, PDU, PDUPort, PowerReading, PortPowerReading, PowerAggregation, SystemSettings, OutletGroup, init_db
@@ -591,6 +592,38 @@ def refresh_outlets():
         
     except Exception as e:
         logger.error(f"Error refreshing outlets: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/debug-password')
+def debug_password():
+    """Debug password verification"""
+    try:
+        test_password = request.args.get('password', '')
+        
+        # Get the actual password from environment
+        correct_password = GROUP_MANAGEMENT_PASSWORD
+        
+        result = {
+            'provided_password': test_password,
+            'correct_password': correct_password,
+            'password_length': len(correct_password) if correct_password else 0,
+            'password_is_none': correct_password is None,
+            'password_is_empty': correct_password == '' if correct_password else 'N/A',
+            'verification_result': verify_password(test_password),
+            'env_file_exists': os.path.exists('.env'),
+            'working_directory': os.getcwd()
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': result
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in debug password: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)

@@ -1,7 +1,18 @@
 import os
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
+
+# Debug: Check if .env file exists and what's being loaded
+print("=== CONFIG DEBUG ===")
+print(f"Current working directory: {os.getcwd()}")
+print(f".env file exists: {os.path.exists('.env')}")
+print(f"GROUP_MANAGEMENT_PASSWORD from env: '{os.getenv('GROUP_MANAGEMENT_PASSWORD')}'")
+print(f"SNMP_USERNAME from env: '{os.getenv('SNMP_USERNAME')}'")
+print(f"SNMP_AUTH_PASSWORD from env: '{os.getenv('SNMP_AUTH_PASSWORD')}'")
+print(f"DISCORD_WEBHOOK_URL from env: '{os.getenv('DISCORD_WEBHOOK_URL')}'")
+print("===================")
 
 # Raritan PDU Configuration
 RARITAN_CONFIG = {
