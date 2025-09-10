@@ -99,9 +99,31 @@ def get_power_data():
             start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             interval_minutes = 1440  # Daily
         elif period == 'year-weekly':
-            # Year weekly: Week 1 to Week 52
-            labels = [f"Week {i:02d}" for i in range(1, 53)]
-            start_time = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            # Year weekly: Show date ranges for each week
+            labels = []
+            current_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            
+            # Find the first Monday of the year
+            while current_date.weekday() != 0:  # 0 = Monday
+                current_date += timedelta(days=1)
+            
+            # Generate 52 weeks of date ranges
+            for week in range(52):
+                week_start = current_date + timedelta(weeks=week)
+                week_end = week_start + timedelta(days=6)
+                
+                # Format: "8th-14th Sep" or "8th-14th September" for longer months
+                start_day = week_start.day
+                end_day = week_end.day
+                month_name = week_start.strftime('%b')  # Short month name
+                
+                # Add ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
+                def ordinal(n):
+                    return "%d%s" % (n, "th" if 4 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th"))
+                
+                labels.append(f"{ordinal(start_day)}-{ordinal(end_day)} {month_name}")
+            
+            start_time = current_date
             interval_minutes = 10080  # Weekly
         elif period == 'year-monthly':
             # Year monthly: January to December
