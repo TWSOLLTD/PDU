@@ -1571,7 +1571,7 @@
                 }));
 
                 const layout = {
-                    margin: { t: window.innerWidth < 768 ? 60 : 20, b: 100, l: 50, r: 20 },
+                    margin: { t: 20, b: window.innerWidth < 768 ? 120 : 100, l: 50, r: 20 },
                     xaxis: {
                     title: { text: 'Time', font: { color: '#ffffff' }, standoff: 0 },
                     titlepad: 80,
@@ -1592,7 +1592,7 @@
                     font: { color: '#ffffff', size: window.innerWidth < 768 ? 10 : 12 },
                     visible: true,
                     x: window.innerWidth < 768 ? 0.5 : 1.02,
-                    y: window.innerWidth < 768 ? 1.05 : 1,
+                    y: window.innerWidth < 768 ? -0.15 : 1,
                     xanchor: 'center',
                     yanchor: 'top',
                     orientation: window.innerWidth < 768 ? 'h' : 'v',
