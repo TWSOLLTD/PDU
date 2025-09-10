@@ -779,11 +779,17 @@
             
             let filteredOutlets = outlets;
             if (!showUnnamed) {
-                filteredOutlets = outlets.filter(outlet => outlet.name && outlet.name.trim() !== '');
+                // Filter out outlets that don't have custom names (i.e., still showing as "Outlet X")
+                filteredOutlets = outlets.filter(outlet => {
+                    const hasCustomName = outlet.name && 
+                                         outlet.name.trim() !== '' && 
+                                         !outlet.name.match(/^Outlet \d+$/);
+                    return hasCustomName;
+                });
             }
 
             // Debug logging
-            console.log('Rendering outlets:', filteredOutlets.length, 'outlets');
+            console.log('Rendering outlets:', filteredOutlets.length, 'outlets (showUnnamed:', showUnnamed, ')');
             filteredOutlets.forEach(outlet => {
                 console.log(`Outlet ${outlet.port_number}: name="${outlet.name}", status="${outlet.status}", power=${outlet.power_watts}W`);
             });

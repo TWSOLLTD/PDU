@@ -175,6 +175,9 @@ def get_outlets():
             power_watts = latest_reading.power_watts if latest_reading else 0
             status = 'ON' if power_watts > 5 else 'OFF'  # Consider >5W as ON
             
+            # Debug logging
+            logger.info(f"Outlet {outlet.port_number}: name='{outlet.name}', status={status}, power={power_watts}W")
+            
             outlet_data.append({
                 'id': outlet.id,
                 'name': outlet.name,
@@ -185,6 +188,7 @@ def get_outlets():
                 'last_updated': latest_reading.timestamp.isoformat() if latest_reading else None
             })
         
+        logger.info(f"API returning {len(outlet_data)} outlets")
         return jsonify({
             'success': True,
             'data': outlet_data
