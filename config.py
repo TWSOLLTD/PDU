@@ -82,7 +82,7 @@ WEBHOOK_SECRET = '83f94680ae1190173ed57c776bbfd1ad55da3dde6951e406f09003fabd7e93
 WEBHOOK_PORT = 5001
 
 # Group Management Configuration
-GROUP_MANAGEMENT_PASSWORD = os.getenv('GROUP_MANAGEMENT_PASSWORD', 'Ru5tyt1n#')  # Secure password for group management
+GROUP_MANAGEMENT_PASSWORD = os.getenv('GROUP_MANAGEMENT_PASSWORD', '')  # Secure password for group management
 
 # Discord Webhook Configuration
 DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')  # Discord webhook URL for alerts

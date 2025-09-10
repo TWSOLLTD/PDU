@@ -31,12 +31,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize database
 db.init_app(app)
 
-# Secure password hash (Ru5tyt1n#)
-ADMIN_PASSWORD_HASH = hashlib.sha256(b'Ru5tyt1n#').hexdigest()
-
 def verify_password(password):
     """Verify password securely"""
-    return hashlib.sha256(password.encode()).hexdigest() == ADMIN_PASSWORD_HASH
+    # Get password from environment variable
+    correct_password = GROUP_MANAGEMENT_PASSWORD
+    return password == correct_password
 
 @app.route('/')
 def index():

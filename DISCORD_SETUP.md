@@ -23,7 +23,7 @@ pip install schedule
 #### Step 2: Configure .env File
 Add your Discord webhook URL to your `.env` file:
 ```bash
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/1415427441232445615/oxSfBtlj6duPjJKMnZdvF15ADJg_SN1OCOn34j0_Ut8kmCiNLHLKjVEO1ZUVbf8oz-AV
+DISCORD_WEBHOOK_URL=your_discord_webhook_url_here
 ```
 
 #### Step 3: Test the Webhook

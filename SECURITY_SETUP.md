@@ -24,7 +24,7 @@ SNMP_USERNAME=snmpuser
 SNMP_AUTH_PASSWORD=your_snmp_auth_password_here
 SNMP_PRIV_PASSWORD=your_snmp_priv_password_here
 PDU_IP=172.0.250.9
-GROUP_MANAGEMENT_PASSWORD=Ru5tyt1n#
+GROUP_MANAGEMENT_PASSWORD=your_group_password_here
 DISCORD_WEBHOOK_URL=your_discord_webhook_url_here
 ```
 
