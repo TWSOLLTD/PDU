@@ -1128,21 +1128,35 @@
 
         // Render individual consumption chart
         function renderIndividualChart(data) {
-            const traces = data.outlets.map(outlet => ({
-                x: data.labels,
-                y: outlet.power_watts,
-                type: 'scatter',
-                mode: 'lines+markers',
-                name: outlet.name || `Outlet ${outlet.port_number}`,
-                line: {
-                    width: 3,
-                    shape: 'linear'
-                },
-                marker: {
-                    size: 6
-                },
-                connectgaps: false
-            }));
+            const traces = data.outlets.map(outlet => {
+                // Filter out null values and create separate arrays for x and y
+                const validData = [];
+                const validLabels = [];
+                
+                outlet.power_watts.forEach((power, index) => {
+                    if (power !== null && power !== undefined) {
+                        validData.push(power);
+                        validLabels.push(data.labels[index]);
+                    }
+                });
+                
+                return {
+                    x: validLabels,
+                    y: validData,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: outlet.name || `Outlet ${outlet.port_number}`,
+                    line: {
+                        width: 3,
+                        shape: 'linear'
+                    },
+                    marker: {
+                        size: 6
+                    },
+                    connectgaps: false,
+                    fill: 'none'
+                };
+            });
 
             const layout = {
                 title: {
@@ -1152,19 +1166,22 @@
                 xaxis: {
                     title: { text: 'Time', font: { color: '#ffffff' } },
                     tickfont: { color: '#a0aec0' },
-                    gridcolor: 'rgba(255,255,255,0.1)'
+                    gridcolor: 'rgba(255,255,255,0.1)',
+                    showgrid: true
                 },
                 yaxis: {
                     title: { text: 'Power (Watts)', font: { color: '#ffffff' } },
                     tickfont: { color: '#a0aec0' },
-                    gridcolor: 'rgba(255,255,255,0.1)'
+                    gridcolor: 'rgba(255,255,255,0.1)',
+                    showgrid: true
                 },
                 plot_bgcolor: 'rgba(0,0,0,0)',
                 paper_bgcolor: 'rgba(0,0,0,0)',
                 font: { color: '#ffffff' },
                 legend: {
                     font: { color: '#ffffff' }
-                }
+                },
+                hovermode: 'closest'
             };
 
             Plotly.newPlot('individualChart', traces, layout, {responsive: true});

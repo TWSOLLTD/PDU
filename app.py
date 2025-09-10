@@ -119,7 +119,7 @@ def get_power_data():
                             avg_power = sum(r.power_watts for r in interval_readings) / len(interval_readings)
                             power_values.append(avg_power)
                         else:
-                            power_values.append(0)
+                            power_values.append(None)  # Use None instead of 0 for missing data
                     
                     outlets_data.append({
                         'id': outlet.id,
