@@ -33,24 +33,25 @@ SNMP_PRIV_PROTOCOL = 'AES-128'
 SNMP_AUTH_PASSWORD = '91W1CGVNkhTXA<^W'
 SNMP_PRIV_PASSWORD = '91W1CGVNkhTXA<^W'
 
-# Raritan PX3-5892 SNMP OIDs (using SNMP v3 with correct OIDs for all 36 outlets)
-# All OIDs tested and verified working from raritan_snmp_commands.txt
-# NOTE: Python easysnmp doesn't use leading dot - command line snmpget does
+# Raritan PX3-5892 SNMP OIDs - EXACT COPY from raritan_snmp_commands.txt
+# These are the EXACT OIDs that were tested and verified working
 RARITAN_OIDS = {
-    # Total PDU power (Watts)
-    'total_power_watts': '1.3.6.1.4.1.13742.6.5.2.3.1.4.1.1.5',  # Total power
+    # Total PDU power (Watts) - Line 9 from your commands
+    'total_power_watts': '1.3.6.1.4.1.13742.6.5.2.3.1.4.1.1.5',
     
-    # Per-outlet measurements (all 36 outlets) - WITH leading dot
-    'outlet_power_watts': '.1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{outlet}.5',  # Outlet power (Watts)
-    'outlet_status': '.1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{outlet}.14',      # Outlet status (7=ON, 8=OFF)
+    # Outlet power (Watts) - Lines 15-50 from your commands (WITH leading dot)
+    'outlet_power_watts': '.1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{outlet}.5',
     
-    # Outlet configuration (names - all 36 outlets accessible)
-    'outlet_name': '1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{outlet}',           # Outlet name (all 36)
+    # Outlet status (7=ON, 8=OFF) - Lines 57-92 from your commands (WITH leading dot)
+    'outlet_status': '.1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{outlet}.14',
     
-    # Port OIDs (same as outlet OIDs) - WITH leading dot for power/status
-    'port_power_watts': '.1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{port}.5',  # Port power in watts
-    'port_status': '.1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{port}.14',      # Port status (7=ON, 8=OFF)
-    'port_name': '1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{port}',          # Port name
+    # Outlet names - Lines 99-134 from your commands (NO leading dot)
+    'outlet_name': '1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{outlet}',
+    
+    # Port OIDs (same as outlet OIDs)
+    'port_power_watts': '.1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{port}.5',
+    'port_status': '.1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{port}.14',
+    'port_name': '1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{port}',
 }
 
 # Data Collection Settings

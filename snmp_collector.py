@@ -79,6 +79,10 @@ class RaritanPDUCollector:
             if port_number:
                 oid = oid.format(outlet=port_number)
             
+            # Remove leading dot if present - easysnmp doesn't use it
+            if oid.startswith('.'):
+                oid = oid[1:]
+            
             result = self.session.get(oid)
             if result and result.value:
                 # Handle NOSUCHINSTANCE gracefully
