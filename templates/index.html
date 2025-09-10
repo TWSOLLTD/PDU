@@ -325,22 +325,11 @@
             }
             
             .mobile-buttons {
-                display: grid;
+                display: none !important;
             }
             
-            .mobile-buttons {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 0.5rem;
-                padding: 0.75rem;
-                margin: 0.5rem 0;
-            }
-            
-            .mobile-buttons .time-btn {
-                padding: 0.6rem 0.8rem;
-                font-size: 0.75rem;
-                text-align: center;
-                white-space: nowrap;
+            .mobile-dropdown {
+                display: block !important;
             }
             
             .dropdown-toggle {
@@ -1586,7 +1575,7 @@
             }));
 
                 const layout = {
-                    margin: { t: 20, b: 100, l: 50, r: window.innerWidth < 768 ? 20 : 100 },
+                    margin: { t: window.innerWidth < 768 ? 80 : 20, b: 100, l: 50, r: window.innerWidth < 768 ? 20 : 100 },
                     xaxis: {
                     title: { text: 'Time', font: { color: '#ffffff' }, standoff: 0 },
                     titlepad: 80,
@@ -1607,7 +1596,7 @@
                     font: { color: '#ffffff', size: window.innerWidth < 768 ? 10 : 12 },
                     visible: true,
                     x: window.innerWidth < 768 ? 0.5 : 1.02,
-                    y: window.innerWidth < 768 ? 1.02 : 1,
+                    y: window.innerWidth < 768 ? 1.15 : 1,
                     xanchor: window.innerWidth < 768 ? 'center' : 'left',
                     yanchor: 'top',
                     orientation: window.innerWidth < 768 ? 'h' : 'v',
