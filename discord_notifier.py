@@ -62,8 +62,12 @@ class DiscordNotifier:
                 
                 # Send individual report for each group (no summary report)
                 for group in groups:
+                    logger.info(f"Processing group: {group.name} with {len(group.get_outlet_ids())} outlets")
                     if self.send_group_monthly_report(group, month_start, month_end, now):
                         success_count += 1
+                        logger.info(f"Successfully sent report for group: {group.name}")
+                    else:
+                        logger.error(f"Failed to send report for group: {group.name}")
                 
                 logger.info(f"Sent {success_count} individual group reports")
                 return success_count > 0
