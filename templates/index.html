@@ -777,16 +777,17 @@
             const outletList = document.getElementById('outletList');
             const showUnnamed = document.getElementById('showUnnamedOutlets').checked;
             
-            let filteredOutlets = outlets;
-            if (!showUnnamed) {
-                // Filter out outlets that don't have custom names (i.e., still showing as "Outlet X")
-                filteredOutlets = outlets.filter(outlet => {
-                    const hasCustomName = outlet.name && 
-                                         outlet.name.trim() !== '' && 
-                                         !outlet.name.match(/^Outlet \d+$/);
-                    return hasCustomName;
-                });
-            }
+                let filteredOutlets = outlets;
+                if (!showUnnamed) {
+                    // Filter out outlets that don't have custom names
+                    filteredOutlets = outlets.filter(outlet => {
+                        const hasCustomName = outlet.name && 
+                                             outlet.name.trim() !== '' && 
+                                             outlet.name !== '""' &&
+                                             !outlet.name.match(/^Outlet \d+$/);
+                        return hasCustomName;
+                    });
+                }
 
             // Debug logging
             console.log('Rendering outlets:', filteredOutlets.length, 'outlets (showUnnamed:', showUnnamed, ')');
@@ -794,28 +795,40 @@
                 console.log(`Outlet ${outlet.port_number}: name="${outlet.name}", status="${outlet.status}", power=${outlet.power_watts}W`);
             });
 
-            outletList.innerHTML = filteredOutlets.map(outlet => `
-                <div class="outlet-item ${selectedOutlets.has(outlet.id) ? 'selected' : ''}" 
-                     onclick="toggleOutletSelection(${outlet.id})">
-                    <input type="checkbox" class="outlet-checkbox" 
-                           ${selectedOutlets.has(outlet.id) ? 'checked' : ''}
-                           onchange="toggleOutletSelection(${outlet.id})">
-                    <div class="outlet-info">
-                        <div class="outlet-name">
-                            ${outlet.name || `Outlet ${outlet.port_number}`}
-                        </div>
-                        <div class="outlet-details">
-                            <div class="status-icon ${outlet.status === 'ON' ? 'status-on' : 'status-off'}">
-                                <i class="fas ${outlet.status === 'ON' ? 'fa-power-off' : 'fa-power-off'}"></i>
-                                ${outlet.status || 'OFF'}
+                outletList.innerHTML = filteredOutlets.map(outlet => {
+                    // Determine the display name
+                    let displayName;
+                    if (outlet.name && outlet.name.trim() !== '' && outlet.name !== '""') {
+                        // Has a custom name - show "Name (Port Number)"
+                        displayName = `${outlet.name} (${outlet.port_number})`;
+                    } else {
+                        // No custom name - show "Outlet X"
+                        displayName = `Outlet ${outlet.port_number}`;
+                    }
+                    
+                    return `
+                    <div class="outlet-item ${selectedOutlets.has(outlet.id) ? 'selected' : ''}" 
+                         onclick="toggleOutletSelection(${outlet.id})">
+                        <input type="checkbox" class="outlet-checkbox" 
+                               ${selectedOutlets.has(outlet.id) ? 'checked' : ''}
+                               onchange="toggleOutletSelection(${outlet.id})">
+                        <div class="outlet-info">
+                            <div class="outlet-name">
+                                ${displayName}
                             </div>
-                            <div class="wattage">
-                                ${outlet.power_watts || 0}W
+                            <div class="outlet-details">
+                                <div class="status-icon ${outlet.status === 'ON' ? 'status-on' : 'status-off'}">
+                                    <i class="fas ${outlet.status === 'ON' ? 'fa-power-off' : 'fa-power-off'}"></i>
+                                    ${outlet.status || 'OFF'}
+                                </div>
+                                <div class="wattage">
+                                    ${outlet.power_watts || 0}W
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+                }).join('');
 
             updateCreateGroupButton();
         }
