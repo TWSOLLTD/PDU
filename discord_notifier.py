@@ -30,17 +30,26 @@ class DiscordNotifier:
         
         try:
             with self.app.app_context():
-                # Get current month data
+                # Get month data - previous month for production, current month for testing
                 now = datetime.now()
-                month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                 
-                # Calculate previous month (since we're sending on 1st of current month)
-                if now.month == 1:
-                    prev_month_start = now.replace(year=now.year-1, month=12, day=1)
-                    prev_month_end = now.replace(day=1) - timedelta(days=1)
+                # Check if this is a test call (manual trigger) or scheduled (1st of month at midnight)
+                is_test_call = now.day != 1 or now.hour != 0
+                
+                if is_test_call:
+                    # Testing mode - use current month data
+                    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    month_end = now
+                    logger.info("Running in TEST mode - using current month data")
                 else:
-                    prev_month_start = now.replace(month=now.month-1, day=1)
-                    prev_month_end = now.replace(day=1) - timedelta(days=1)
+                    # Production mode - use previous month data
+                    if now.month == 1:
+                        month_start = now.replace(year=now.year-1, month=12, day=1, hour=0, minute=0, second=0, microsecond=0)
+                        month_end = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+                    else:
+                        month_start = now.replace(month=now.month-1, day=1, hour=0, minute=0, second=0, microsecond=0)
+                        month_end = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+                    logger.info(f"Running in PRODUCTION mode - using previous month data: {month_start.strftime('%B %Y')}")
                 
                 # Get all groups
                 groups = OutletGroup.query.all()
@@ -51,16 +60,12 @@ class DiscordNotifier:
                 
                 success_count = 0
                 
-                # Send individual report for each group
+                # Send individual report for each group (no summary report)
                 for group in groups:
-                    if self.send_group_monthly_report(group, prev_month_start, prev_month_end, now):
+                    if self.send_group_monthly_report(group, month_start, month_end, now):
                         success_count += 1
                 
-                # Send summary report
-                if success_count > 0:
-                    self.send_summary_report(groups, prev_month_start, prev_month_end, now)
-                
-                logger.info(f"Sent {success_count} group reports and 1 summary report")
+                logger.info(f"Sent {success_count} individual group reports")
                 return success_count > 0
                     
         except Exception as e:
@@ -79,8 +84,8 @@ class DiscordNotifier:
             
             # Build Discord embed for this group
             embed = {
-                "title": f"📊 {group.name} - Monthly Report",
-                "description": f"**{month_start.strftime('%B %Y')}** Power Consumption Breakdown",
+                "title": f"📊 Monthly Power Summary - {month_start.strftime('%B %Y')} - {group.name}",
+                "description": f"Power consumption breakdown for **{group.name}**",
                 "color": 0x0099ff,  # Blue color
                 "timestamp": now.isoformat(),
                 "fields": []
@@ -89,7 +94,7 @@ class DiscordNotifier:
             # Add device breakdown
             device_text = ""
             for device in group_data['devices']:
-                device_text += f"• **{device['name']}**: {device['kwh']:.2f} kWh\n"
+                device_text += f"**{device['name']}** - {device['kwh']:.5f} kWh\n"
             
             embed["fields"].append({
                 "name": "🔌 Device Breakdown",
@@ -99,8 +104,8 @@ class DiscordNotifier:
             
             # Add group total
             embed["fields"].append({
-                "name": "⚡ **Group Total**",
-                "value": f"**{group_data['total_kwh']:.2f} kWh**",
+                "name": "⚡ **Total Monthly Consumption**",
+                "value": f"**{group_data['total_kwh']:.5f} kWh**",
                 "inline": False
             })
             
@@ -155,14 +160,14 @@ class DiscordNotifier:
                 # Add group summary field
                 embed["fields"].append({
                     "name": f"🔌 {group.name}",
-                    "value": f"**{group_data['total_kwh']:.2f} kWh**",
+                    "value": f"**{group_data['total_kwh']:.5f} kWh**",
                     "inline": True
                 })
             
             # Add total field
             embed["fields"].append({
                 "name": "⚡ **Total Monthly Consumption**",
-                "value": f"**{total_monthly_kwh:.2f} kWh**",
+                "value": f"**{total_monthly_kwh:.5f} kWh**",
                 "inline": False
             })
             
@@ -220,27 +225,32 @@ class DiscordNotifier:
                     PortPowerReading.timestamp <= month_end
                 ).order_by(PortPowerReading.timestamp).all()
                 
-                if len(readings) < 2:
+                if len(readings) < 1:
                     continue
                 
                 device_kwh = 0.0
                 
                 # Calculate KWh by integrating power over time
-                for i in range(1, len(readings)):
-                    prev_reading = readings[i-1]
-                    curr_reading = readings[i]
-                    
-                    # Time difference in hours
-                    time_diff = (curr_reading.timestamp - prev_reading.timestamp).total_seconds() / 3600
-                    
-                    # Average power during this period (in kW)
-                    avg_power_kw = (prev_reading.power_kw + curr_reading.power_kw) / 2
-                    
-                    # Energy consumed (kWh)
-                    energy_kwh = avg_power_kw * time_diff
-                    device_kwh += energy_kwh
+                if len(readings) == 1:
+                    # Single reading - estimate based on current power
+                    device_kwh = readings[0].power_kw * 0.0167  # Assume 1 minute = 0.0167 hours
+                else:
+                    # Multiple readings - integrate over time
+                    for i in range(1, len(readings)):
+                        prev_reading = readings[i-1]
+                        curr_reading = readings[i]
+                        
+                        # Time difference in hours
+                        time_diff = (curr_reading.timestamp - prev_reading.timestamp).total_seconds() / 3600
+                        
+                        # Average power during this period (in kW)
+                        avg_power_kw = (prev_reading.power_kw + curr_reading.power_kw) / 2
+                        
+                        # Energy consumed (kWh)
+                        energy_kwh = avg_power_kw * time_diff
+                        device_kwh += energy_kwh
                 
-                if device_kwh > 0:
+                if device_kwh >= 0:  # Include devices with 0 consumption too
                     devices.append({
                         'name': outlet.name or f'Outlet {outlet.port_number}',
                         'port_number': outlet.port_number,
