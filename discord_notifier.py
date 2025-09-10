@@ -94,47 +94,70 @@ class DiscordNotifier:
                 "fields": []
             }
             
-            # Add device breakdown - split into multiple fields if too long
-            device_text = ""
-            for device in group_data['devices']:
-                device_text += f"**{device['name']}** - {device['kwh']:.5f} kWh\n"
-            
-            # Discord field value limit is 2000 characters
-            if len(device_text) > 1900:  # Leave some buffer
-                # Split into multiple fields
-                devices = group_data['devices']
-                field_count = 0
-                current_text = ""
+            # Add device breakdown - handle large groups differently
+            if len(group_data['devices']) > 20:  # Large groups get summary only
+                # For large groups, show summary instead of individual devices
+                active_devices = [d for d in group_data['devices'] if d['kwh'] > 0]
+                inactive_devices = [d for d in group_data['devices'] if d['kwh'] == 0]
                 
-                for i, device in enumerate(devices):
-                    device_line = f"**{device['name']}** - {device['kwh']:.5f} kWh\n"
+                summary_text = f"**Active Devices:** {len(active_devices)}\n"
+                summary_text += f"**Inactive Devices:** {len(inactive_devices)}\n"
+                summary_text += f"**Total Devices:** {len(group_data['devices'])}\n\n"
+                
+                if active_devices:
+                    summary_text += "**Top Power Consumers:**\n"
+                    # Show top 5 power consumers
+                    top_devices = sorted(active_devices, key=lambda x: x['kwh'], reverse=True)[:5]
+                    for device in top_devices:
+                        summary_text += f"• {device['name']} - {device['kwh']:.5f} kWh\n"
+                
+                embed["fields"].append({
+                    "name": "🔌 Device Summary",
+                    "value": summary_text,
+                    "inline": False
+                })
+            else:
+                # Small groups get full device breakdown
+                device_text = ""
+                for device in group_data['devices']:
+                    device_text += f"**{device['name']}** - {device['kwh']:.5f} kWh\n"
+                
+                # Discord field value limit is 2000 characters
+                if len(device_text) > 1900:  # Leave some buffer
+                    # Split into multiple fields
+                    devices = group_data['devices']
+                    field_count = 0
+                    current_text = ""
                     
-                    if len(current_text + device_line) > 1900:
-                        # Add current field
+                    for i, device in enumerate(devices):
+                        device_line = f"**{device['name']}** - {device['kwh']:.5f} kWh\n"
+                        
+                        if len(current_text + device_line) > 1900:
+                            # Add current field
+                            embed["fields"].append({
+                                "name": f"🔌 Device Breakdown {field_count + 1}" if field_count > 0 else "🔌 Device Breakdown",
+                                "value": current_text,
+                                "inline": False
+                            })
+                            field_count += 1
+                            current_text = device_line
+                        else:
+                            current_text += device_line
+                    
+                    # Add the last field
+                    if current_text:
                         embed["fields"].append({
                             "name": f"🔌 Device Breakdown {field_count + 1}" if field_count > 0 else "🔌 Device Breakdown",
                             "value": current_text,
                             "inline": False
                         })
-                        field_count += 1
-                        current_text = device_line
-                    else:
-                        current_text += device_line
-                
-                # Add the last field
-                if current_text:
+                else:
+                    # Single field
                     embed["fields"].append({
-                        "name": f"🔌 Device Breakdown {field_count + 1}" if field_count > 0 else "🔌 Device Breakdown",
-                        "value": current_text,
+                        "name": "🔌 Device Breakdown",
+                        "value": device_text or "No devices with power consumption",
                         "inline": False
                     })
-            else:
-                # Single field
-                embed["fields"].append({
-                    "name": "🔌 Device Breakdown",
-                    "value": device_text or "No devices with power consumption",
-                    "inline": False
-                })
             
             # Add group total
             embed["fields"].append({
@@ -156,6 +179,10 @@ class DiscordNotifier:
                 "embeds": [embed]
             }
             
+            # Debug: Log the payload size
+            payload_str = json.dumps(payload)
+            logger.info(f"Sending Discord payload for {group.name}: {len(payload_str)} characters, {len(embed['fields'])} fields")
+            
             response = requests.post(
                 self.webhook_url,
                 json=payload,
@@ -168,6 +195,7 @@ class DiscordNotifier:
                 return True
             else:
                 logger.error(f"Discord webhook failed for group {group.name}: {response.status_code} - {response.text}")
+                logger.error(f"Payload size: {len(payload_str)} characters")
                 return False
                 
         except Exception as e:
