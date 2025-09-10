@@ -856,9 +856,9 @@
                             <span class="wattage-value" id="totalWattageDisplay">0W</span>
                             <div class="timezone-indicator" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem;">
                                 <i class="fas fa-clock"></i> <span id="timezoneDisplay">Loading...</span>
-                            </div>
-                        </div>
+            </div>
                     </div>
+                </div>
                     <div class="card-body">
                         <div class="filter-controls mb-3">
                             <div class="toggle-switch">
@@ -866,18 +866,18 @@
                                 <label for="showUnnamedOutlets" class="toggle-label">
                                     <span class="toggle-text">Show unnamed outlets</span>
                                 </label>
-                            </div>
+                    </div>
                             <button class="btn btn-sm ms-3 me-2" id="deselectAllBtn" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-secondary); border-radius: 8px; padding: 0.4rem 0.8rem; font-weight: 500; transition: var(--transition); white-space: nowrap;">
                                 <i class="fas fa-times"></i> Deselect All
-                            </button>
-                        </div>
+                    </button>
+                </div>
                         <div class="outlet-list" id="outletList">
                             <div class="loading">
                                 <div class="spinner"></div>
-                </div>
             </div>
                         </div>
                         </div>
+                    </div>
                 </div>
                 
             <!-- Group Management Panel -->
@@ -1086,21 +1086,12 @@
         
         // Timezone handling
         const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        console.log('Detected user timezone:', userTimezone);
         
         // Function to convert UTC timestamp to local time with DST handling
         function convertToLocalTime(utcTimestamp) {
             try {
                 // Parse the UTC timestamp
                 const utcDate = new Date(utcTimestamp);
-                
-                // Debug logging
-                console.log('Converting timezone:', {
-                    original: utcTimestamp,
-                    utcDate: utcDate.toISOString(),
-                    userTimezone: userTimezone,
-                    localTime: utcDate.toLocaleString('en-GB', {timeZone: userTimezone})
-                });
                 
                 // Convert to local timezone with DST handling
                 const localDate = new Date(utcDate.toLocaleString("en-US", {timeZone: userTimezone}));
@@ -1184,18 +1175,6 @@
             }
         }
         
-        // Debug password function
-        async function debugPassword(testPassword) {
-            try {
-                const response = await fetchWithTimezone(`/api/debug-password?password=${encodeURIComponent(testPassword)}`);
-                const result = await response.json();
-                console.log('Password debug result:', result);
-                return result;
-            } catch (error) {
-                console.error('Password debug error:', error);
-                return null;
-            }
-        }
 
         // Setup event listeners
         function setupEventListeners() {
@@ -1301,11 +1280,6 @@
                     if (data.success) {
                     outlets = data.data;
                     renderOutlets();
-                    console.log('Outlets loaded:', outlets.length, 'outlets');
-                    // Debug status updates
-                    outlets.forEach(outlet => {
-                        console.log(`Outlet ${outlet.port_number} status: ${outlet.status}, power: ${outlet.power_watts}W`);
-                    });
                     }
                 } catch (error) {
                 console.error('Error loading outlets:', error);
@@ -1513,12 +1487,6 @@
                     // Password is correct - store it and proceed
                     currentPassword = password;
                     
-                    console.log('Password verified successfully:', {
-                        original: password,
-                        stored: currentPassword,
-                        length: currentPassword.length,
-                        chars: currentPassword.split('').map(c => c.charCodeAt(0))
-                    });
                     
                     document.getElementById('passwordInput').value = '';
                     bootstrap.Modal.getInstance(document.getElementById('passwordModal')).hide();
@@ -1597,14 +1565,6 @@
                 return;
             }
             
-            // Debug logging
-            console.log('Creating group with password:', {
-                password: currentPassword,
-                length: currentPassword.length,
-                chars: currentPassword.split('').map(c => c.charCodeAt(0))
-            });
-
-            console.log('About to send API request to create group...');
 
             try {
                 const response = await fetch('/api/groups', {
@@ -1621,7 +1581,6 @@
                         });
                         
                         const data = await response.json();
-                        console.log('Group creation API response:', data);
                         
                         if (data.success) {
                     bootstrap.Modal.getInstance(document.getElementById('groupModal')).hide();
@@ -1688,8 +1647,8 @@
             // Check if password has been entered
             if (!currentPassword || currentPassword.trim() === '') {
                 alert('Please enter a password first!');
-                return;
-            }
+                    return;
+                }
 
             // Get selected outlets
             const selectedCheckboxes = document.querySelectorAll('#editGroupOutlets input:checked');
@@ -1713,7 +1672,7 @@
                     if (data.success) {
                     bootstrap.Modal.getInstance(document.getElementById('editGroupModal')).hide();
                     loadGroups();
-                } else {
+                    } else {
                     alert('Error updating group: ' + data.error);
                     }
                 } catch (error) {
@@ -1729,8 +1688,8 @@
             // Check if password has been entered
             if (!currentPassword || currentPassword.trim() === '') {
                 alert('Please enter a password first!');
-                return;
-            }
+                    return;
+                }
 
             try {
                 const response = await fetch(`/api/groups/${currentEditingGroup.id}`, {
@@ -1747,7 +1706,7 @@
                     if (data.success) {
                     bootstrap.Modal.getInstance(document.getElementById('editGroupModal')).hide();
                     loadGroups();
-                    } else {
+                } else {
                     alert('Error deleting group: ' + data.error);
                     }
                 } catch (error) {

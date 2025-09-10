@@ -33,13 +33,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
 # Security check on startup
-logger.info("=== ENVIRONMENT VARIABLE DEBUG ===")
-logger.info(f"GROUP_MANAGEMENT_PASSWORD: '{GROUP_MANAGEMENT_PASSWORD}' (type: {type(GROUP_MANAGEMENT_PASSWORD)})")
-logger.info(f"SNMP_USERNAME: '{RARITAN_CONFIG['snmp_username']}'")
-logger.info(f"SNMP_AUTH_PASSWORD: '{RARITAN_CONFIG['snmp_auth_password']}'")
-logger.info(f"SNMP_PRIV_PASSWORD: '{RARITAN_CONFIG['snmp_priv_password']}'")
-logger.info(f"DISCORD_WEBHOOK_URL: '{DISCORD_WEBHOOK_URL}'")
-
 if not GROUP_MANAGEMENT_PASSWORD:
     logger.warning("⚠️  SECURITY WARNING: GROUP_MANAGEMENT_PASSWORD not set!")
     logger.warning("⚠️  Group management will be DISABLED until password is configured.")
@@ -66,19 +59,6 @@ def verify_password(password):
     # Get password from environment variable
     correct_password = GROUP_MANAGEMENT_PASSWORD
     
-    # Debug logging
-    logger.info(f"Password verification attempt:")
-    logger.info(f"  Provided password: '{password}' (length: {len(password) if password else 0})")
-    logger.info(f"  Correct password: '{correct_password}' (length: {len(correct_password) if correct_password else 0})")
-    logger.info(f"  Password is None: {correct_password is None}")
-    logger.info(f"  Password is empty: {correct_password == '' if correct_password else 'N/A'}")
-    
-    # Character-by-character comparison
-    if password and correct_password:
-        logger.info(f"  Provided chars: {[ord(c) for c in password]}")
-        logger.info(f"  Correct chars: {[ord(c) for c in correct_password]}")
-        logger.info(f"  Character match: {[password[i] == correct_password[i] for i in range(min(len(password), len(correct_password)))]}")
-    
     # Security check: ensure password is actually set
     if not correct_password:
         logger.error("GROUP_MANAGEMENT_PASSWORD not set in environment variables!")
@@ -86,12 +66,9 @@ def verify_password(password):
     
     # Security check: ensure provided password is not empty
     if not password or password.strip() == '':
-        logger.info("Empty password provided - rejected")
         return False
     
-    result = password == correct_password
-    logger.info(f"Password verification result: {result}")
-    return result
+    return password == correct_password
 
 @app.route('/')
 def index():
@@ -118,13 +95,11 @@ def get_power_data():
         
         # Get user timezone from request headers (sent by frontend)
         user_timezone = request.headers.get('X-User-Timezone', 'Europe/London')
-        logger.info(f"User timezone: {user_timezone}")
         
         # Convert UTC now to user's timezone for proper time range calculation
         utc_now = datetime.utcnow()
         user_tz = ZoneInfo(user_timezone)
         now = utc_now.replace(tzinfo=timezone.utc).astimezone(user_tz)
-        logger.info(f"UTC time: {utc_now}, User time: {now}")
         
         if period == 'day':
             # Day hourly: 00:00 to 23:00 (24 hours)
@@ -362,10 +337,6 @@ def handle_groups():
         try:
             data = request.get_json()
             
-            # Debug logging for password
-            logger.info(f"Group creation attempt:")
-            logger.info(f"  Received password: '{data.get('password', '')}' (length: {len(data.get('password', ''))})")
-            logger.info(f"  Password chars: {[ord(c) for c in data.get('password', '')]}")
             
             # Verify password
             if not verify_password(data.get('password', '')):
@@ -608,41 +579,6 @@ def refresh_outlets():
             'error': str(e)
         }), 500
 
-@app.route('/api/debug-password')
-def debug_password():
-    """Debug password verification"""
-    try:
-        test_password = request.args.get('password', '')
-        
-        # Get the actual password from environment
-        correct_password = GROUP_MANAGEMENT_PASSWORD
-        
-        # Test the verification
-        verification_result = verify_password(test_password)
-        
-        result = {
-            'provided_password': test_password,
-            'correct_password': correct_password,
-            'password_length': len(correct_password) if correct_password else 0,
-            'password_is_none': correct_password is None,
-            'password_is_empty': correct_password == '' if correct_password else 'N/A',
-            'verification_result': verification_result,
-            'env_file_exists': os.path.exists('.env'),
-            'working_directory': os.getcwd(),
-            'direct_comparison': test_password == correct_password if test_password and correct_password else False
-        }
-        
-        return jsonify({
-            'success': True,
-            'data': result
-        })
-        
-    except Exception as e:
-        logger.error(f"Error in debug password: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
 
 @app.route('/api/debug-outlets')
 def debug_outlets():
