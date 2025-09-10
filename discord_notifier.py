@@ -78,9 +78,8 @@ class DiscordNotifier:
             # Calculate group KWh and device breakdown
             group_data = self.calculate_group_detailed_kwh(group, month_start, month_end)
             
-            if group_data['total_kwh'] == 0:
-                logger.info(f"Group {group.name} has no power consumption data")
-                return True
+            # Always send reports for all groups, even with 0 consumption
+            logger.info(f"Processing group {group.name} with {group_data['total_kwh']:.5f} kWh consumption")
             
             # Build Discord embed for this group
             embed = {
