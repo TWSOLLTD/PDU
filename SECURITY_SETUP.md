@@ -25,6 +25,7 @@ SNMP_AUTH_PASSWORD=your_snmp_auth_password_here
 SNMP_PRIV_PASSWORD=your_snmp_priv_password_here
 PDU_IP=172.0.250.9
 GROUP_MANAGEMENT_PASSWORD=Ru5tyt1n#
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/1415427441232445615/oxSfBtlj6duPjJKMnZdvF15ADJg_SN1OCOn34j0_Ut8kmCiNLHLKjVEO1ZUVbf8oz-AV
 ```
 
 ### Step 3: Secure the .env file

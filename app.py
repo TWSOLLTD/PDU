@@ -17,6 +17,7 @@ import hashlib
 from config import DATABASE_URI, FLASK_HOST, FLASK_PORT, FLASK_DEBUG, RARITAN_CONFIG, GROUP_MANAGEMENT_PASSWORD
 from models import db, PDU, PDUPort, PowerReading, PortPowerReading, PowerAggregation, SystemSettings, OutletGroup, init_db
 from snmp_collector import collect_power_data
+from discord_notifier import send_monthly_report, send_test_notification
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -643,6 +644,54 @@ def update_outlet_names():
         
     except Exception as e:
         logger.error(f"Error updating outlet names: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/discord/test', methods=['POST'])
+def test_discord_webhook():
+    """Test Discord webhook connection"""
+    try:
+        success = send_test_notification(app)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Discord test message sent successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to send Discord test message'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error testing Discord webhook: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/discord/monthly-report', methods=['POST'])
+def send_monthly_discord_report():
+    """Manually trigger monthly Discord report"""
+    try:
+        success = send_monthly_report(app)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Monthly Discord report sent successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to send monthly Discord report'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error sending monthly Discord report: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
