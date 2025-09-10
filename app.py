@@ -217,23 +217,22 @@ def get_power_data():
                             avg_power = sum(r.power_watts for r in interval_readings) / len(interval_readings)
                             power_values.append(round(avg_power, 1))
                             
-                            # Calculate energy consumption for bar graph
-                            # Use average power and multiply by the actual time period duration
-                            if period == 'day-10min' or period == 'week-10min':
-                                period_hours = 10 / 60  # 10 minutes
-                            elif period == 'day':
-                                period_hours = 1  # 1 hour
-                            elif period == 'week' or period == 'month':
-                                period_hours = 24  # 1 day
-                            elif period == 'year-weekly':
-                                period_hours = 24 * 7  # 1 week
-                            elif period == 'year-monthly':
-                                period_hours = 24 * 30  # 1 month (approximate)
-                            else:
-                                period_hours = 1  # Default to 1 hour
+                            # Calculate actual energy consumption from minute-by-minute readings
+                            total_energy_kwh = 0
+                            for i in range(len(interval_readings) - 1):
+                                # Calculate time difference between consecutive readings (in hours)
+                                time_diff = (interval_readings[i + 1].timestamp - interval_readings[i].timestamp).total_seconds() / 3600
+                                
+                                # Energy = Power × Time (convert Watts to kWh)
+                                energy_kwh = (interval_readings[i].power_watts * time_diff) / 1000
+                                total_energy_kwh += energy_kwh
                             
-                            energy_kwh = (avg_power * period_hours) / 1000  # Convert to KWh
-                            energy_values.append(round(energy_kwh, 3))
+                            # Add energy for the last reading (assume 1 minute duration)
+                            if len(interval_readings) > 0:
+                                last_energy = (interval_readings[-1].power_watts * (1/60)) / 1000  # 1 minute = 1/60 hours
+                                total_energy_kwh += last_energy
+                            
+                            energy_values.append(round(total_energy_kwh, 3))
                         else:
                             power_values.append(0)  # Use 0 for missing data to show all time slots
                             energy_values.append(0)
