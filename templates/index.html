@@ -553,7 +553,7 @@
                 <i class="fas fa-chart-line"></i>
                 Individual Outlet Consumption
             </h3>
-            <div id="individualChart" style="height: 600px;"></div>
+            <div id="individualChart" style="height: 700px;"></div>
                         </div>
 
         <!-- Time Period Selector -->
@@ -573,7 +573,7 @@
                 <i class="fas fa-chart-bar"></i>
                 Total Combined Consumption
             </h3>
-            <div id="totalChart" style="height: 500px;"></div>
+            <div id="totalChart" style="height: 600px;"></div>
                 </div>
             </div>
 
@@ -685,6 +685,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        // Scroll to top immediately when page loads
+        window.scrollTo(0, 0);
+        
         // Global variables
         let outlets = [];
         let groups = [];
@@ -694,13 +697,15 @@
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
-            // Scroll to top of page
-            window.scrollTo(0, 0);
-            
             loadOutlets();
             loadGroups();
             setupEventListeners();
             startDataRefresh();
+            
+            // Scroll to top after everything is loaded
+            setTimeout(() => {
+                window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            }, 100);
         });
 
         // Setup event listeners
