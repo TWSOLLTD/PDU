@@ -31,10 +31,28 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize database
 db.init_app(app)
 
+# Security check on startup
+if not GROUP_MANAGEMENT_PASSWORD or GROUP_MANAGEMENT_PASSWORD.strip() == '':
+    logger.warning("⚠️  SECURITY WARNING: GROUP_MANAGEMENT_PASSWORD not set!")
+    logger.warning("⚠️  Group management will be DISABLED until password is configured.")
+    logger.warning("⚠️  Set GROUP_MANAGEMENT_PASSWORD in your .env file.")
+else:
+    logger.info("✅ Group management password configured securely")
+
 def verify_password(password):
     """Verify password securely"""
     # Get password from environment variable
     correct_password = GROUP_MANAGEMENT_PASSWORD
+    
+    # Security check: ensure password is actually set
+    if not correct_password or correct_password.strip() == '':
+        logger.error("GROUP_MANAGEMENT_PASSWORD not set in environment variables!")
+        return False
+    
+    # Security check: ensure provided password is not empty
+    if not password or password.strip() == '':
+        return False
+    
     return password == correct_password
 
 @app.route('/')
