@@ -228,6 +228,174 @@
             margin-left: 0.5rem;
         }
         
+        /* Mobile Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.5rem;
+            }
+            
+            .header {
+                padding: 0.5rem 0;
+                margin-bottom: 1rem;
+            }
+            
+            .main-title {
+                font-size: 1.5rem;
+            }
+            
+            .row {
+                margin: 0;
+            }
+            
+            .col-lg-6 {
+                padding: 0.25rem;
+                margin-bottom: 1rem;
+            }
+            
+            .main-card {
+                margin-bottom: 1rem;
+            }
+            
+            .card-header {
+                padding: 1rem;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .card-title {
+                font-size: 1.2rem;
+            }
+            
+            .total-wattage-display {
+                align-self: flex-end;
+                margin-top: 0.5rem;
+            }
+            
+            .filter-controls {
+                padding-left: 0.5rem;
+            }
+            
+            .toggle-text {
+                font-size: 0.8rem;
+            }
+            
+            .outlet-item {
+                padding: 0.75rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .outlet-name {
+                font-size: 0.9rem;
+            }
+            
+            .outlet-details {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            
+            .status-icon, .wattage {
+                font-size: 0.8rem;
+            }
+            
+            .chart-container {
+                margin-bottom: 1rem;
+            }
+            
+            .chart-title {
+                font-size: 1.1rem;
+                padding: 0.75rem;
+            }
+            
+            #individualChart, #totalChart {
+                height: 300px !important;
+            }
+            
+            .time-selector {
+                flex-wrap: wrap;
+                gap: 0.25rem;
+                padding: 0.5rem;
+                margin: 0.5rem 0;
+            }
+            
+            .time-btn {
+                padding: 0.4rem 0.6rem;
+                font-size: 0.7rem;
+                min-width: auto;
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .modal-dialog {
+                margin: 0.5rem;
+                max-width: calc(100% - 1rem);
+            }
+            
+            .modal-lg {
+                max-width: calc(100% - 1rem);
+            }
+            
+            .group-item {
+                padding: 0.75rem;
+            }
+            
+            .group-name {
+                font-size: 1rem;
+            }
+            
+            .group-outlets {
+                font-size: 0.8rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header {
+                padding: 0.4rem 0;
+            }
+            
+            .main-title {
+                font-size: 1.3rem;
+            }
+            
+            .card-header {
+                padding: 0.75rem;
+            }
+            
+            .card-title {
+                font-size: 1.1rem;
+            }
+            
+            .total-wattage-display {
+                font-size: 0.9rem;
+            }
+            
+            .wattage-value {
+                font-size: 1rem;
+            }
+            
+            #individualChart, #totalChart {
+                height: 250px !important;
+            }
+            
+            .time-btn {
+                padding: 0.3rem 0.5rem;
+                font-size: 0.65rem;
+            }
+            
+            .outlet-item {
+                padding: 0.6rem;
+            }
+            
+            .outlet-name {
+                font-size: 0.85rem;
+            }
+            
+            .modal-dialog {
+                margin: 0.25rem;
+                max-width: calc(100% - 0.5rem);
+            }
+        }
+        
         .card-title {
             font-size: 1.5rem;
             font-weight: 700;
@@ -588,7 +756,7 @@
         <!-- Main Control Panel -->
         <div class="row">
             <!-- Outlet Selection Panel -->
-            <div class="col-lg-6">
+            <div class="col-lg-6 col-12">
                 <div class="main-card">
                     <div class="card-header">
                         <h3 class="card-title">
@@ -619,7 +787,7 @@
                 </div>
                 
             <!-- Group Management Panel -->
-            <div class="col-lg-6">
+            <div class="col-lg-6 col-12">
                 <div class="main-card">
                     <div class="card-header">
                         <h3 class="card-title">
@@ -1308,7 +1476,8 @@
 
             Plotly.newPlot('individualChart', traces, layout, {
                 responsive: true,
-                displayModeBar: false
+                displayModeBar: false,
+                staticPlot: false
             });
         }
 
@@ -1356,7 +1525,8 @@
 
             Plotly.newPlot('totalChart', [trace], layout, {
                 responsive: true,
-                displayModeBar: false
+                displayModeBar: false,
+                staticPlot: false
             });
         }
 
