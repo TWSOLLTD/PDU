@@ -795,6 +795,18 @@
             }
         }
         
+        /* Deselect All Button */
+        #deselectAllBtn:hover {
+            background: rgba(255, 255, 255, 0.2) !important;
+            border-color: rgba(255, 255, 255, 0.3) !important;
+            color: var(--text-primary) !important;
+            transform: translateY(-1px);
+        }
+        
+        #deselectAllBtn:active {
+            transform: translateY(0);
+        }
+
         /* Custom Scrollbar */
         .outlet-list::-webkit-scrollbar {
             width: 8px;
@@ -852,7 +864,7 @@
                                     <span class="toggle-text">Show unnamed outlets</span>
                                 </label>
                             </div>
-                            <button class="btn btn-outline-light btn-sm ms-3" id="deselectAllBtn">
+                            <button class="btn btn-sm ms-3" id="deselectAllBtn" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-secondary); border-radius: 8px; padding: 0.5rem 1rem; font-weight: 500; transition: var(--transition);">
                                 <i class="fas fa-times"></i> Deselect All
                             </button>
                         </div>
