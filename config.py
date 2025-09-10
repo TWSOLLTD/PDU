@@ -35,21 +35,21 @@ SNMP_PRIV_PASSWORD = '91W1CGVNkhTXA<^W'
 
 # Raritan PX3-5892 SNMP OIDs (using SNMP v3 with correct OIDs for all 36 outlets)
 # All OIDs tested and verified working from raritan_snmp_commands.txt
-# NOTE: Leading dot (.) is required for these OIDs to work
+# NOTE: Python easysnmp doesn't use leading dot - command line snmpget does
 RARITAN_OIDS = {
     # Total PDU power (Watts)
-    'total_power_watts': '.1.3.6.1.4.1.13742.6.5.2.3.1.4.1.1.5',  # Total power
+    'total_power_watts': '1.3.6.1.4.1.13742.6.5.2.3.1.4.1.1.5',  # Total power
     
     # Per-outlet measurements (all 36 outlets)
-    'outlet_power_watts': '.1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{outlet}.5',  # Outlet power (Watts)
-    'outlet_status': '.1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{outlet}.14',      # Outlet status (7=ON, 8=OFF)
+    'outlet_power_watts': '1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{outlet}.5',  # Outlet power (Watts)
+    'outlet_status': '1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{outlet}.14',      # Outlet status (7=ON, 8=OFF)
     
     # Outlet configuration (names - all 36 outlets accessible)
     'outlet_name': '1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{outlet}',           # Outlet name (all 36)
     
     # Port OIDs (same as outlet OIDs)
-    'port_power_watts': '.1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{port}.5',  # Port power in watts
-    'port_status': '.1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{port}.14',      # Port status (7=ON, 8=OFF)
+    'port_power_watts': '1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{port}.5',  # Port power in watts
+    'port_status': '1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{port}.14',      # Port status (7=ON, 8=OFF)
     'port_name': '1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{port}',          # Port name
 }
 
