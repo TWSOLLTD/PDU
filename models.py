@@ -63,6 +63,7 @@ class PortPowerReading(db.Model):
     current_amps = db.Column(db.Float, nullable=True)  # Current in amps
     voltage = db.Column(db.Float, nullable=True)  # Voltage
     power_factor = db.Column(db.Float, nullable=True)  # Power factor
+    status = db.Column(db.String(10), nullable=True)  # ON/OFF status
     
     def __repr__(self):
         return f'<PortPowerReading {self.power_watts}W at {self.timestamp}>'

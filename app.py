@@ -214,9 +214,9 @@ def get_outlets():
                 port_id=outlet.id
             ).order_by(PortPowerReading.timestamp.desc()).first()
             
-            # Determine status based on power consumption
+            # Get status from the latest reading (stored from SNMP)
             power_watts = latest_reading.power_watts if latest_reading else 0
-            status = 'ON' if power_watts > 5 else 'OFF'  # Consider >5W as ON
+            status = latest_reading.status if latest_reading and latest_reading.status else 'OFF'
             
             # Debug logging
             logger.info(f"Outlet {outlet.port_number}: name='{outlet.name}', status={status}, power={power_watts}W")
@@ -496,7 +496,7 @@ def refresh_outlets():
             ).order_by(PortPowerReading.timestamp.desc()).first()
             
             power_watts = latest_reading.power_watts if latest_reading else 0
-            status = 'ON' if power_watts > 5 else 'OFF'
+            status = latest_reading.status if latest_reading and latest_reading.status else 'OFF'
             
             outlet_data.append({
                 'id': outlet.id,

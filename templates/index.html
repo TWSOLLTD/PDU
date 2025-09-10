@@ -553,6 +553,15 @@
             background: rgba(255, 255, 255, 0.1);
         }
         
+        .group-item.group-selected {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: rgba(34, 197, 94, 0.5);
+        }
+        
+        .group-item.group-selected:hover {
+            background: rgba(34, 197, 94, 0.3);
+        }
+        
         .group-header {
             display: flex;
             justify-content: space-between;
@@ -1293,8 +1302,12 @@
                     return;
                 }
 
-            groupList.innerHTML = groups.map(group => `
-                <div class="group-item" onclick="selectGroup(${group.id})">
+            groupList.innerHTML = groups.map(group => {
+                // Check if this group is currently selected (all its outlets are selected)
+                const isSelected = group.outlet_ids.every(id => selectedOutlets.has(id));
+                
+                return `
+                <div class="group-item ${isSelected ? 'group-selected' : ''}" onclick="selectGroup(${group.id})">
                     <div class="group-header">
                         <div class="group-name">${group.name}</div>
                         <div class="group-actions">
@@ -1307,7 +1320,8 @@
                         ${group.outlet_ids.length} outlet${group.outlet_ids.length !== 1 ? 's' : ''} selected
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         // Select group
