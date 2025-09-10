@@ -1062,6 +1062,7 @@
         let outlets = [];
         let groups = [];
         let selectedOutlets = new Set();
+        let selectedGroup = null; // Track which group is directly selected
         let currentTimePeriod = 'day-10min';
         let currentEditingGroup = null;
 
@@ -1278,6 +1279,10 @@
                     } else {
                 selectedOutlets.add(outletId);
             }
+            
+            // Clear group selection when individual outlets are selected
+            selectedGroup = null;
+            
             renderOutlets();
             updateCharts();
         }
@@ -1304,8 +1309,8 @@
                 }
 
             groupList.innerHTML = groups.map(group => {
-                // Check if this group is currently selected (all its outlets are selected)
-                const isSelected = group.outlet_ids.every(id => selectedOutlets.has(id));
+                // Only highlight if this group is directly selected
+                const isSelected = selectedGroup === group.id;
                 
                 return `
                 <div class="group-item ${isSelected ? 'group-selected' : ''}" onclick="selectGroup(${group.id})">
@@ -1329,14 +1334,14 @@
         function selectGroup(groupId) {
             const group = groups.find(g => g.id === groupId);
             if (group) {
-                // Check if this group is already selected (all its outlets are selected)
-                const isCurrentlySelected = group.outlet_ids.every(id => selectedOutlets.has(id));
-                
-                if (isCurrentlySelected) {
+                // Check if this group is already directly selected
+                if (selectedGroup === groupId) {
                     // Deselect the group
-                    group.outlet_ids.forEach(id => selectedOutlets.delete(id));
+                    selectedGroup = null;
+                    selectedOutlets.clear();
                 } else {
                     // Select the group
+                    selectedGroup = groupId;
                     selectedOutlets.clear();
                     group.outlet_ids.forEach(id => selectedOutlets.add(id));
                 }
