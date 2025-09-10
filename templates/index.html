@@ -1579,6 +1579,8 @@
                 chars: currentPassword.split('').map(c => c.charCodeAt(0))
             });
 
+            console.log('About to send API request to create group...');
+
             try {
                 const response = await fetch('/api/groups', {
                             method: 'POST',
@@ -1594,6 +1596,8 @@
                         });
                         
                         const data = await response.json();
+                        console.log('Group creation API response:', data);
+                        
                         if (data.success) {
                     bootstrap.Modal.getInstance(document.getElementById('groupModal')).hide();
                     loadGroups();
