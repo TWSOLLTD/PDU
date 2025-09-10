@@ -356,6 +356,11 @@ def handle_groups():
         try:
             data = request.get_json()
             
+            # Debug logging for password
+            logger.info(f"Group creation attempt:")
+            logger.info(f"  Received password: '{data.get('password', '')}' (length: {len(data.get('password', ''))})")
+            logger.info(f"  Password chars: {[ord(c) for c in data.get('password', '')]}")
+            
             # Verify password
             if not verify_password(data.get('password', '')):
                 return jsonify({

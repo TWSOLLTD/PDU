@@ -1492,6 +1492,15 @@
         function verifyPassword() {
             const password = document.getElementById('passwordInput').value;
             currentPassword = password; // Store for API calls
+            
+            // Debug logging
+            console.log('Password stored:', {
+                original: password,
+                stored: currentPassword,
+                length: currentPassword.length,
+                chars: currentPassword.split('').map(c => c.charCodeAt(0))
+            });
+            
             document.getElementById('passwordInput').value = '';
             bootstrap.Modal.getInstance(document.getElementById('passwordModal')).hide();
             if (window.passwordCallback) {
@@ -1548,6 +1557,13 @@
                 alert('Please select at least one outlet');
                 return;
             }
+
+            // Debug logging
+            console.log('Creating group with password:', {
+                password: currentPassword,
+                length: currentPassword.length,
+                chars: currentPassword.split('').map(c => c.charCodeAt(0))
+            });
 
             try {
                 const response = await fetch('/api/groups', {
