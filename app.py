@@ -58,37 +58,50 @@ def get_power_data():
         
         # Calculate time range and aggregation based on period
         now = datetime.utcnow()
-        if period == 'day':
-            start_time = now - timedelta(hours=24)
-            interval_minutes = 60  # Hourly data points
-            label_format = '%H:%M'
-        elif period == 'week':
-            start_time = now - timedelta(days=7)
-            interval_minutes = 1440  # Daily data points
-            label_format = '%a %d'
-        elif period == 'month':
-            start_time = now - timedelta(days=30)
-            interval_minutes = 1440  # Daily data points
-            label_format = '%m/%d'
-        elif period == 'year-weekly':
-            start_time = now - timedelta(days=365)
-            interval_minutes = 10080  # Weekly data points
-            label_format = 'Week %W'
-        elif period == 'year-monthly':
-            start_time = now - timedelta(days=365)
-            interval_minutes = 43200  # Monthly data points
-            label_format = '%b %Y'
-        else:
-            start_time = now - timedelta(hours=24)
-            interval_minutes = 60
-            label_format = '%H:%M'
         
-        # Generate time labels
-        labels = []
-        current_time = start_time
-        while current_time <= now:
-            labels.append(current_time.strftime(label_format))
-            current_time += timedelta(minutes=interval_minutes)
+        if period == 'day':
+            # Day hourly: 00:00 to 23:00 (24 hours)
+            labels = [f"{i:02d}:00" for i in range(24)]
+            start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            interval_minutes = 60
+        elif period == 'day-10min':
+            # Day 10-minute: 00:00 to 23:50 (144 intervals)
+            labels = []
+            for hour in range(24):
+                for minute in range(0, 60, 10):
+                    labels.append(f"{hour:02d}:{minute:02d}")
+            start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            interval_minutes = 10
+        elif period == 'week':
+            # Week daily: Monday to Sunday
+            labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            # Get start of current week (Monday)
+            days_since_monday = now.weekday()
+            start_time = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
+            interval_minutes = 1440  # Daily
+        elif period == 'month':
+            # Month daily: 1st to last day of current month
+            import calendar
+            last_day = calendar.monthrange(now.year, now.month)[1]
+            labels = [f"{day:02d}" for day in range(1, last_day + 1)]
+            start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            interval_minutes = 1440  # Daily
+        elif period == 'year-weekly':
+            # Year weekly: Week 1 to Week 52
+            labels = [f"Week {i:02d}" for i in range(1, 53)]
+            start_time = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            interval_minutes = 10080  # Weekly
+        elif period == 'year-monthly':
+            # Year monthly: January to December
+            labels = ['January', 'February', 'March', 'April', 'May', 'June',
+                     'July', 'August', 'September', 'October', 'November', 'December']
+            start_time = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            interval_minutes = 43200  # Monthly
+        else:
+            # Default to day hourly
+            labels = [f"{i:02d}:00" for i in range(24)]
+            start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            interval_minutes = 60
         
         # Get power data for selected outlets
         if outlet_ids:
@@ -117,9 +130,9 @@ def get_power_data():
                         if interval_readings:
                             # Calculate average power for this interval
                             avg_power = sum(r.power_watts for r in interval_readings) / len(interval_readings)
-                            power_values.append(avg_power)
+                            power_values.append(round(avg_power, 1))
                         else:
-                            power_values.append(None)  # Use None instead of 0 for missing data
+                            power_values.append(0)  # Use 0 for missing data to show all time slots
                     
                     outlets_data.append({
                         'id': outlet.id,
