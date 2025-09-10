@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Raritan PX3-5892 Power Monitor</title>
+    <title>TWSOL - Power Monitor</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
@@ -486,9 +486,8 @@
             <div class="header-content">
                 <h1 class="main-title">
                     <i class="fas fa-bolt"></i>
-                    Raritan PX3-5892 Power Monitor
+                    TWSOL - Power Monitor
                 </h1>
-                <p class="subtitle">Advanced Power Distribution Unit Monitoring & Analytics</p>
             </div>
         </div>
     </div>
@@ -576,7 +575,7 @@
 
     <!-- Group Creation Modal -->
     <div class="modal fade" id="groupModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
@@ -586,18 +585,22 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="groupName" class="form-label">Group Name</label>
-                        <input type="text" class="form-control" id="groupName" placeholder="Enter group name">
-                    </div>
-                    <div class="mb-3">
-                        <label for="groupDescription" class="form-label">Description (Optional)</label>
-                        <input type="text" class="form-control" id="groupDescription" placeholder="Enter description">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Selected Outlets</label>
-                        <div id="selectedOutletsList" class="form-control" style="min-height: 100px; overflow-y: auto;">
-                            No outlets selected
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="groupName" class="form-label">Group Name</label>
+                                <input type="text" class="form-control" id="groupName" placeholder="Enter group name">
+                            </div>
+                            <div class="mb-3">
+                                <label for="groupDescription" class="form-label">Description (Optional)</label>
+                                <input type="text" class="form-control" id="groupDescription" placeholder="Enter description">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Available Outlets</label>
+                            <div id="createGroupOutlets" class="form-control" style="min-height: 200px; overflow-y: auto;">
+                                <!-- Outlet checkboxes will be populated here -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -856,7 +859,7 @@
             
             if (groups.length === 0) {
                 groupList.innerHTML = `
-                    <div class="text-center text-muted py-4">
+                    <div class="text-center py-4" style="color: white;">
                         <i class="fas fa-layer-group fa-3x mb-3"></i>
                         <p>No groups created yet</p>
                         <p class="small">Select outlets and create your first group</p>
@@ -898,6 +901,14 @@
             window.passwordCallback = callback;
             const modal = new bootstrap.Modal(document.getElementById('passwordModal'));
             modal.show();
+            
+            // Add Enter key support
+            const passwordInput = document.getElementById('passwordInput');
+            passwordInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    verifyPassword();
+                }
+            });
         }
 
         // Verify password
@@ -917,15 +928,24 @@
 
         // Show group creation modal
         function showGroupModal() {
-            const selectedOutletsList = document.getElementById('selectedOutletsList');
-            const selectedOutletsData = outlets.filter(outlet => selectedOutlets.has(outlet.id));
-            
-            selectedOutletsList.innerHTML = selectedOutletsData.map(outlet => `
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span>${outlet.name || `Outlet ${outlet.port_number}`}</span>
-                    <span class="text-muted">${outlet.power_watts || 0}W</span>
-                </div>
-            `).join('');
+            // Populate outlet checkboxes for create group modal
+            const createGroupOutlets = document.getElementById('createGroupOutlets');
+            createGroupOutlets.innerHTML = outlets.map(outlet => {
+                const isSelected = selectedOutlets.has(outlet.id);
+                const displayName = outlet.name && outlet.name.trim() !== '' && outlet.name !== '""' 
+                    ? `${outlet.name} (${outlet.port_number})` 
+                    : `Outlet ${outlet.port_number}`;
+                
+                return `
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" value="${outlet.id}" 
+                               id="createOutlet${outlet.id}" ${isSelected ? 'checked' : ''}>
+                        <label class="form-check-label" for="createOutlet${outlet.id}">
+                            ${displayName} - ${outlet.power_watts || 0}W
+                        </label>
+                    </div>
+                `;
+            }).join('');
 
             document.getElementById('groupName').value = '';
             document.getElementById('groupDescription').value = '';
@@ -944,6 +964,18 @@
                 return;
             }
 
+            // Get selected outlets from checkboxes
+            const selectedOutletIds = [];
+            const checkboxes = document.querySelectorAll('#createGroupOutlets input[type="checkbox"]:checked');
+            checkboxes.forEach(checkbox => {
+                selectedOutletIds.push(parseInt(checkbox.value));
+            });
+
+            if (selectedOutletIds.length === 0) {
+                alert('Please select at least one outlet');
+                return;
+            }
+
             try {
                 const response = await fetch('/api/groups', {
                     method: 'POST',
@@ -953,7 +985,7 @@
                     body: JSON.stringify({
                         name: name,
                         description: description,
-                        outlet_ids: Array.from(selectedOutlets),
+                        outlet_ids: selectedOutletIds,
                         password: 'Ru5tyt1n#'
                     })
                 });
@@ -1104,11 +1136,12 @@
                 name: outlet.name || `Outlet ${outlet.port_number}`,
                 line: {
                     width: 3,
-                    shape: 'spline'
+                    shape: 'linear'
                 },
                 marker: {
                     size: 6
-                }
+                },
+                connectgaps: false
             }));
 
             const layout = {
