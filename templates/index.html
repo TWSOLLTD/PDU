@@ -1593,7 +1593,7 @@
                     visible: true,
                     x: window.innerWidth < 768 ? 0.5 : 1.02,
                     y: window.innerWidth < 768 ? -1 : 1,
-                    xanchor: 'center',
+                    xanchor: window.innerWidth < 768 ? 'center' : 'left',
                     yanchor: 'top',
                     orientation: window.innerWidth < 768 ? 'h' : 'v',
                     bgcolor: 'rgba(0,0,0,0)',
