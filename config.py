@@ -9,10 +9,16 @@ RARITAN_CONFIG = {
     'ip': '172.0.250.9',  # New PDU IP address
     'username': 'admin',    # Update with your credentials
     'password': 'admin',    # Update with your credentials
-    'snmp_community': 'public',  # SNMP community string
+    'snmp_community': 'public',  # SNMP community string (not used for v3)
     'snmp_port': 161,
     'snmp_timeout': 10,
-    'snmp_retries': 5
+    'snmp_retries': 5,
+    # SNMP v3 Configuration
+    'snmp_username': 'snmpuser',
+    'snmp_auth_protocol': 'SHA-256',
+    'snmp_priv_protocol': 'AES-128',
+    'snmp_auth_password': '91W1CGVNkhTXA<^W',
+    'snmp_priv_password': '91W1CGVNkhTXA<^W'
 }
 
 # SNMP Configuration for Raritan PX3-5892
@@ -20,25 +26,35 @@ SNMP_PORT = 161
 SNMP_TIMEOUT = 10
 SNMP_RETRIES = 5
 
-# Raritan PX3-5892 SNMP OIDs
+# SNMP v3 Configuration
+SNMP_USERNAME = 'snmpuser'
+SNMP_AUTH_PROTOCOL = 'SHA-256'
+SNMP_PRIV_PROTOCOL = 'AES-128'
+SNMP_AUTH_PASSWORD = '91W1CGVNkhTXA<^W'
+SNMP_PRIV_PASSWORD = '91W1CGVNkhTXA<^W'
+
+# Raritan PX3-5892 SNMP OIDs (using SNMP v3 with correct OIDs for all 36 outlets)
 RARITAN_OIDS = {
-    # Total PDU power
-    'total_power_watts': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.1.1',  # Total power in watts
-    'total_power_va': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.1.2',     # Total apparent power
+    # Total PDU power (using inlet measurements)
+    'total_power_watts': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.1.1',  # Total power
     'total_current': '1.3.6.1.4.1.13742.6.3.2.4.1.2.1.1.3',      # Total current
     
-    # Per-outlet power (replace {outlet} with outlet number 1-36)
-    # Based on SNMP walk: 1.3.6.1.4.1.13742.6.3.3.4.1.7.1.1.{outlet} = power watts
-    'outlet_power_watts': '1.3.6.1.4.1.13742.6.3.3.4.1.7.1.1.{outlet}',  # Outlet power in watts
-    'outlet_current': '1.3.6.1.4.1.13742.6.3.3.4.1.8.1.1.{outlet}',      # Outlet current
-    'outlet_status': '1.3.6.1.4.1.13742.6.3.3.4.1.9.1.1.{outlet}',       # Outlet status (on/off)
-    'outlet_name': '1.3.6.1.4.1.13742.6.3.3.3.1.2.1.{outlet}',          # Outlet name/label
+    # Per-outlet measurements (CORRECTED OIDs from actual SNMP walk data)
+    # Structure: 1.3.6.1.4.1.13742.6.3.5.4.1.{tableId}.1.{outletId}.{sensorType}
+    # tableId: 11=measurements, 21-24=different measurement tables, outletId=1-36, sensorType: 4=activePower, 0=rmsCurrent, 13=onOff
+    'outlet_power_watts': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{outlet}.4',  # Outlet power (activePower) - main measurements table
+    'outlet_current': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{outlet}.0',      # Outlet current (rmsCurrent) - main measurements table
+    'outlet_status': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{outlet}.13',      # Outlet status (onOff) - main measurements table
     
-    # Legacy port OIDs (for backward compatibility)
-    'port_power_watts': '1.3.6.1.4.1.13742.6.3.3.4.1.7.1.1.{port}',  # Port power in watts
-    'port_current': '1.3.6.1.4.1.13742.6.3.3.4.1.8.1.1.{port}',      # Port current
-    'port_status': '1.3.6.1.4.1.13742.6.3.3.4.1.9.1.1.{port}',       # Port status (on/off)
-    'port_name': '1.3.6.1.4.1.13742.6.3.3.3.1.2.1.{port}',          # Port name/label
+    # Outlet configuration (names - all 36 outlets accessible)
+    'outlet_name': '1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{outlet}',           # Outlet name (all 36)
+    'outlet_label': '1.3.6.1.4.1.13742.6.3.5.3.1.2.1.{outlet}',          # Outlet label (all 36)
+    
+    # Port OIDs (same as outlet OIDs with correct structure from SNMP walk)
+    'port_power_watts': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{port}.4',  # Port power in watts (activePower) - main measurements table
+    'port_current': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{port}.0',      # Port current (rmsCurrent) - main measurements table
+    'port_status': '1.3.6.1.4.1.13742.6.3.5.4.1.11.1.{port}.13',      # Port status (onOff) - main measurements table
+    'port_name': '1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{port}',          # Port name
 }
 
 # Data Collection Settings
@@ -69,5 +85,5 @@ WEBHOOK_SECRET = '83f94680ae1190173ed57c776bbfd1ad55da3dde6951e406f09003fabd7e93
 WEBHOOK_PORT = 5001
 
 # Group Management Configuration
-GROUP_MANAGEMENT_PASSWORD = 'admin123'  # Change this to a secure password
+GROUP_MANAGEMENT_PASSWORD = 'Ru5tyt1n#'  # Secure password for group management
 

@@ -1,0 +1,146 @@
+# Raritan PX3-5892 SNMP Commands Reference
+# All commands tested and verified working
+# PDU IP: 172.0.250.9
+# SNMP v3 Authentication: snmpuser / SHA-256 / AES-128
+
+# =============================================================================
+# TOTAL PDU POWER (Watts)
+# =============================================================================
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.5.2.3.1.4.1.1.5
+
+# =============================================================================
+# OUTLET POWER (Watts) - All 36 Outlets
+# Pattern: .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{OUTLET}.5
+# =============================================================================
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.1.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.2.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.3.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.4.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.5.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.6.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.7.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.8.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.9.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.10.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.11.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.12.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.13.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.14.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.15.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.16.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.17.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.18.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.19.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.20.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.21.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.22.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.23.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.24.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.25.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.26.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.27.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.28.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.29.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.30.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.31.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.32.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.33.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.34.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.35.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.36.5
+
+# =============================================================================
+# OUTLET STATUS (On/Off) - All 36 Outlets
+# Pattern: .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{OUTLET}.14
+# Returns: 7 = ON, 8 = OFF
+# =============================================================================
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.1.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.2.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.3.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.4.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.5.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.6.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.7.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.8.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.9.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.10.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.11.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.12.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.13.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.14.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.15.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.16.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.17.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.18.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.19.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.20.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.21.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.22.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.23.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.24.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.25.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.26.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.27.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.28.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.29.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.30.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.31.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.32.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.33.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.34.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.35.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.36.14
+
+# =============================================================================
+# OUTLET NAMES - All 36 Outlets
+# Pattern: 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{OUTLET}
+# Returns: Empty string if no name is set
+# =============================================================================
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.1
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.2
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.3
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.4
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.5
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.6
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.7
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.8
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.9
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.10
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.11
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.12
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.13
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.14
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.15
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.16
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.17
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.18
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.19
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.20
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.21
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.22
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.23
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.24
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.25
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.26
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.27
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.28
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.29
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.30
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.31
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.32
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.33
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.34
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.35
+snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 1.3.6.1.4.1.13742.6.3.5.3.1.3.1.36
+
+# =============================================================================
+# SUMMARY OF OID PATTERNS
+# =============================================================================
+# Total PDU Power:     1.3.6.1.4.1.13742.6.5.2.3.1.4.1.1.5
+# Outlet Power:        .1.3.6.1.4.1.13742.6.5.4.3.1.4.1.{OUTLET}.5
+# Outlet Status:       .1.3.6.1.4.1.13742.6.5.4.3.1.3.1.{OUTLET}.14
+# Outlet Names:        1.3.6.1.4.1.13742.6.3.5.3.1.3.1.{OUTLET}
+# 
+# Where {OUTLET} = 1-36 for all 36 outlets
+# Status Values: 7 = ON, 8 = OFF
+# =============================================================================

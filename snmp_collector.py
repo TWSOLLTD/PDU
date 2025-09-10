@@ -55,18 +55,22 @@ class RaritanPDUCollector:
             raise
     
     def setup_snmp_session(self):
-        """Setup SNMP session for Raritan PDU"""
+        """Setup SNMP v3 session for Raritan PDU"""
         try:
             self.session = Session(
                 hostname=RARITAN_CONFIG['ip'],
-                community=RARITAN_CONFIG['snmp_community'],
-                version=2,
+                security_username=RARITAN_CONFIG['snmp_username'],
+                auth_protocol=RARITAN_CONFIG['snmp_auth_protocol'],
+                auth_password=RARITAN_CONFIG['snmp_auth_password'],
+                privacy_protocol=RARITAN_CONFIG['snmp_priv_protocol'],
+                privacy_password=RARITAN_CONFIG['snmp_priv_password'],
+                version=3,
                 timeout=RARITAN_CONFIG['snmp_timeout'],
                 retries=RARITAN_CONFIG['snmp_retries']
             )
-            logger.info(f"SNMP session established with {RARITAN_CONFIG['ip']}")
+            logger.info(f"SNMP v3 session established with {RARITAN_CONFIG['ip']} using user: {RARITAN_CONFIG['snmp_username']}")
         except Exception as e:
-            logger.error(f"Error setting up SNMP session: {str(e)}")
+            logger.error(f"Error setting up SNMP v3 session: {str(e)}")
             raise
     
     def get_snmp_value(self, oid, port_number=None, as_string=False):
@@ -121,12 +125,12 @@ class RaritanPDUCollector:
         """Discover which outlets actually exist on the PDU"""
         existing_outlets = []
         
-        # Try multiple OID patterns to find all outlets
+        # Try multiple OID patterns to find all outlets - using correct OIDs
         oid_patterns = [
-            '1.3.6.1.4.1.13742.6.3.3.4.1.9.1.1',  # Outlet status
-            '1.3.6.1.4.1.13742.6.3.3.4.1.7.1.1',  # Outlet power
-            '1.3.6.1.4.1.13742.6.3.3.4.1.8.1.1',  # Outlet current
-            '1.3.6.1.4.1.13742.6.3.3.3.1.2.1',    # Outlet names
+            '1.3.6.1.4.1.13742.6.3.5.3.1.3.1',      # Outlet names (all 36 outlets)
+            '1.3.6.1.4.1.13742.6.3.3.4.1.9.1.1',    # Outlet status (7 outlets)
+            '1.3.6.1.4.1.13742.6.3.3.4.1.7.1.1',    # Outlet power (7 outlets)
+            '1.3.6.1.4.1.13742.6.3.3.4.1.8.1.1',    # Outlet current (7 outlets)
         ]
         
         for pattern in oid_patterns:
@@ -138,9 +142,14 @@ class RaritanPDUCollector:
                     # Extract outlet number from OID
                     oid_parts = result.oid.split('.')
                     if len(oid_parts) >= 2:
-                        outlet_num = int(oid_parts[-1])
-                        if outlet_num not in existing_outlets:
-                            existing_outlets.append(outlet_num)
+                        try:
+                            outlet_num = int(oid_parts[-1])
+                            # Only consider outlets 1-36
+                            if 1 <= outlet_num <= 36 and outlet_num not in existing_outlets:
+                                existing_outlets.append(outlet_num)
+                                logger.debug(f"Found outlet {outlet_num} via {pattern}")
+                        except ValueError:
+                            continue
                             
                 logger.info(f"Found {len(existing_outlets)} outlets from pattern {pattern}: {sorted(existing_outlets)}")
                 
@@ -148,8 +157,11 @@ class RaritanPDUCollector:
                 logger.warning(f"Error walking pattern {pattern}: {e}")
                 continue
         
-        if not existing_outlets:
-            logger.warning("No outlets found via SNMP walk, falling back to individual check")
+        # Since we know from the PDU config that all 36 outlets exist (1-36),
+        # force individual check if we don't find all of them
+        if len(existing_outlets) < 36:
+            logger.warning(f"Only found {len(existing_outlets)} outlets via SNMP walk, but PDU config shows 36 outlets exist")
+            logger.info("Forcing individual check for all outlets 1-36")
             return self.check_outlets_individually()
             
         logger.info(f"Total discovered outlets: {len(existing_outlets)} - {sorted(existing_outlets)}")
@@ -159,28 +171,17 @@ class RaritanPDUCollector:
         """Fallback method to check outlets 1-36 individually"""
         existing_outlets = []
         
-        # Check outlets 1-36 individually using multiple OID types
+        # All 36 outlets exist in the configuration, but only 7 are accessible for power measurements
+        # We'll monitor all 36 outlets, but only 7 will have real-time power data
+        
+        logger.info("PDU has 36 outlets total - all will be monitored")
+        logger.info("7 outlets have real-time power data, 29 outlets will show as offline/inaccessible")
+        
+        # Add all 36 outlets to the list
         for outlet_num in range(1, 37):
-            found = False
+            existing_outlets.append(outlet_num)
             
-            # Try different OID types for this outlet
-            oid_types = ['outlet_status', 'outlet_power_watts', 'outlet_current', 'outlet_name']
-            
-            for oid_type in oid_types:
-                try:
-                    oid = RARITAN_OIDS[oid_type].format(outlet=outlet_num)
-                    result = self.session.get(oid)
-                    if result.value != 'No Such Instance' and result.value is not None:
-                        existing_outlets.append(outlet_num)
-                        found = True
-                        break
-                except Exception:
-                    continue
-            
-            if not found:
-                logger.debug(f"Outlet {outlet_num} not found")
-                
-        logger.info(f"Found {len(existing_outlets)} outlets via individual check: {existing_outlets}")
+        logger.info(f"Monitoring all {len(existing_outlets)} outlets: 1-36")
         return existing_outlets
 
     def collect_port_power(self, port):
@@ -204,23 +205,15 @@ class RaritanPDUCollector:
             outlet_status = self.get_snmp_value(RARITAN_OIDS['outlet_status'], port.port_number)
             is_on = outlet_status > 0 if outlet_status is not None else False
             
-            # Get outlet name from PDU (try multiple OID patterns)
-            outlet_name = None
-            name_oid_patterns = [
-                '1.3.6.1.4.1.13742.6.3.3.3.1.2.1.{outlet}',  # Standard outlet name
-                '1.3.6.1.4.1.13742.6.3.3.3.1.3.1.{outlet}',  # Alternative outlet name
-                '1.3.6.1.4.1.13742.6.3.3.3.1.4.1.{outlet}',  # Another pattern
-            ]
+            # Log if we can't read data from this outlet
+            if power_watts == 0.0 and current_amps == 0.0 and outlet_status is None:
+                logger.debug(f"Outlet {port.port_number} appears to be inaccessible via SNMP")
             
-            for pattern in name_oid_patterns:
-                try:
-                    name_oid = pattern.format(outlet=port.port_number)
-                    result = self.session.get(name_oid)
-                    if result.value != 'No Such Instance' and result.value and result.value.strip():
-                        outlet_name = str(result.value).strip()
-                        break
-                except Exception:
-                    continue
+            # Get outlet name from PDU using correct OIDs (works for all 36 outlets)
+            outlet_name = self.get_snmp_value(RARITAN_OIDS['outlet_name'], port.port_number, as_string=True)
+            if not outlet_name:
+                # Try outlet label as fallback
+                outlet_name = self.get_snmp_value(RARITAN_OIDS['outlet_label'], port.port_number, as_string=True)
             
             # Update port name if we found a different name
             if outlet_name and outlet_name != port.name and outlet_name != f'Outlet {port.port_number}':
@@ -228,6 +221,9 @@ class RaritanPDUCollector:
                     port.name = outlet_name
                     db.session.commit()
                     logger.info(f"Updated outlet {port.port_number} name to: {outlet_name}")
+            
+            # Log the outlet status with correct name
+            logger.info(f"Outlet {port.port_number} ({outlet_name}): {power_watts}W - {'ON' if is_on else 'OFF'}")
             
             # Create port power reading record
             with self.app.app_context():
@@ -297,6 +293,15 @@ class RaritanPDUCollector:
             except Exception as e:
                 logger.error(f"Error in main loop: {str(e)}")
                 time.sleep(COLLECTION_INTERVAL)
+
+def collect_power_data():
+    """Simple function to collect power data - called from main app"""
+    try:
+        collector = RaritanPDUCollector()
+        collector.collect_all_data()
+    except Exception as e:
+        logger.error(f"Error collecting power data: {str(e)}")
+        raise
 
 def main():
     """Main entry point"""

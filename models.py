@@ -222,7 +222,8 @@ def init_db():
         db.session.add(pdu)
         db.session.flush()  # Get the ID
         
-        # Create 36 outlets for the PX3-5892
+        # Create outlets for the PX3-5892 (all 36 outlets)
+        # All 36 outlets exist in the configuration, but only 7 are accessible for power measurements
         for port_num in range(1, 37):
             port = PDUPort(
                 pdu_id=pdu.id,
