@@ -128,7 +128,13 @@ class RaritanPDUCollector:
                 oid = oid_template
             
             # Use the EXACT command format from your working commands
-            command = f'snmpget -v3 -l authPriv -u snmpuser -a SHA-256 -A "91W1CGVNkhTXA<^W" -x AES-128 -X "91W1CGVNkhTXA<^W" 172.0.250.9 {oid}'
+            # Get credentials from config (now using environment variables)
+            snmp_user = RARITAN_CONFIG['snmp_username']
+            auth_pass = RARITAN_CONFIG['snmp_auth_password']
+            priv_pass = RARITAN_CONFIG['snmp_priv_password']
+            pdu_ip = RARITAN_CONFIG['ip']
+            
+            command = f'snmpget -v3 -l authPriv -u {snmp_user} -a SHA-256 -A "{auth_pass}" -x AES-128 -X "{priv_pass}" {pdu_ip} {oid}'
             
             result = self.execute_snmp_command(command)
             if result is not None:

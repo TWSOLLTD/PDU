@@ -1,0 +1,13 @@
+# SNMP Credentials - Copy this file to .env and update with your actual credentials
+# DO NOT COMMIT THE .env FILE TO VERSION CONTROL
+
+# SNMP v3 Configuration
+SNMP_USERNAME=snmpuser
+SNMP_AUTH_PASSWORD=your_snmp_auth_password_here
+SNMP_PRIV_PASSWORD=your_snmp_priv_password_here
+
+# PDU Configuration
+PDU_IP=172.0.250.9
+
+# Group Management Password
+GROUP_MANAGEMENT_PASSWORD=your_group_password_here

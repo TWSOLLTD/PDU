@@ -6,19 +6,19 @@ load_dotenv()
 # Raritan PDU Configuration
 RARITAN_CONFIG = {
     'name': 'Raritan PX3-5892',
-    'ip': '172.0.250.9',  # New PDU IP address
+    'ip': os.getenv('PDU_IP', '172.0.250.9'),  # Default fallback
     'username': 'admin',    # Update with your credentials
     'password': 'admin',    # Update with your credentials
     'snmp_community': 'public',  # SNMP community string (not used for v3)
     'snmp_port': 161,
     'snmp_timeout': 10,
     'snmp_retries': 5,
-    # SNMP v3 Configuration
-    'snmp_username': 'snmpuser',
+    # SNMP v3 Configuration - Now using environment variables
+    'snmp_username': os.getenv('SNMP_USERNAME', 'snmpuser'),
     'snmp_auth_protocol': 'SHA-256',
     'snmp_priv_protocol': 'AES-128',
-    'snmp_auth_password': '91W1CGVNkhTXA<^W',
-    'snmp_priv_password': '91W1CGVNkhTXA<^W'
+    'snmp_auth_password': os.getenv('SNMP_AUTH_PASSWORD', ''),
+    'snmp_priv_password': os.getenv('SNMP_PRIV_PASSWORD', '')
 }
 
 # SNMP Configuration for Raritan PX3-5892
@@ -82,5 +82,5 @@ WEBHOOK_SECRET = '83f94680ae1190173ed57c776bbfd1ad55da3dde6951e406f09003fabd7e93
 WEBHOOK_PORT = 5001
 
 # Group Management Configuration
-GROUP_MANAGEMENT_PASSWORD = 'Ru5tyt1n#'  # Secure password for group management
+GROUP_MANAGEMENT_PASSWORD = os.getenv('GROUP_MANAGEMENT_PASSWORD', 'Ru5tyt1n#')  # Secure password for group management
 
