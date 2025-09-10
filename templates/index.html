@@ -1069,16 +1069,24 @@
                     
                     // Populate outlet checkboxes
                     const editGroupOutlets = document.getElementById('editGroupOutlets');
-                    editGroupOutlets.innerHTML = outlets.map(outlet => `
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" 
-                                   value="${outlet.id}" 
-                                   ${group.outlet_ids.includes(outlet.id) ? 'checked' : ''}>
-                            <label class="form-check-label">
-                                ${outlet.name || `Outlet ${outlet.port_number}`} (${outlet.power_watts || 0}W)
-                            </label>
-                        </div>
-                    `).join('');
+                    editGroupOutlets.innerHTML = outlets.map(outlet => {
+                        // Use the same name logic as create group modal
+                        const displayName = outlet.name && outlet.name.trim() !== '' && outlet.name !== '""' 
+                            ? `${outlet.name} (${outlet.port_number})` 
+                            : `Outlet ${outlet.port_number}`;
+                        
+                        return `
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" 
+                                       value="${outlet.id}" 
+                                       id="editOutlet${outlet.id}"
+                                       ${group.outlet_ids.includes(outlet.id) ? 'checked' : ''}>
+                                <label class="form-check-label" for="editOutlet${outlet.id}">
+                                    ${displayName} (${outlet.power_watts || 0}W)
+                                </label>
+                            </div>
+                        `;
+                    }).join('');
 
                     const modal = new bootstrap.Modal(document.getElementById('editGroupModal'));
                 modal.show();
