@@ -1,0 +1,36 @@
+[Unit]
+Description=TWSOL PDU Power Monitoring Service
+Documentation=https://github.com/your-repo/pdu-monitor
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/PDU-NEW
+ExecStart=/usr/bin/python3 /opt/PDU-NEW/pdu_service.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pdu-monitor
+
+# Environment
+Environment=PYTHONPATH=/opt/PDU-NEW
+Environment=FLASK_ENV=production
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/PDU-NEW
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

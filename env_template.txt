@@ -13,4 +13,4 @@ PDU_IP=172.0.250.9
 GROUP_MANAGEMENT_PASSWORD=your_group_password_here
 
 # Discord Webhook Configuration
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/1415427441232445615/oxSfBtlj6duPjJKMnZdvF15ADJg_SN1OCOn34j0_Ut8kmCiNLHLKjVEO1ZUVbf8oz-AV
+DISCORD_WEBHOOK_URL=your_discord_webhook_url_here
