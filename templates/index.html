@@ -864,7 +864,7 @@
                                     <span class="toggle-text">Show unnamed outlets</span>
                                 </label>
                             </div>
-                            <button class="btn btn-sm ms-3" id="deselectAllBtn" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-secondary); border-radius: 8px; padding: 0.5rem 1rem; font-weight: 500; transition: var(--transition);">
+                            <button class="btn btn-sm ms-3 me-2" id="deselectAllBtn" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-secondary); border-radius: 8px; padding: 0.4rem 0.8rem; font-weight: 500; transition: var(--transition); white-space: nowrap;">
                                 <i class="fas fa-times"></i> Deselect All
                             </button>
                         </div>
@@ -1605,26 +1605,38 @@
 
         // Render individual consumption chart
         function renderIndividualChart(data) {
-            const traces = data.outlets.map(outlet => ({
-                x: data.labels,
-                y: outlet.power_watts,
+            const traces = data.outlets.map(outlet => {
+                // Apply the same display name logic as in renderOutlets()
+                let displayName;
+                if (outlet.name && outlet.name.trim() !== '' && outlet.name !== '""') {
+                    // Has a custom name - show "Name (Port Number)"
+                    displayName = `${outlet.name} (${outlet.port_number})`;
+                } else {
+                    // No custom name - show "Outlet X"
+                    displayName = `Outlet ${outlet.port_number}`;
+                }
+                
+                return {
+                    x: data.labels,
+                    y: outlet.power_watts,
                     type: 'scatter',
                     mode: 'lines+markers',
-                name: outlet.name || `Outlet ${outlet.port_number}`,
+                    name: displayName,
                     line: { 
                         width: 3, 
-                    shape: 'linear'
+                        shape: 'linear'
                     },
                     marker: { 
-                    size: 6
-                },
-                connectgaps: false,
-                fill: 'none',
-                hovertemplate: '<b>%{fullData.name}</b><br>' +
-                              'Time: %{x}<br>' +
-                              'Power: %{y} Watts<br>' +
-                              '<extra></extra>'
-                }));
+                        size: 6
+                    },
+                    connectgaps: false,
+                    fill: 'none',
+                    hovertemplate: '<b>%{fullData.name}</b><br>' +
+                                  'Time: %{x}<br>' +
+                                  'Power: %{y} Watts<br>' +
+                                  '<extra></extra>'
+                };
+            });
 
                 const layout = {
                     margin: { t: 20, b: window.innerWidth < 768 ? 160 : 100, l: 50, r: window.innerWidth < 768 ? 20 : 100 },
