@@ -94,16 +94,47 @@ class DiscordNotifier:
                 "fields": []
             }
             
-            # Add device breakdown
+            # Add device breakdown - split into multiple fields if too long
             device_text = ""
             for device in group_data['devices']:
                 device_text += f"**{device['name']}** - {device['kwh']:.5f} kWh\n"
             
-            embed["fields"].append({
-                "name": "🔌 Device Breakdown",
-                "value": device_text or "No devices with power consumption",
-                "inline": False
-            })
+            # Discord field value limit is 2000 characters
+            if len(device_text) > 1900:  # Leave some buffer
+                # Split into multiple fields
+                devices = group_data['devices']
+                field_count = 0
+                current_text = ""
+                
+                for i, device in enumerate(devices):
+                    device_line = f"**{device['name']}** - {device['kwh']:.5f} kWh\n"
+                    
+                    if len(current_text + device_line) > 1900:
+                        # Add current field
+                        embed["fields"].append({
+                            "name": f"🔌 Device Breakdown {field_count + 1}" if field_count > 0 else "🔌 Device Breakdown",
+                            "value": current_text,
+                            "inline": False
+                        })
+                        field_count += 1
+                        current_text = device_line
+                    else:
+                        current_text += device_line
+                
+                # Add the last field
+                if current_text:
+                    embed["fields"].append({
+                        "name": f"🔌 Device Breakdown {field_count + 1}" if field_count > 0 else "🔌 Device Breakdown",
+                        "value": current_text,
+                        "inline": False
+                    })
+            else:
+                # Single field
+                embed["fields"].append({
+                    "name": "🔌 Device Breakdown",
+                    "value": device_text or "No devices with power consumption",
+                    "inline": False
+                })
             
             # Add group total
             embed["fields"].append({
