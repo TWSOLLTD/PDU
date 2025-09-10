@@ -213,24 +213,26 @@ def get_power_data():
                         ]
                         
                         if interval_readings:
-                            # Calculate average power for line graph (Watts)
+                            # Calculate average power for this interval (for line graph)
                             avg_power = sum(r.power_watts for r in interval_readings) / len(interval_readings)
                             power_values.append(round(avg_power, 1))
                             
-                            # Calculate actual energy consumption for bar graph (KWh)
-                            # Sum all power readings and convert to KWh based on reading frequency
-                            total_power_watts = sum(r.power_watts for r in interval_readings)
-                            
-                            # Calculate time duration between readings (assuming 1-minute intervals)
-                            if len(interval_readings) > 1:
-                                time_diff = (interval_readings[-1].timestamp - interval_readings[0].timestamp).total_seconds() / 3600  # Convert to hours
-                                if time_diff == 0:
-                                    time_diff = len(interval_readings) / 60  # Assume 1-minute intervals if no time difference
+                            # Calculate energy consumption for bar graph
+                            # Use average power and multiply by the actual time period duration
+                            if period == 'day-10min' or period == 'week-10min':
+                                period_hours = 10 / 60  # 10 minutes
+                            elif period == 'day':
+                                period_hours = 1  # 1 hour
+                            elif period == 'week' or period == 'month':
+                                period_hours = 24  # 1 day
+                            elif period == 'year-weekly':
+                                period_hours = 24 * 7  # 1 week
+                            elif period == 'year-monthly':
+                                period_hours = 24 * 30  # 1 month (approximate)
                             else:
-                                time_diff = 1 / 60  # Single reading, assume 1 minute
+                                period_hours = 1  # Default to 1 hour
                             
-                            # Convert to KWh: (total_power_watts * time_in_hours) / 1000
-                            energy_kwh = (total_power_watts * time_diff) / 1000
+                            energy_kwh = (avg_power * period_hours) / 1000  # Convert to KWh
                             energy_values.append(round(energy_kwh, 3))
                         else:
                             power_values.append(0)  # Use 0 for missing data to show all time slots
