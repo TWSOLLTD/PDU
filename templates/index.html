@@ -1166,6 +1166,10 @@
                     outlets = data.data;
                     renderOutlets();
                     console.log('Outlets loaded:', outlets.length, 'outlets');
+                    // Debug status updates
+                    outlets.forEach(outlet => {
+                        console.log(`Outlet ${outlet.port_number} status: ${outlet.status}, power: ${outlet.power_watts}W`);
+                    });
                     }
                 } catch (error) {
                 console.error('Error loading outlets:', error);
@@ -1310,8 +1314,18 @@
         function selectGroup(groupId) {
             const group = groups.find(g => g.id === groupId);
             if (group) {
-                selectedOutlets.clear();
-                group.outlet_ids.forEach(id => selectedOutlets.add(id));
+                // Check if this group is already selected (all its outlets are selected)
+                const isCurrentlySelected = group.outlet_ids.every(id => selectedOutlets.has(id));
+                
+                if (isCurrentlySelected) {
+                    // Deselect the group
+                    group.outlet_ids.forEach(id => selectedOutlets.delete(id));
+                } else {
+                    // Select the group
+                    selectedOutlets.clear();
+                    group.outlet_ids.forEach(id => selectedOutlets.add(id));
+                }
+                
                 renderOutlets();
                 updateCharts();
             }
@@ -1344,7 +1358,6 @@
             // Populate outlet checkboxes for create group modal
             const createGroupOutlets = document.getElementById('createGroupOutlets');
             createGroupOutlets.innerHTML = outlets.map(outlet => {
-                const isSelected = selectedOutlets.has(outlet.id);
                 const displayName = outlet.name && outlet.name.trim() !== '' && outlet.name !== '""' 
                     ? `${outlet.name} (${outlet.port_number})` 
                     : `Outlet ${outlet.port_number}`;
@@ -1352,7 +1365,7 @@
                 return `
                     <div class="form-check mb-2">
                         <input class="form-check-input" type="checkbox" value="${outlet.id}" 
-                               id="createOutlet${outlet.id}" ${isSelected ? 'checked' : ''}>
+                               id="createOutlet${outlet.id}">
                         <label class="form-check-label" for="createOutlet${outlet.id}">
                             ${displayName} - ${outlet.power_watts || 0}W
                         </label>
