@@ -32,6 +32,32 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize database
 db.init_app(app)
 
+# In-memory cache for power data responses
+power_data_cache = {}
+
+# Cache TTL (seconds) per period
+PERIOD_CACHE_TTLS = {
+    'day-10min': 60,       # 1 minute
+    'day': 60,             # 1 minute
+    'week-10min': 300,     # 5 minutes
+    'week': 300,           # 5 minutes
+    'month': 600,          # 10 minutes
+    'year-weekly': 600,    # 10 minutes
+    'year-monthly': 600    # 10 minutes
+}
+
+
+def get_cache_ttl(period: str) -> int:
+    """Return cache TTL in seconds for the given period."""
+    return PERIOD_CACHE_TTLS.get(period, 0)
+
+
+def make_cache_key(period: str, outlet_ids: list, user_timezone: str) -> tuple:
+    """Construct cache key based on request parameters."""
+    sorted_ids = tuple(sorted(outlet_ids))
+    return (period, sorted_ids, user_timezone)
+
+
 # Security check on startup
 if not GROUP_MANAGEMENT_PASSWORD:
     logger.warning("⚠️  SECURITY WARNING: GROUP_MANAGEMENT_PASSWORD not set!")
@@ -138,6 +164,15 @@ def get_power_data():
         
         # Get user timezone from request headers (sent by frontend)
         user_timezone = request.headers.get('X-User-Timezone', 'Europe/London')
+        cache_key = None
+        cache_ttl = get_cache_ttl(period)
+
+        if cache_ttl > 0:
+            cache_key = make_cache_key(period, outlet_ids, user_timezone)
+            cached_entry = power_data_cache.get(cache_key)
+            if cached_entry and (time.time() - cached_entry['timestamp']) < cache_ttl:
+                logger.info(f"Serving cached power data for key={cache_key}")
+                return jsonify(cached_entry['payload'])
         
         # Convert UTC now to user's timezone for proper time range calculation
         utc_now = datetime.utcnow()
@@ -288,7 +323,7 @@ def get_power_data():
                         'energy_kwh': energy_values  # For bar graph (energy consumption)
                     })
             
-            return jsonify({
+            response_payload = {
                 'success': True,
                 'data': {
                     'labels': labels,
@@ -298,10 +333,18 @@ def get_power_data():
                 'start_time': start_time.isoformat(),
                 'end_time': now.isoformat(),
                 'user_timezone': user_timezone
-            })
+            }
+
+            if cache_key:
+                power_data_cache[cache_key] = {
+                    'timestamp': time.time(),
+                    'payload': response_payload
+                }
+
+            return jsonify(response_payload)
         else:
             # No outlets selected
-            return jsonify({
+            response_payload = {
                 'success': True,
                 'data': {
                     'labels': labels,
@@ -311,7 +354,15 @@ def get_power_data():
                 'start_time': start_time.isoformat(),
                 'end_time': now.isoformat(),
                 'user_timezone': user_timezone
-            })
+            }
+
+            if cache_key:
+                power_data_cache[cache_key] = {
+                    'timestamp': time.time(),
+                    'payload': response_payload
+                }
+
+            return jsonify(response_payload)
         
     except Exception as e:
         logger.error(f"Error getting power data: {str(e)}")
