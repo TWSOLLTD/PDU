@@ -24,6 +24,7 @@
             --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
             --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --accent-color: #9f7aea;
             --dark-bg: #0a0e27;
             --card-bg: #1a1f3a;
             --card-border: #2d3748;
@@ -141,6 +142,34 @@
             align-items: center;
         }
         
+        .group-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .selected-group-wattage {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .selected-group-wattage .wattage-value {
+            color: #f0f9ff;
+            font-weight: 600;
+        }
+
+        .selected-group-wattage.hidden {
+            display: none;
+        }
+
         .total-wattage-display {
             display: flex;
             align-items: center;
@@ -888,9 +917,15 @@
                             <i class="fas fa-layer-group"></i>
                             Group Management
                         </h3>
-                        <button class="btn btn-primary btn-sm" id="createGroupBtn">
-                            <i class="fas fa-plus"></i> Create Group
-                        </button>
+                        <div class="group-controls">
+                            <div class="selected-group-wattage hidden" id="selectedGroupWattageContainer">
+                                <span class="wattage-label">Group Power:</span>
+                                <span class="wattage-value" id="selectedGroupWattage">0W</span>
+                            </div>
+                            <button class="btn btn-primary btn-sm" id="createGroupBtn">
+                                <i class="fas fa-plus"></i> Create Group
+                            </button>
+                        </div>
                         </div>
                     <div class="card-body">
                         <div id="groupList">
@@ -1372,6 +1407,33 @@
             }
         }
 
+        function updateSelectedGroupWattage() {
+            const container = document.getElementById('selectedGroupWattageContainer');
+            const wattageDisplay = document.getElementById('selectedGroupWattage');
+
+            if (!container || !wattageDisplay) {
+                return;
+            }
+
+            if (selectedGroup) {
+                const group = groups.find(g => g.id === selectedGroup);
+
+                if (group) {
+                    const totalWattage = group.outlet_ids.reduce((sum, outletId) => {
+                        const outlet = outlets.find(o => o.id === outletId);
+                        return sum + (outlet ? (outlet.power_watts || 0) : 0);
+                    }, 0);
+
+                    wattageDisplay.textContent = `${totalWattage}W`;
+                    container.classList.remove('hidden');
+                    return;
+                }
+            }
+
+            wattageDisplay.textContent = '0W';
+            container.classList.add('hidden');
+        }
+
         // Toggle outlet selection
         function toggleOutletSelection(outletId) {
             if (selectedOutlets.has(outletId)) {
@@ -1405,6 +1467,7 @@
                         <p class="small">Select outlets and create your first group</p>
                     </div>
                 `;
+                updateSelectedGroupWattage();
                     return;
                 }
 
@@ -1428,6 +1491,8 @@
                 </div>
             `;
             }).join('');
+
+            updateSelectedGroupWattage();
         }
 
         // Select group
