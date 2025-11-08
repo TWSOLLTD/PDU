@@ -958,40 +958,40 @@
         <div class="time-selector">
             <!-- Desktop Buttons -->
             <div class="desktop-buttons">
-                <button class="time-btn active" data-period="day-10min">Day (10-min)</button>
-                <button class="time-btn" data-period="day">Day (Hourly)</button>
-                <button class="time-btn" data-period="week-10min">Week (10-min)</button>
-                <button class="time-btn" data-period="week">Week (Daily)</button>
-                <button class="time-btn" data-period="month">Month (Daily)</button>
+                <button class="time-btn active" data-period="year-monthly">Year (Monthly)</button>
                 <button class="time-btn" data-period="year-weekly">Year (Weekly)</button>
-                <button class="time-btn" data-period="year-monthly">Year (Monthly)</button>
+                <button class="time-btn" data-period="month">Month (Daily)</button>
+                <button class="time-btn" data-period="week">Week (Daily)</button>
+                <button class="time-btn" data-period="week-10min">Week (10-min)</button>
+                <button class="time-btn" data-period="day">Day (Hourly)</button>
+                <button class="time-btn" data-period="day-10min">Day (10-min)</button>
             </div>
 
             <!-- Mobile Buttons -->
             <div class="mobile-buttons">
-                <button class="time-btn active" data-period="day-10min">Day (10-min)</button>
-                <button class="time-btn" data-period="day">Day (Hourly)</button>
-                <button class="time-btn" data-period="week-10min">Week (10-min)</button>
-                <button class="time-btn" data-period="week">Week (Daily)</button>
-                <button class="time-btn" data-period="month">Month (Daily)</button>
+                <button class="time-btn active" data-period="year-monthly">Year (Monthly)</button>
                 <button class="time-btn" data-period="year-weekly">Year (Weekly)</button>
-                <button class="time-btn" data-period="year-monthly">Year (Monthly)</button>
+                <button class="time-btn" data-period="month">Month (Daily)</button>
+                <button class="time-btn" data-period="week">Week (Daily)</button>
+                <button class="time-btn" data-period="week-10min">Week (10-min)</button>
+                <button class="time-btn" data-period="day">Day (Hourly)</button>
+                <button class="time-btn" data-period="day-10min">Day (10-min)</button>
             </div>
 
             <!-- Mobile Dropdown (Hidden) -->
             <div class="mobile-dropdown">
                 <div class="dropdown">
                     <button class="btn btn-outline-light dropdown-toggle" type="button" id="timePeriodDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-clock"></i> <span id="selectedTimePeriod">Day (10-min)</span>
+                        <i class="fas fa-clock"></i> <span id="selectedTimePeriod">Year (Monthly)</span>
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="timePeriodDropdown">
-                        <li><a class="dropdown-item" href="#" data-period="day-10min">Day (10-min)</a></li>
-                        <li><a class="dropdown-item" href="#" data-period="day">Day (Hourly)</a></li>
-                        <li><a class="dropdown-item" href="#" data-period="week-10min">Week (10-min)</a></li>
-                        <li><a class="dropdown-item" href="#" data-period="week">Week (Daily)</a></li>
-                        <li><a class="dropdown-item" href="#" data-period="month">Month (Daily)</a></li>
+                        <li><a class="dropdown-item active" href="#" data-period="year-monthly">Year (Monthly)</a></li>
                         <li><a class="dropdown-item" href="#" data-period="year-weekly">Year (Weekly)</a></li>
-                        <li><a class="dropdown-item" href="#" data-period="year-monthly">Year (Monthly)</a></li>
+                        <li><a class="dropdown-item" href="#" data-period="month">Month (Daily)</a></li>
+                        <li><a class="dropdown-item" href="#" data-period="week">Week (Daily)</a></li>
+                        <li><a class="dropdown-item" href="#" data-period="week-10min">Week (10-min)</a></li>
+                        <li><a class="dropdown-item" href="#" data-period="day">Day (Hourly)</a></li>
+                        <li><a class="dropdown-item" href="#" data-period="day-10min">Day (10-min)</a></li>
                     </ul>
                         </div>
                     </div>
@@ -1123,7 +1123,7 @@
         let groups = [];
         let selectedOutlets = new Set();
         let selectedGroup = null; // Track which group is directly selected
-        let currentTimePeriod = 'day-10min';
+        let currentTimePeriod = 'year-monthly';
         let currentEditingGroup = null;
         
         // Timezone handling
