@@ -70,6 +70,49 @@ def verify_password(password):
     
     return password == correct_password
 
+
+@app.route('/api/debug-password')
+def debug_password():
+    """Endpoint for frontend password verification"""
+    try:
+        password = request.args.get('password', '')
+        
+        if not password or password.strip() == '':
+            return jsonify({
+                'success': False,
+                'error': 'Password cannot be empty',
+                'data': {
+                    'verification_result': False
+                }
+            }), 400
+        
+        verification_result = verify_password(password)
+        
+        if verification_result:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'verification_result': True
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid password',
+                'data': {
+                    'verification_result': False
+                }
+            }), 401
+    except Exception as e:
+        logger.error(f"Error verifying password: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Error verifying password',
+            'data': {
+                'verification_result': False
+            }
+        }), 500
+
 @app.route('/')
 def index():
     """Main dashboard page"""
