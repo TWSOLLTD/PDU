@@ -58,11 +58,6 @@ PERIOD_REFRESH_INTERVALS = {
 }
 _cache_warm_thread_started = False
 
-# Cache status tracking for precomputed datasets
-CACHE_STATUS_READY = 'ready'
-CACHE_STATUS_PREPARING = 'preparing'
-CACHE_STATUS_FAILED = 'failed'
-
 
 def get_cache_ttl(period: str) -> int:
     """Return cache TTL in seconds for the given period."""
@@ -193,8 +188,9 @@ def calculate_power_data(period: str, outlet_ids: list, user_timezone: str) -> d
                         energy_kwh = (interval_readings[reading_index].power_watts * time_diff) / 1000
                         total_energy_kwh += energy_kwh
 
-                    last_energy = (interval_readings[-1].power_watts * (1 / 60)) / 1000
-                    total_energy_kwh += last_energy
+                    if interval_readings:
+                        last_energy = (interval_readings[-1].power_watts * (1 / 60)) / 1000
+                        total_energy_kwh += last_energy
 
                     energy_values.append(round(total_energy_kwh, 3))
                 else:
@@ -221,7 +217,7 @@ def calculate_power_data(period: str, outlet_ids: list, user_timezone: str) -> d
             'user_timezone': user_timezone
         }
 
-    # No outlets selected – return empty dataset with labels
+    # No outlets selected
     return {
         'success': True,
         'data': {
@@ -466,7 +462,7 @@ def get_outlets():
             latest_reading = PortPowerReading.query.filter_by(
                 port_id=outlet.id
             ).order_by(PortPowerReading.timestamp.desc()).first()
-                
+            
             # Get status from the latest reading (stored from SNMP)
             power_watts = latest_reading.power_watts if latest_reading else 0
             status = latest_reading.status if latest_reading and latest_reading.status else 'OFF'
@@ -505,34 +501,35 @@ def handle_groups():
         try:
             groups = OutletGroup.query.all()
             group_data = []
-        
+            
             for group in groups:
                 group_data.append({
-                'id': group.id,
-                'name': group.name,
-                'description': group.description,
-                'outlet_ids': group.get_outlet_ids(),
-                'color': group.color,
-                'created_at': group.created_at.isoformat(),
-                'updated_at': group.updated_at.isoformat()
+                    'id': group.id,
+                    'name': group.name,
+                    'description': group.description,
+                    'outlet_ids': group.get_outlet_ids(),
+                    'color': group.color,
+                    'created_at': group.created_at.isoformat(),
+                    'updated_at': group.updated_at.isoformat()
                 })
-        
+            
             return jsonify({
                 'success': True,
                 'data': group_data
             })
-        
-    except Exception as e:
-        logger.error(f"Error getting groups: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
+            
+        except Exception as e:
+            logger.error(f"Error getting groups: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+    
     elif request.method == 'POST':
         # Create new group
         try:
             data = request.get_json()
+            
             
             # Verify password
             if not verify_password(data.get('password', '')):
@@ -547,7 +544,7 @@ def handle_groups():
                     'success': False,
                     'error': 'Group name is required'
                 }), 400
-        
+            
             # Check if group name already exists
             existing_group = OutletGroup.query.filter_by(name=data['name']).first()
             if existing_group:
@@ -555,7 +552,7 @@ def handle_groups():
                     'success': False,
                     'error': 'Group name already exists'
                 }), 400
-        
+            
             # Create new group
             group = OutletGroup(
                 name=data['name'],
@@ -563,10 +560,10 @@ def handle_groups():
                 outlet_ids=json.dumps(data.get('outlet_ids', [])),
                 color=data.get('color', '#667eea')
             )
-        
+            
             db.session.add(group)
             db.session.commit()
-        
+            
             return jsonify({
                 'success': True,
                 'data': {
@@ -577,7 +574,7 @@ def handle_groups():
                     'color': group.color
                 }
             })
-        
+            
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error creating group: {str(e)}")
@@ -614,28 +611,28 @@ def handle_group(group_id):
                         'error': 'Group name already exists'
                     }), 400
                 group.name = data['name']
-        
+            
             if 'description' in data:
                 group.description = data['description']
-        
+            
             if 'outlet_ids' in data:
                 group.set_outlet_ids(data['outlet_ids'])
-        
+            
             if 'color' in data:
                 group.color = data['color']
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'data': {
-                'id': group.id,
-                'name': group.name,
-                'description': group.description,
-                'outlet_ids': group.get_outlet_ids(),
-                'color': group.color
-            }
-        })
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'id': group.id,
+                    'name': group.name,
+                    'description': group.description,
+                    'outlet_ids': group.get_outlet_ids(),
+                    'color': group.color
+                }
+            })
         
         elif request.method == 'DELETE':
             # Delete group
@@ -646,7 +643,7 @@ def handle_group(group_id):
                 'success': True,
                 'message': 'Group deleted successfully'
             })
-        
+    
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error handling group: {str(e)}")
@@ -942,7 +939,7 @@ def send_monthly_discord_report():
                 'success': False,
                 'error': 'Failed to send monthly Discord report'
             }), 500
-        
+            
     except Exception as e:
         logger.error(f"Error sending monthly Discord report: {str(e)}")
         return jsonify({
@@ -988,6 +985,6 @@ def create_app():
 if __name__ == '__main__':
     # Start background data collection
     start_data_collection()
-
+    
     # Run Flask app
     app.run(host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG)
