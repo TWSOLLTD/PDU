@@ -197,7 +197,7 @@ def calculate_power_data(period: str, outlet_ids: list, user_timezone: str) -> d
                     total_energy_kwh += last_energy
 
                     energy_values.append(round(total_energy_kwh, 3))
-                    else:
+                else:
                     power_values.append(0)
                     energy_values.append(0)
 
@@ -221,7 +221,7 @@ def calculate_power_data(period: str, outlet_ids: list, user_timezone: str) -> d
             'user_timezone': user_timezone
         }
 
-    # No outlets selected
+    # No outlets selected – return empty dataset with labels
     return {
         'success': True,
         'data': {
@@ -349,7 +349,7 @@ else:
 if not DISCORD_WEBHOOK_URL:
     logger.warning("⚠️  Discord webhook not configured!")
     logger.warning("⚠️  Set DISCORD_WEBHOOK_URL in your .env file.")
-                        else:
+else:
     logger.info("✅ Discord webhook configured securely")
 
 def verify_password(password):
@@ -394,8 +394,8 @@ def debug_password():
                 }
             })
         else:
-        return jsonify({
-            'success': False,
+            return jsonify({
+                'success': False,
                 'error': 'Invalid password',
                 'data': {
                     'verification_result': False
@@ -485,8 +485,8 @@ def get_outlets():
             })
         
         logger.info(f"API returning {len(outlet_data)} outlets")
-            return jsonify({
-                'success': True,
+        return jsonify({
+            'success': True,
             'data': outlet_data
         })
         
@@ -506,7 +506,7 @@ def handle_groups():
             groups = OutletGroup.query.all()
             group_data = []
         
-        for group in groups:
+            for group in groups:
                 group_data.append({
                 'id': group.id,
                 'name': group.name,
@@ -517,10 +517,10 @@ def handle_groups():
                 'updated_at': group.updated_at.isoformat()
                 })
         
-        return jsonify({
-            'success': True,
+            return jsonify({
+                'success': True,
                 'data': group_data
-        })
+            })
         
     except Exception as e:
         logger.error(f"Error getting groups: {str(e)}")
@@ -531,8 +531,8 @@ def handle_groups():
 
     elif request.method == 'POST':
         # Create new group
-    try:
-        data = request.get_json()
+        try:
+            data = request.get_json()
             
             # Verify password
             if not verify_password(data.get('password', '')):
@@ -548,43 +548,43 @@ def handle_groups():
                     'error': 'Group name is required'
                 }), 400
         
-        # Check if group name already exists
+            # Check if group name already exists
             existing_group = OutletGroup.query.filter_by(name=data['name']).first()
-        if existing_group:
+            if existing_group:
                 return jsonify({
                     'success': False,
                     'error': 'Group name already exists'
                 }), 400
         
             # Create new group
-        group = OutletGroup(
+            group = OutletGroup(
                 name=data['name'],
                 description=data.get('description', ''),
                 outlet_ids=json.dumps(data.get('outlet_ids', [])),
                 color=data.get('color', '#667eea')
             )
         
-        db.session.add(group)
-        db.session.commit()
+            db.session.add(group)
+            db.session.commit()
         
-        return jsonify({
-            'success': True,
-            'data': {
-                'id': group.id,
-                'name': group.name,
-                'description': group.description,
-                'outlet_ids': group.get_outlet_ids(),
-                'color': group.color
-            }
-        })
+            return jsonify({
+                'success': True,
+                'data': {
+                    'id': group.id,
+                    'name': group.name,
+                    'description': group.description,
+                    'outlet_ids': group.get_outlet_ids(),
+                    'color': group.color
+                }
+            })
         
-    except Exception as e:
+        except Exception as e:
             db.session.rollback()
-        logger.error(f"Error creating group: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            logger.error(f"Error creating group: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
 
 @app.route('/api/groups/<int:group_id>', methods=['PUT', 'DELETE'])
 def handle_group(group_id):
@@ -645,7 +645,7 @@ def handle_group(group_id):
             return jsonify({
                 'success': True,
                 'message': 'Group deleted successfully'
-        })
+            })
         
     except Exception as e:
         db.session.rollback()
@@ -913,7 +913,7 @@ def test_discord_webhook():
                 'success': True,
                 'message': 'Discord test message sent successfully'
             })
-            else:
+        else:
             return jsonify({
                 'success': False,
                 'error': 'Failed to send Discord test message'
@@ -938,8 +938,8 @@ def send_monthly_discord_report():
                 'message': 'Monthly Discord report sent successfully'
             })
         else:
-        return jsonify({
-            'success': False,
+            return jsonify({
+                'success': False,
                 'error': 'Failed to send monthly Discord report'
             }), 500
         
