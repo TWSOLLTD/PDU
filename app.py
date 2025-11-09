@@ -8,6 +8,7 @@ from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+import calendar
 import json
 import logging
 import threading
@@ -34,6 +35,7 @@ db.init_app(app)
 
 # In-memory cache for power data responses
 power_data_cache = {}
+cache_lock = threading.RLock()
 
 # Cache TTL (seconds) per period
 PERIOD_CACHE_TTLS = {
@@ -46,6 +48,13 @@ PERIOD_CACHE_TTLS = {
     'year-monthly': 600    # 10 minutes
 }
 
+DEFAULT_CACHE_TIMEZONE = os.getenv('DEFAULT_CACHE_TIMEZONE', 'Europe/London')
+CACHE_WARM_PERIODS = tuple(PERIOD_CACHE_TTLS.keys())
+CACHE_WARM_INCLUDE_ALL_OUTLETS = os.getenv('CACHE_WARM_INCLUDE_ALL_OUTLETS', 'true').lower() == 'true'
+ENABLE_CACHE_WARMUP = os.getenv('ENABLE_CACHE_WARMUP', 'true').lower() == 'true'
+CACHE_REFRESH_INTERVAL_SECONDS = int(os.getenv('CACHE_REFRESH_INTERVAL_SECONDS', '60'))
+_cache_warm_thread_started = False
+
 
 def get_cache_ttl(period: str) -> int:
     """Return cache TTL in seconds for the given period."""
@@ -56,6 +65,246 @@ def make_cache_key(period: str, outlet_ids: list, user_timezone: str) -> tuple:
     """Construct cache key based on request parameters."""
     sorted_ids = tuple(sorted(outlet_ids))
     return (period, sorted_ids, user_timezone)
+
+
+def get_cached_payload(cache_key, cache_ttl):
+    """Return cached payload if present and fresh."""
+    with cache_lock:
+        cached_entry = power_data_cache.get(cache_key)
+    if cached_entry and (time.time() - cached_entry['timestamp']) < cache_ttl:
+        return cached_entry['payload']
+    return None
+
+
+def set_cache_entry(cache_key, payload):
+    """Store payload in cache."""
+    with cache_lock:
+        power_data_cache[cache_key] = {
+            'timestamp': time.time(),
+            'payload': payload
+        }
+
+
+def calculate_power_data(period: str, outlet_ids: list, user_timezone: str) -> dict:
+    """Calculate power chart payload for the given period and outlets."""
+    utc_now = datetime.utcnow()
+    user_tz = ZoneInfo(user_timezone)
+    now = utc_now.replace(tzinfo=timezone.utc).astimezone(user_tz)
+
+    # Normalize outlet IDs to integers
+    outlet_ids = [int(outlet_id) for outlet_id in outlet_ids]
+
+    if period == 'day':
+        labels = [f"{i:02d}:00" for i in range(24)]
+        start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        interval_minutes = 60
+    elif period == 'day-10min':
+        labels = [f"{hour:02d}:{minute:02d}"
+                  for hour in range(24)
+                  for minute in range(0, 60, 10)]
+        start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        interval_minutes = 10
+    elif period == 'week-10min':
+        days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        labels = [
+            f"{days[day_idx]} {hour:02d}:{minute:02d}"
+            for day_idx in range(7)
+            for hour in range(24)
+            for minute in range(0, 60, 10)
+        ]
+        days_since_monday = now.weekday()
+        start_time = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
+        interval_minutes = 10
+    elif period == 'week':
+        labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        days_since_monday = now.weekday()
+        start_time = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
+        interval_minutes = 1440
+    elif period == 'month':
+        last_day = calendar.monthrange(now.year, now.month)[1]
+        labels = [f"{day:02d}" for day in range(1, last_day + 1)]
+        start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        interval_minutes = 1440
+    elif period == 'year-weekly':
+        labels = []
+        current_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        while current_date.weekday() != 0:
+            current_date += timedelta(days=1)
+        for week in range(52):
+            week_start = current_date + timedelta(weeks=week)
+            week_end = week_start + timedelta(days=6)
+            month_name = week_start.strftime('%b')
+            labels.append(f"{month_name} {week_start.day}-{week_end.day}")
+        start_time = current_date
+        interval_minutes = 10080
+    elif period == 'year-monthly':
+        labels = ['January', 'February', 'March', 'April', 'May', 'June',
+                  'July', 'August', 'September', 'October', 'November', 'December']
+        start_time = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        interval_minutes = 43200
+    else:
+        labels = [f"{i:02d}:00" for i in range(24)]
+        start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        interval_minutes = 60
+
+    start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
+
+    if outlet_ids:
+        outlets_data = []
+        for outlet_id in outlet_ids:
+            outlet = PDUPort.query.get(outlet_id)
+            if not outlet:
+                continue
+
+            readings = PortPowerReading.query.filter(
+                PortPowerReading.port_id == outlet_id,
+                PortPowerReading.timestamp >= start_time_utc
+            ).order_by(PortPowerReading.timestamp).all()
+
+            power_values = []
+            energy_values = []
+            for index in range(len(labels)):
+                interval_start = start_time + timedelta(minutes=index * interval_minutes)
+                interval_end = interval_start + timedelta(minutes=interval_minutes)
+
+                interval_start_utc = interval_start.astimezone(timezone.utc).replace(tzinfo=None)
+                interval_end_utc = interval_end.astimezone(timezone.utc).replace(tzinfo=None)
+
+                interval_readings = [
+                    reading for reading in readings
+                    if interval_start_utc <= reading.timestamp < interval_end_utc
+                ]
+
+                if interval_readings:
+                    avg_power = sum(r.power_watts for r in interval_readings) / len(interval_readings)
+                    power_values.append(round(avg_power, 1))
+
+                    total_energy_kwh = 0
+                    for reading_index in range(len(interval_readings) - 1):
+                        time_diff = (interval_readings[reading_index + 1].timestamp - interval_readings[reading_index].timestamp).total_seconds() / 3600
+                        energy_kwh = (interval_readings[reading_index].power_watts * time_diff) / 1000
+                        total_energy_kwh += energy_kwh
+
+                    if interval_readings:
+                        last_energy = (interval_readings[-1].power_watts * (1 / 60)) / 1000
+                        total_energy_kwh += last_energy
+
+                    energy_values.append(round(total_energy_kwh, 3))
+                else:
+                    power_values.append(0)
+                    energy_values.append(0)
+
+            outlets_data.append({
+                'id': outlet.id,
+                'name': outlet.name,
+                'port_number': outlet.port_number,
+                'power_watts': power_values,
+                'energy_kwh': energy_values
+            })
+
+        return {
+            'success': True,
+            'data': {
+                'labels': labels,
+                'outlets': outlets_data
+            },
+            'period': period,
+            'start_time': start_time.isoformat(),
+            'end_time': now.isoformat(),
+            'user_timezone': user_timezone
+        }
+
+    # No outlets selected
+    return {
+        'success': True,
+        'data': {
+            'labels': labels,
+            'outlets': []
+        },
+        'period': period,
+        'start_time': start_time.isoformat(),
+        'end_time': now.isoformat(),
+        'user_timezone': user_timezone
+    }
+
+
+def warm_power_data_cache_for_timezone(user_timezone: str | None = None):
+    """Pre-compute cache entries for all groups and periods."""
+    tz = user_timezone or DEFAULT_CACHE_TIMEZONE
+
+    logger.info(f"Pre-warming power data cache for timezone '{tz}'")
+
+    try:
+        groups = OutletGroup.query.all()
+        active_outlets = PDUPort.query.filter_by(is_active=True).all()
+    except Exception as exc:
+        logger.error(f"Unable to warm cache (database error): {exc}")
+        return
+
+    outlet_combinations = []
+
+    if CACHE_WARM_INCLUDE_ALL_OUTLETS and active_outlets:
+        all_ids = tuple(sorted(port.id for port in active_outlets))
+        outlet_combinations.append((all_ids, 'all_active_outlets'))
+
+    for group in groups:
+        group_outlet_ids = tuple(sorted(group.get_outlet_ids() or []))
+        if group_outlet_ids:
+            outlet_combinations.append((group_outlet_ids, f"group_{group.id}"))
+
+    seen = set()
+    for outlet_ids_tuple, label in outlet_combinations:
+        if not outlet_ids_tuple or outlet_ids_tuple in seen:
+            continue
+        seen.add(outlet_ids_tuple)
+        outlet_id_list = list(outlet_ids_tuple)
+
+        for period, ttl in PERIOD_CACHE_TTLS.items():
+            if ttl <= 0:
+                continue
+
+            cache_key = make_cache_key(period, outlet_id_list, tz)
+            if get_cached_payload(cache_key, ttl):
+                continue
+
+            try:
+                payload = calculate_power_data(period, outlet_id_list, tz)
+                set_cache_entry(cache_key, payload)
+                logger.info(f"Cache warmed for {label} period='{period}' timezone='{tz}'")
+            except Exception as exc:
+                logger.error(f"Failed to warm cache for {label} period='{period}' timezone='{tz}': {exc}")
+
+    logger.info("Power data cache pre-warm completed")
+
+
+def start_cache_warmup_thread():
+    """Start background thread to keep cache pre-populated."""
+    global _cache_warm_thread_started
+
+    if not ENABLE_CACHE_WARMUP or _cache_warm_thread_started:
+        return
+
+    def cache_warmup_loop():
+        with app.app_context():
+            while True:
+                try:
+                    warm_power_data_cache_for_timezone(DEFAULT_CACHE_TIMEZONE)
+                except Exception as exc:
+                    logger.error(f"Background cache warmup failed: {exc}")
+                time.sleep(CACHE_REFRESH_INTERVAL_SECONDS)
+
+    try:
+        with app.app_context():
+            warm_power_data_cache_for_timezone(DEFAULT_CACHE_TIMEZONE)
+    except Exception as exc:
+        logger.error(f"Initial cache warmup failed: {exc}")
+
+    warm_thread = threading.Thread(target=cache_warmup_loop, name="PowerDataCacheWarmup", daemon=True)
+    warm_thread.start()
+    _cache_warm_thread_started = True
+
+
+start_cache_warmup_thread()
 
 
 # Security check on startup
@@ -158,211 +407,22 @@ def get_power_data():
         else:
             outlet_ids = []
         
-        # Calculate time range and aggregation based on period
-        import calendar
-        from zoneinfo import ZoneInfo
-        
-        # Get user timezone from request headers (sent by frontend)
         user_timezone = request.headers.get('X-User-Timezone', 'Europe/London')
-        cache_key = None
         cache_ttl = get_cache_ttl(period)
+        cache_key = make_cache_key(period, outlet_ids, user_timezone) if cache_ttl > 0 else None
 
-        if cache_ttl > 0:
-            cache_key = make_cache_key(period, outlet_ids, user_timezone)
-            cached_entry = power_data_cache.get(cache_key)
-            if cached_entry and (time.time() - cached_entry['timestamp']) < cache_ttl:
+        if cache_key:
+            cached_payload = get_cached_payload(cache_key, cache_ttl)
+            if cached_payload:
                 logger.info(f"Serving cached power data for key={cache_key}")
-                return jsonify(cached_entry['payload'])
-        
-        # Convert UTC now to user's timezone for proper time range calculation
-        utc_now = datetime.utcnow()
-        user_tz = ZoneInfo(user_timezone)
-        now = utc_now.replace(tzinfo=timezone.utc).astimezone(user_tz)
-        
-        if period == 'day':
-            # Day hourly: 00:00 to 23:00 (24 hours)
-            labels = [f"{i:02d}:00" for i in range(24)]
-            start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            # Convert back to UTC for database queries
-            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
-            interval_minutes = 60
-        elif period == 'day-10min':
-            # Day 10-minute: 00:00 to 23:50 (144 intervals)
-            labels = []
-            for hour in range(24):
-                for minute in range(0, 60, 10):
-                    labels.append(f"{hour:02d}:{minute:02d}")
-            start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
-            interval_minutes = 10
-        elif period == 'week-10min':
-            # Week 10-minute: Monday 00:00 to Sunday 23:50 (1008 intervals)
-            labels = []
-            days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-            for day_idx in range(7):
-                for hour in range(24):
-                    for minute in range(0, 60, 10):
-                        labels.append(f"{days[day_idx]} {hour:02d}:{minute:02d}")
-            # Get start of current week (Monday)
-            days_since_monday = now.weekday()
-            start_time = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
-            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
-            interval_minutes = 10
-        elif period == 'week':
-            # Week daily: Monday to Sunday
-            labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-            # Get start of current week (Monday)
-            days_since_monday = now.weekday()
-            start_time = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days_since_monday)
-            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
-            interval_minutes = 1440  # Daily
-        elif period == 'month':
-            # Month daily: 1st to last day of current month
-            last_day = calendar.monthrange(now.year, now.month)[1]
-            labels = [f"{day:02d}" for day in range(1, last_day + 1)]
-            start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
-            interval_minutes = 1440  # Daily
-        elif period == 'year-weekly':
-            # Year weekly: Show date ranges for each week
-            labels = []
-            current_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-            
-            # Find the first Monday of the year
-            while current_date.weekday() != 0:  # 0 = Monday
-                current_date += timedelta(days=1)
-            
-            # Generate 52 weeks of date ranges
-            for week in range(52):
-                week_start = current_date + timedelta(weeks=week)
-                week_end = week_start + timedelta(days=6)
-                
-                # Format: "Jan 6-12" (much shorter)
-                start_day = week_start.day
-                end_day = week_end.day
-                month_name = week_start.strftime('%b')  # Short month name
-                
-                labels.append(f"{month_name} {start_day}-{end_day}")
-            
-            start_time = current_date
-            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
-            interval_minutes = 10080  # Weekly
-        elif period == 'year-monthly':
-            # Year monthly: January to December
-            labels = ['January', 'February', 'March', 'April', 'May', 'June',
-                     'July', 'August', 'September', 'October', 'November', 'December']
-            start_time = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
-            interval_minutes = 43200  # Monthly
-        else:
-            # Default to day hourly
-            labels = [f"{i:02d}:00" for i in range(24)]
-            start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            start_time_utc = start_time.astimezone(timezone.utc).replace(tzinfo=None)
-            interval_minutes = 60
-        
-        # Get power data for selected outlets
-        if outlet_ids:
-            outlets_data = []
-            for outlet_id in outlet_ids:
-                outlet = PDUPort.query.get(outlet_id)
-                if outlet:
-                    # Get readings for this outlet
-                    readings = PortPowerReading.query.filter(
-                        PortPowerReading.port_id == outlet_id,
-                        PortPowerReading.timestamp >= start_time_utc
-                    ).order_by(PortPowerReading.timestamp).all()
-                    
-                    # Aggregate data by time intervals
-                    power_values = []
-                    energy_values = []
-                    for i, label in enumerate(labels):
-                        interval_start = start_time + timedelta(minutes=i * interval_minutes)
-                        interval_end = interval_start + timedelta(minutes=interval_minutes)
-                        
-                        # Convert interval times to UTC for database comparison
-                        interval_start_utc = interval_start.astimezone(timezone.utc).replace(tzinfo=None)
-                        interval_end_utc = interval_end.astimezone(timezone.utc).replace(tzinfo=None)
-                        
-                        # Find readings in this interval
-                        interval_readings = [
-                            r for r in readings 
-                            if interval_start_utc <= r.timestamp < interval_end_utc
-                        ]
-                        
-                        if interval_readings:
-                            # Calculate average power for this interval (for line graph)
-                            avg_power = sum(r.power_watts for r in interval_readings) / len(interval_readings)
-                            power_values.append(round(avg_power, 1))
-                            
-                            # Calculate actual energy consumption from minute-by-minute readings
-                            total_energy_kwh = 0
-                            for i in range(len(interval_readings) - 1):
-                                # Calculate time difference between consecutive readings (in hours)
-                                time_diff = (interval_readings[i + 1].timestamp - interval_readings[i].timestamp).total_seconds() / 3600
-                                
-                                # Energy = Power × Time (convert Watts to kWh)
-                                energy_kwh = (interval_readings[i].power_watts * time_diff) / 1000
-                                total_energy_kwh += energy_kwh
-                            
-                            # Add energy for the last reading (assume 1 minute duration)
-                            if len(interval_readings) > 0:
-                                last_energy = (interval_readings[-1].power_watts * (1/60)) / 1000  # 1 minute = 1/60 hours
-                                total_energy_kwh += last_energy
-                            
-                            energy_values.append(round(total_energy_kwh, 3))
-                        else:
-                            power_values.append(0)  # Use 0 for missing data to show all time slots
-                            energy_values.append(0)
-                    
-                    outlets_data.append({
-                        'id': outlet.id,
-                        'name': outlet.name,
-                        'port_number': outlet.port_number,
-                        'power_watts': power_values,  # For line graph (power over time)
-                        'energy_kwh': energy_values  # For bar graph (energy consumption)
-                    })
-            
-            response_payload = {
-                'success': True,
-                'data': {
-                    'labels': labels,
-                    'outlets': outlets_data
-                },
-                'period': period,
-                'start_time': start_time.isoformat(),
-                'end_time': now.isoformat(),
-                'user_timezone': user_timezone
-            }
+                return jsonify(cached_payload)
 
-            if cache_key:
-                power_data_cache[cache_key] = {
-                    'timestamp': time.time(),
-                    'payload': response_payload
-                }
+        response_payload = calculate_power_data(period, outlet_ids, user_timezone)
 
-            return jsonify(response_payload)
-        else:
-            # No outlets selected
-            response_payload = {
-                'success': True,
-                'data': {
-                    'labels': labels,
-                    'outlets': []
-                },
-                'period': period,
-                'start_time': start_time.isoformat(),
-                'end_time': now.isoformat(),
-                'user_timezone': user_timezone
-            }
+        if cache_key:
+            set_cache_entry(cache_key, response_payload)
 
-            if cache_key:
-                power_data_cache[cache_key] = {
-                    'timestamp': time.time(),
-                    'payload': response_payload
-                }
-
-            return jsonify(response_payload)
+        return jsonify(response_payload)
         
     except Exception as e:
         logger.error(f"Error getting power data: {str(e)}")
