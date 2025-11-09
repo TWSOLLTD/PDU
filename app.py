@@ -35,7 +35,12 @@ db.init_app(app)
 
 # In-memory cache for power data responses
 power_data_cache = {}
+cache_status = {}
 cache_lock = threading.RLock()
+
+CACHE_STATUS_READY = 'ready'
+CACHE_STATUS_PREPARING = 'preparing'
+CACHE_STATUS_FAILED = 'failed'
 
 # Cache TTL (seconds) per period
 PERIOD_CACHE_TTLS = {
@@ -56,7 +61,13 @@ PERIOD_REFRESH_INTERVALS = {
     period: int(os.getenv(f'CACHE_REFRESH_INTERVAL_{period.upper().replace("-", "_")}', ttl))
     for period, ttl in PERIOD_CACHE_TTLS.items()
 }
+CACHE_PERSISTENCE_PATH = os.getenv(
+    'CACHE_PERSISTENCE_PATH',
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'power_data_cache.json')
+)
+CACHE_PERSIST_INTERVAL_SECONDS = int(os.getenv('CACHE_PERSIST_INTERVAL_SECONDS', '30'))
 _cache_warm_thread_started = False
+_last_cache_persist = 0
 
 
 def get_cache_ttl(period: str) -> int:
@@ -70,13 +81,139 @@ def make_cache_key(period: str, outlet_ids: list, user_timezone: str) -> tuple:
     return (period, sorted_ids, user_timezone)
 
 
-def get_cached_payload(cache_key, cache_ttl):
+def mark_cache_status(cache_key: tuple, status: str, eta: float | None = None):
+    """Update status metadata for a cache key."""
+    with cache_lock:
+        cache_status[cache_key] = {
+            'state': status,
+            'eta': eta,
+            'updated_at': time.time()
+        }
+
+
+def get_cache_status(cache_key: tuple) -> dict | None:
+    """Retrieve status metadata for a cache key."""
+    with cache_lock:
+        return cache_status.get(cache_key)
+
+
+def format_duration(seconds: int) -> str:
+    """Convert seconds into a friendly duration string."""
+    if seconds >= 3600:
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        if minutes:
+            return f"{hours}h {minutes}m"
+        return f"{hours}h"
+    if seconds >= 60:
+        minutes = seconds // 60
+        return f"{minutes} minute{'s' if minutes != 1 else ''}"
+    return f"{seconds} second{'s' if seconds != 1 else ''}"
+
+
+def get_cached_payload(cache_key, cache_ttl, allow_stale: bool = False):
     """Return cached payload if present and fresh."""
     with cache_lock:
         cached_entry = power_data_cache.get(cache_key)
-    if cached_entry and (time.time() - cached_entry['timestamp']) < cache_ttl:
+    if not cached_entry:
+        return None
+
+    age = time.time() - cached_entry['timestamp']
+    if age <= cache_ttl:
         return cached_entry['payload']
+
+    if allow_stale:
+        logger.info(f"Serving stale cached payload for key={cache_key}")
+        return cached_entry['payload']
+
     return None
+
+
+def persist_cache_if_needed(force: bool = False):
+    """Persist cache entries to disk so they survive restarts."""
+    global _last_cache_persist
+
+    if not CACHE_PERSISTENCE_PATH:
+        return
+
+    now = time.time()
+    if not force and (now - _last_cache_persist) < CACHE_PERSIST_INTERVAL_SECONDS:
+        return
+
+    with cache_lock:
+        entries = [
+            {
+                'period': key[0],
+                'outlet_ids': list(key[1]),
+                'timezone': key[2],
+                'timestamp': entry['timestamp'],
+                'payload': entry['payload']
+            }
+            for key, entry in power_data_cache.items()
+        ]
+
+    try:
+        directory = os.path.dirname(CACHE_PERSISTENCE_PATH)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+
+        temp_path = f"{CACHE_PERSISTENCE_PATH}.tmp"
+        with open(temp_path, 'w', encoding='utf-8') as cache_file:
+            json.dump({
+                'saved_at': now,
+                'entries': entries
+            }, cache_file)
+
+        os.replace(temp_path, CACHE_PERSISTENCE_PATH)
+        _last_cache_persist = now
+        logger.info(f"Persisted {len(entries)} cache entries to '{CACHE_PERSISTENCE_PATH}'")
+    except Exception as exc:
+        logger.error(f"Failed to persist cache to disk: {exc}")
+
+
+def load_cache_from_disk():
+    """Load previously persisted cache entries."""
+    global _last_cache_persist
+
+    if not CACHE_PERSISTENCE_PATH or not os.path.exists(CACHE_PERSISTENCE_PATH):
+        return
+
+    try:
+        with open(CACHE_PERSISTENCE_PATH, 'r', encoding='utf-8') as cache_file:
+            cached_data = json.load(cache_file)
+
+        entries = cached_data.get('entries', [])
+        loaded = 0
+        with cache_lock:
+            for entry in entries:
+                period = entry.get('period')
+                outlet_ids = entry.get('outlet_ids', [])
+                timezone_value = entry.get('timezone', DEFAULT_CACHE_TIMEZONE)
+                timestamp = entry.get('timestamp')
+                payload = entry.get('payload')
+
+                if not period or timestamp is None or payload is None:
+                    continue
+
+                key = (period, tuple(int(id_) for id_ in outlet_ids), timezone_value)
+                power_data_cache[key] = {
+                    'timestamp': timestamp,
+                    'payload': payload
+                }
+                cache_status[key] = {
+                    'state': CACHE_STATUS_READY,
+                    'eta': None,
+                    'updated_at': timestamp
+                }
+                loaded += 1
+
+            saved_at = cached_data.get('saved_at')
+            if saved_at is not None:
+                _last_cache_persist = saved_at
+
+        logger.info(f"Loaded {loaded} cache entries from '{CACHE_PERSISTENCE_PATH}'")
+    except Exception as exc:
+        logger.error(f"Failed to load cache from disk: {exc}")
 
 
 def set_cache_entry(cache_key, payload):
@@ -86,6 +223,8 @@ def set_cache_entry(cache_key, payload):
             'timestamp': time.time(),
             'payload': payload
         }
+    mark_cache_status(cache_key, CACHE_STATUS_READY)
+    persist_cache_if_needed()
 
 
 def calculate_power_data(period: str, outlet_ids: list, user_timezone: str) -> dict:
@@ -231,7 +370,7 @@ def calculate_power_data(period: str, outlet_ids: list, user_timezone: str) -> d
     }
 
 
-def warm_power_data_cache_for_timezone(user_timezone: str | None = None, periods: list | None = None):
+def warm_power_data_cache_for_timezone(user_timezone: str | None = None, periods: list | None = None, outlet_sets: list | None = None):
     """Pre-compute cache entries for all groups and specified periods."""
     tz = user_timezone or DEFAULT_CACHE_TIMEZONE
     periods_to_warm = periods or CACHE_WARM_PERIODS
@@ -247,14 +386,17 @@ def warm_power_data_cache_for_timezone(user_timezone: str | None = None, periods
 
     outlet_combinations = []
 
-    if CACHE_WARM_INCLUDE_ALL_OUTLETS and active_outlets:
-        all_ids = tuple(sorted(port.id for port in active_outlets))
-        outlet_combinations.append((all_ids, 'all_active_outlets'))
+    if outlet_sets:
+        outlet_combinations.extend(outlet_sets)
+    else:
+        if CACHE_WARM_INCLUDE_ALL_OUTLETS and active_outlets:
+            all_ids = tuple(sorted(port.id for port in active_outlets))
+            outlet_combinations.append((all_ids, 'all_active_outlets'))
 
-    for group in groups:
-        group_outlet_ids = tuple(sorted(group.get_outlet_ids() or []))
-        if group_outlet_ids:
-            outlet_combinations.append((group_outlet_ids, f"group_{group.id}"))
+        for group in groups:
+            group_outlet_ids = tuple(sorted(group.get_outlet_ids() or []))
+            if group_outlet_ids:
+                outlet_combinations.append((group_outlet_ids, f"group_{group.id}"))
 
     seen = set()
     for outlet_ids_tuple, label in outlet_combinations:
@@ -269,16 +411,22 @@ def warm_power_data_cache_for_timezone(user_timezone: str | None = None, periods
                 continue
 
             cache_key = make_cache_key(period, outlet_id_list, tz)
-            if get_cached_payload(cache_key, ttl):
+            cached_payload = get_cached_payload(cache_key, ttl)
+            if cached_payload:
+                mark_cache_status(cache_key, CACHE_STATUS_READY)
                 continue
 
             try:
+                eta = time.time() + PERIOD_REFRESH_INTERVALS.get(period, max(ttl, 60))
+                mark_cache_status(cache_key, CACHE_STATUS_PREPARING, eta=eta)
                 payload = calculate_power_data(period, outlet_id_list, tz)
                 set_cache_entry(cache_key, payload)
                 logger.info(f"Cache warmed for {label} period='{period}' timezone='{tz}'")
             except Exception as exc:
+                mark_cache_status(cache_key, CACHE_STATUS_FAILED)
                 logger.error(f"Failed to warm cache for {label} period='{period}' timezone='{tz}': {exc}")
 
+    persist_cache_if_needed(force=True)
     logger.info("Power data cache pre-warm completed for requested periods")
 
 
@@ -308,22 +456,65 @@ def start_cache_warmup_thread():
                             next_refresh[period] = time.time() + next_interval
                 else:
                     # Nothing due yet; sleep until the next refresh is scheduled
-                    sleep_for = min(
-                        max(run_at - now, 1)
+                    future_times = [
+                        run_at - now
                         for run_at in next_refresh.values()
-                    )
-                    time.sleep(sleep_for)
+                        if run_at > now
+                    ]
+                    sleep_for = min(future_times) if future_times else 1
+                    time.sleep(max(sleep_for, 1))
                     continue
 
                 # After processing due periods, sleep briefly before checking again
                 time.sleep(1)
+
+    try:
+        with app.app_context():
+            warm_power_data_cache_for_timezone(DEFAULT_CACHE_TIMEZONE)
+    except Exception as exc:
+        logger.error(f"Initial cache warmup failed: {exc}")
 
     warm_thread = threading.Thread(target=cache_warmup_loop, name="PowerDataCacheWarmup", daemon=True)
     warm_thread.start()
     _cache_warm_thread_started = True
 
 
+load_cache_from_disk()
 start_cache_warmup_thread()
+
+
+def schedule_cache_warm(outlet_ids: list[int], label: str = 'custom', periods: list | None = None, user_timezone: str | None = None):
+    """Trigger background cache warm for the given outlet IDs."""
+    if not outlet_ids:
+        return
+
+    outlet_ids_tuple = tuple(sorted(int(outlet_id) for outlet_id in outlet_ids))
+    periods_to_use = periods or list(PERIOD_CACHE_TTLS.keys())
+    tz = user_timezone or DEFAULT_CACHE_TIMEZONE
+
+    now = time.time()
+    for period in periods_to_use:
+        cache_key = make_cache_key(period, list(outlet_ids_tuple), tz)
+        ttl = PERIOD_CACHE_TTLS.get(period, 60)
+        eta = now + PERIOD_REFRESH_INTERVALS.get(period, ttl)
+        mark_cache_status(cache_key, CACHE_STATUS_PREPARING, eta=eta)
+
+    def _worker():
+        with app.app_context():
+            try:
+                warm_power_data_cache_for_timezone(
+                    tz,
+                    periods=periods_to_use,
+                    outlet_sets=[(outlet_ids_tuple, label)]
+                )
+            except Exception as exc:
+                logger.error(f"Background cache warm failed for {label}: {exc}")
+                for period in periods_to_use:
+                    cache_key = make_cache_key(period, list(outlet_ids_tuple), tz)
+                    mark_cache_status(cache_key, CACHE_STATUS_FAILED)
+
+    thread = threading.Thread(target=_worker, name=f"CacheWarm-{label}", daemon=True)
+    thread.start()
 
 
 # Security check on startup
@@ -431,16 +622,29 @@ def get_power_data():
         cache_key = make_cache_key(period, outlet_ids, user_timezone) if cache_ttl > 0 else None
 
         if cache_key:
+            status_info = get_cache_status(cache_key)
             cached_payload = get_cached_payload(cache_key, cache_ttl)
             if cached_payload:
                 logger.info(f"Serving cached power data for key={cache_key}")
                 return jsonify(cached_payload)
 
+            if not status_info or status_info.get('state') == CACHE_STATUS_FAILED:
+                schedule_cache_warm(outlet_ids, label='on_demand', periods=[period], user_timezone=user_timezone)
+                status_info = get_cache_status(cache_key)
+
+            eta = status_info.get('eta') if status_info else None
+            retry_after = max(int(eta - time.time()), 5) if eta and eta > time.time() else PERIOD_REFRESH_INTERVALS.get(period, 60)
+            friendly_wait = format_duration(retry_after)
+
+            return jsonify({
+                'success': False,
+                'status': 'preparing',
+                'message': f"Preparing {period} graph data. Please check back in about {friendly_wait}.",
+                'retry_after_seconds': retry_after
+            }), 202
+
+        # If caching disabled for this period, fall back to direct computation (should not happen normally)
         response_payload = calculate_power_data(period, outlet_ids, user_timezone)
-
-        if cache_key:
-            set_cache_entry(cache_key, response_payload)
-
         return jsonify(response_payload)
         
     except Exception as e:
@@ -563,7 +767,9 @@ def handle_groups():
             
             db.session.add(group)
             db.session.commit()
-            
+
+            schedule_cache_warm(group.get_outlet_ids(), label=f"group_{group.id}", user_timezone=DEFAULT_CACHE_TIMEZONE)
+
             return jsonify({
                 'success': True,
                 'data': {
@@ -620,9 +826,11 @@ def handle_group(group_id):
             
             if 'color' in data:
                 group.color = data['color']
-            
+
             db.session.commit()
-            
+
+            schedule_cache_warm(group.get_outlet_ids(), label=f"group_{group.id}", user_timezone=DEFAULT_CACHE_TIMEZONE)
+
             return jsonify({
                 'success': True,
                 'data': {
