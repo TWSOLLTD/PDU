@@ -193,9 +193,8 @@ def calculate_power_data(period: str, outlet_ids: list, user_timezone: str) -> d
                         energy_kwh = (interval_readings[reading_index].power_watts * time_diff) / 1000
                         total_energy_kwh += energy_kwh
 
-                    if interval_readings:
-                        last_energy = (interval_readings[-1].power_watts * (1 / 60)) / 1000
-                        total_energy_kwh += last_energy
+                    last_energy = (interval_readings[-1].power_watts * (1 / 60)) / 1000
+                    total_energy_kwh += last_energy
 
                     energy_values.append(round(total_energy_kwh, 3))
                     else:
@@ -503,7 +502,7 @@ def handle_groups():
     """Handle group operations"""
     if request.method == 'GET':
         # Get all groups
-    try:
+        try:
             groups = OutletGroup.query.all()
             group_data = []
         
@@ -534,7 +533,6 @@ def handle_groups():
         # Create new group
     try:
         data = request.get_json()
-            
             
             # Verify password
             if not verify_password(data.get('password', '')):
@@ -647,7 +645,7 @@ def handle_group(group_id):
             return jsonify({
                 'success': True,
                 'message': 'Group deleted successfully'
-            })
+        })
         
     except Exception as e:
         db.session.rollback()
