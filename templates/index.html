@@ -896,16 +896,19 @@
                     </div>
                 </div>
                     <div class="card-body">
+                        <div class="alert alert-info py-2 px-3 mb-3" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: var(--text-secondary); border-radius: 8px; font-size: 0.85rem;">
+                            Graphs are generated from groups. Select a group on the right to view cached data.
+                        </div>
                         <div class="filter-controls mb-3">
                             <div class="toggle-switch">
                                 <input type="checkbox" id="showUnnamedOutlets" class="toggle-input">
                                 <label for="showUnnamedOutlets" class="toggle-label">
                                     <span class="toggle-text">Show unnamed outlets</span>
                                 </label>
-                    </div>
+                        </div>
                             <button class="btn btn-sm ms-3 me-2" id="deselectAllBtn" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: var(--text-secondary); border-radius: 8px; padding: 0.4rem 0.8rem; font-weight: 500; transition: var(--transition); white-space: nowrap;">
                                 <i class="fas fa-times"></i> Deselect All
-                    </button>
+                        </button>
                 </div>
                         <div class="outlet-list" id="outletList">
                             <div class="loading">
@@ -1366,39 +1369,33 @@
             });
 
                 outletList.innerHTML = filteredOutlets.map(outlet => {
-                    // Determine the display name
                     let displayName;
                     if (outlet.name && outlet.name.trim() !== '' && outlet.name !== '""') {
-                        // Has a custom name - show "Name (Port Number)"
                         displayName = `${outlet.name} (${outlet.port_number})`;
                     } else {
-                        // No custom name - show "Outlet X"
                         displayName = `Outlet ${outlet.port_number}`;
                     }
-                    
+
                     return `
-                    <div class="outlet-item ${selectedOutlets.has(outlet.id) ? 'selected' : ''}" 
-                         onclick="toggleOutletSelection(${outlet.id})">
-                        <input type="checkbox" class="outlet-checkbox" 
-                               ${selectedOutlets.has(outlet.id) ? 'checked' : ''}
-                               onchange="toggleOutletSelection(${outlet.id})">
+                    <div class="outlet-item">
+                        <input type="checkbox" class="outlet-checkbox" disabled>
                         <div class="outlet-info">
                             <div class="outlet-name">
                                 ${displayName}
                             </div>
                             <div class="outlet-details">
                                 <div class="status-icon ${outlet.status === 'ON' ? 'status-on' : 'status-off'}">
-                                    <i class="fas ${outlet.status === 'ON' ? 'fa-power-off' : 'fa-power-off'}"></i>
+                                    <i class="fas fa-power-off"></i>
                                     ${outlet.status || 'OFF'}
-                        </div>
+                                </div>
                                 <div class="wattage">
                                     ${outlet.power_watts || 0}W
                                 </div>
                             </div>
-                            </div>
                         </div>
-                    `;
-                }).join('');
+                    </div>
+                `;
+            }).join('');
 
             updateCreateGroupButton();
             updateTotalWattageDisplay();

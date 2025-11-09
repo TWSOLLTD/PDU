@@ -439,7 +439,15 @@ def start_cache_warmup_thread():
 
     def cache_warmup_loop():
         with app.app_context():
-            next_refresh = {period: 0 for period in PERIOD_REFRESH_INTERVALS}
+            try:
+                warm_power_data_cache_for_timezone(DEFAULT_CACHE_TIMEZONE)
+            except Exception as exc:
+                logger.error(f"Initial cache warmup failed: {exc}")
+
+            next_refresh = {
+                period: time.time() + PERIOD_REFRESH_INTERVALS.get(period, 300)
+                for period in PERIOD_REFRESH_INTERVALS
+            }
 
             while True:
                 now = time.time()
@@ -467,12 +475,6 @@ def start_cache_warmup_thread():
 
                 # After processing due periods, sleep briefly before checking again
                 time.sleep(1)
-
-    try:
-        with app.app_context():
-            warm_power_data_cache_for_timezone(DEFAULT_CACHE_TIMEZONE)
-    except Exception as exc:
-        logger.error(f"Initial cache warmup failed: {exc}")
 
     warm_thread = threading.Thread(target=cache_warmup_loop, name="PowerDataCacheWarmup", daemon=True)
     warm_thread.start()
