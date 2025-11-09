@@ -58,6 +58,11 @@ PERIOD_REFRESH_INTERVALS = {
 }
 _cache_warm_thread_started = False
 
+# Cache status tracking for precomputed datasets
+CACHE_STATUS_READY = 'ready'
+CACHE_STATUS_PREPARING = 'preparing'
+CACHE_STATUS_FAILED = 'failed'
+
 
 def get_cache_ttl(period: str) -> int:
     """Return cache TTL in seconds for the given period."""
