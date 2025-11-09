@@ -39,20 +39,23 @@ cache_lock = threading.RLock()
 
 # Cache TTL (seconds) per period
 PERIOD_CACHE_TTLS = {
-    'day-10min': 60,       # 1 minute
-    'day': 60,             # 1 minute
-    'week-10min': 300,     # 5 minutes
-    'week': 300,           # 5 minutes
-    'month': 600,          # 10 minutes
-    'year-weekly': 600,    # 10 minutes
-    'year-monthly': 600    # 10 minutes
+    'day-10min': 60,            # refresh every minute
+    'week-10min': 60,           # refresh every minute
+    'day': 3600,                # refresh every hour
+    'week': 86400,              # refresh every day
+    'month': 86400,             # refresh every day
+    'year-weekly': 86400,       # refresh every day
+    'year-monthly': 86400       # refresh every day
 }
 
 DEFAULT_CACHE_TIMEZONE = os.getenv('DEFAULT_CACHE_TIMEZONE', 'Europe/London')
 CACHE_WARM_PERIODS = tuple(PERIOD_CACHE_TTLS.keys())
 CACHE_WARM_INCLUDE_ALL_OUTLETS = os.getenv('CACHE_WARM_INCLUDE_ALL_OUTLETS', 'true').lower() == 'true'
 ENABLE_CACHE_WARMUP = os.getenv('ENABLE_CACHE_WARMUP', 'true').lower() == 'true'
-CACHE_REFRESH_INTERVAL_SECONDS = int(os.getenv('CACHE_REFRESH_INTERVAL_SECONDS', '60'))
+PERIOD_REFRESH_INTERVALS = {
+    period: int(os.getenv(f'CACHE_REFRESH_INTERVAL_{period.upper().replace("-", "_")}', ttl))
+    for period, ttl in PERIOD_CACHE_TTLS.items()
+}
 _cache_warm_thread_started = False
 
 
@@ -228,11 +231,12 @@ def calculate_power_data(period: str, outlet_ids: list, user_timezone: str) -> d
     }
 
 
-def warm_power_data_cache_for_timezone(user_timezone: str | None = None):
-    """Pre-compute cache entries for all groups and periods."""
+def warm_power_data_cache_for_timezone(user_timezone: str | None = None, periods: list | None = None):
+    """Pre-compute cache entries for all groups and specified periods."""
     tz = user_timezone or DEFAULT_CACHE_TIMEZONE
+    periods_to_warm = periods or CACHE_WARM_PERIODS
 
-    logger.info(f"Pre-warming power data cache for timezone '{tz}'")
+    logger.info(f"Pre-warming power data cache for timezone '{tz}' periods={list(periods_to_warm)}")
 
     try:
         groups = OutletGroup.query.all()
@@ -259,7 +263,8 @@ def warm_power_data_cache_for_timezone(user_timezone: str | None = None):
         seen.add(outlet_ids_tuple)
         outlet_id_list = list(outlet_ids_tuple)
 
-        for period, ttl in PERIOD_CACHE_TTLS.items():
+        for period in periods_to_warm:
+            ttl = PERIOD_CACHE_TTLS.get(period, 0)
             if ttl <= 0:
                 continue
 
@@ -274,7 +279,7 @@ def warm_power_data_cache_for_timezone(user_timezone: str | None = None):
             except Exception as exc:
                 logger.error(f"Failed to warm cache for {label} period='{period}' timezone='{tz}': {exc}")
 
-    logger.info("Power data cache pre-warm completed")
+    logger.info("Power data cache pre-warm completed for requested periods")
 
 
 def start_cache_warmup_thread():
@@ -286,18 +291,32 @@ def start_cache_warmup_thread():
 
     def cache_warmup_loop():
         with app.app_context():
-            while True:
-                try:
-                    warm_power_data_cache_for_timezone(DEFAULT_CACHE_TIMEZONE)
-                except Exception as exc:
-                    logger.error(f"Background cache warmup failed: {exc}")
-                time.sleep(CACHE_REFRESH_INTERVAL_SECONDS)
+            next_refresh = {period: 0 for period in PERIOD_REFRESH_INTERVALS}
 
-    try:
-        with app.app_context():
-            warm_power_data_cache_for_timezone(DEFAULT_CACHE_TIMEZONE)
-    except Exception as exc:
-        logger.error(f"Initial cache warmup failed: {exc}")
+            while True:
+                now = time.time()
+                due_periods = [period for period, run_at in next_refresh.items() if now >= run_at]
+
+                if due_periods:
+                    for period in due_periods:
+                        try:
+                            warm_power_data_cache_for_timezone(DEFAULT_CACHE_TIMEZONE, periods=[period])
+                        except Exception as exc:
+                            logger.error(f"Background cache warmup failed for period '{period}': {exc}")
+                        finally:
+                            next_interval = PERIOD_REFRESH_INTERVALS.get(period, 300)
+                            next_refresh[period] = time.time() + next_interval
+                else:
+                    # Nothing due yet; sleep until the next refresh is scheduled
+                    sleep_for = min(
+                        max(run_at - now, 1)
+                        for run_at in next_refresh.values()
+                    )
+                    time.sleep(sleep_for)
+                    continue
+
+                # After processing due periods, sleep briefly before checking again
+                time.sleep(1)
 
     warm_thread = threading.Thread(target=cache_warmup_loop, name="PowerDataCacheWarmup", daemon=True)
     warm_thread.start()
